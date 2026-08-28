@@ -41,21 +41,33 @@ export async function apiRequest(endpoint: string, options: RequestInit = {}) {
     headers.set('Content-Type', 'application/json');
   }
 
-  const response = await fetch(`${API_BASE}${endpoint}`, {
-    ...options,
-    headers,
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 12000);
 
-  if (!response.ok) {
-    if (response.status === 401 && isClient) {
-      // Auto logout on token expiration
-      clearAuthToken();
+  try {
+    const response = await fetch(`${API_BASE}${endpoint}`, {
+      ...options,
+      headers,
+      signal: options.signal || controller.signal
+    });
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      if (response.status === 401 && isClient) {
+        clearAuthToken();
+      }
+      const errData = await response.json().catch(() => ({ detail: 'API request failed' }));
+      throw new Error(errData.detail || 'API request failed');
     }
-    const errData = await response.json().catch(() => ({ detail: 'API request failed' }));
-    throw new Error(errData.detail || 'API request failed');
-  }
 
-  return response.json();
+    return response.json();
+  } catch (err: any) {
+    clearTimeout(timeoutId);
+    if (err.name === 'AbortError') {
+      throw new Error('Backend response timeout (Server waking up). Retrying...');
+    }
+    throw err;
+  }
 }
 
 // Check network status
