@@ -1,3 +1,4 @@
 {
+  "outputDirectory": "frontend/.next",
   "framework": "nextjs"
 }
