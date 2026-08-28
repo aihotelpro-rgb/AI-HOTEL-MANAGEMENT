@@ -24,6 +24,11 @@ ENV/
 *.sqlite3
 sql_app.db
 
+# Secret notes & scratch text
+superbas.txt
+*.txt
+~$*.docx
+
 # Environment variables & secrets
 .env
 .env.local
