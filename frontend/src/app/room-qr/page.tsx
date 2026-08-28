@@ -2,6 +2,8 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
+
+export const dynamic = 'force-dynamic';
 import { cacheMenu, getCachedMenu, queueOfflineRequest, getQueuedRequests } from '@/lib/db';
 import { isOnline, apiRequest } from '@/lib/api';
 import { 

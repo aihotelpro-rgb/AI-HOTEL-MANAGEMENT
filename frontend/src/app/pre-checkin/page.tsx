@@ -1,11 +1,13 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Sparkles, CheckCircle2, ShieldCheck, Clock, User, Phone, Mail, FileText, CreditCard, ArrowRight } from 'lucide-react';
 import { apiRequest } from '@/lib/api';
 
-export default function PreCheckInPage() {
+export const dynamic = 'force-dynamic';
+
+function PreCheckInContent() {
   const searchParams = useSearchParams();
   const bookingIdParam = searchParams.get('booking_id') || '1';
 
@@ -443,5 +445,17 @@ export default function PreCheckInPage() {
         )}
       </main>
     </div>
+  );
+}
+
+export default function PreCheckInPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-neutral-950 text-neutral-100 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-amber-500"></div>
+      </div>
+    }>
+      <PreCheckInContent />
+    </Suspense>
   );
 }
