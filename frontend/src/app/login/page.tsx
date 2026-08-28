@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { setAuthToken } from '@/lib/api';
+import { setAuthToken, apiRequest } from '@/lib/api';
 import { Building, Lock, User as UserIcon, Settings, Sparkles, ChefHat, LayoutDashboard, CheckCircle2, ArrowRight } from 'lucide-react';
 
 export default function LoginPage() {
@@ -18,20 +18,11 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const response = await fetch('http://localhost:8000/api/v1/auth/login', {
+      const data = await apiRequest('/api/v1/auth/login', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify({ username: user, password: pass }),
       });
 
-      if (!response.ok) {
-        const data = await response.json().catch(() => ({ detail: 'Incorrect username or password' }));
-        throw new Error(data.detail || 'Login failed');
-      }
-
-      const data = await response.json();
       setAuthToken(data.access_token, data.role, data.username);
 
       // Role-based destination routing
@@ -49,7 +40,7 @@ export default function LoginPage() {
         router.push('/');
       }
     } catch (err: any) {
-      setError(err.message || 'Unable to connect to backend server on http://localhost:8000. Please ensure the backend is running.');
+      setError(err.message || 'Unable to connect to hotel backend API. Please check your network or server status.');
     } finally {
       setLoading(false);
       setActiveQuickRole(null);
