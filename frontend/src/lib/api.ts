@@ -29,7 +29,7 @@ export function clearAuthToken() {
   }
 }
 
-export async function apiRequest(endpoint: string, options: RequestInit = {}) {
+export async function apiRequest(endpoint: string, options: RequestInit = {}, isRetry: boolean = false): Promise<any> {
   const token = getAuthToken();
   const headers = new Headers(options.headers || {});
   
@@ -42,7 +42,8 @@ export async function apiRequest(endpoint: string, options: RequestInit = {}) {
   }
 
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 12000);
+  // 45s timeout to allow Render free tier cold starts (~30s) to boot up
+  const timeoutId = setTimeout(() => controller.abort(), 45000);
 
   try {
     const response = await fetch(`${API_BASE}${endpoint}`, {
@@ -63,8 +64,13 @@ export async function apiRequest(endpoint: string, options: RequestInit = {}) {
     return response.json();
   } catch (err: any) {
     clearTimeout(timeoutId);
+    if (!isRetry) {
+      // Auto-retry once after 2 seconds if cold start or transient connection reset occurs
+      await new Promise(res => setTimeout(res, 2000));
+      return apiRequest(endpoint, options, true);
+    }
     if (err.name === 'AbortError') {
-      throw new Error('Backend response timeout (Server waking up). Retrying...');
+      throw new Error('Cloud backend is booting up on Render. Please try again in 10 seconds.');
     }
     throw err;
   }
