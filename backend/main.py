@@ -77,11 +77,14 @@ from sqlalchemy import text
 async def startup_event():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-        # Auto-migrate SQLite schema for missing columns
-        try:
-            await conn.execute(text("ALTER TABLE bookings ADD COLUMN channel VARCHAR DEFAULT 'Direct Website'"))
-        except Exception:
-            pass # Column already exists
+
+    # Safe column migration for SQLite fallback
+    if "sqlite" in settings.DATABASE_URL:
+        async with engine.begin() as conn:
+            try:
+                await conn.execute(text("ALTER TABLE bookings ADD COLUMN channel VARCHAR DEFAULT 'Direct Website'"))
+            except Exception:
+                pass # Column already exists
 
     async with AsyncSessionLocal() as session:
         result = await session.execute(select(User).limit(1))
