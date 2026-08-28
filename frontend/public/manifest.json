@@ -1,0 +1,17 @@
+{
+  "name": "AI Hotel Operating System (AI-HOS)",
+  "short_name": "AI-HOS",
+  "description": "Mobile-optimized operational portals for guests and hotel staff.",
+  "start_url": "/room-qr",
+  "display": "standalone",
+  "background_color": "#121212",
+  "theme_color": "#121212",
+  "icons": [
+    {
+      "src": "/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

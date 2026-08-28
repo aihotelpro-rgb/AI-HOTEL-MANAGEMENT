@@ -1,0 +1,28 @@
+1. gmail
+email: aihotelpro@gmail.com
+pass: Sankar@1986
+
+2. other git login and git through gmail
+Organization
+
+3. superbase
+
+aihotelpro-rgb's OrgFree. 
+
+Supabase deploys the changes. 
+Project name: hotel-bluebird-nest-db
+Database password: Sankar@1986#04
+
+::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+1. git repository link
+https://github.com/aihotelpro-rgb/AI-HOTEL-MANAGEMENT
+
+2, superbase
+project name : hotel-bluebird-nest-db
+Project ID :eszefwyralssfhktrwno
+
+Project region: ap-southeast-1
+    2.1.  Connection string
+       postgresql://postgres:[YOUR- PASSWORD]@db.eszefwyralssfhktrwno.supabase.co:5432/postgres
+

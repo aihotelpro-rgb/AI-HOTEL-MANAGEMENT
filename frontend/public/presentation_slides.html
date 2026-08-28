@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI-HOS Enterprise Suite - Executive Presentation Deck</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background-color: #09090d;
+      color: #f4f4f5;
+      overflow-x: hidden;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+    h1, h2, h3, .font-heading {
+      font-family: 'Outfit', sans-serif;
+    }
+    .glow-bg {
+      background: radial-gradient(circle at 50% 15%, rgba(245, 158, 11, 0.12), transparent 70%),
+                  radial-gradient(circle at 80% 80%, rgba(217, 119, 6, 0.08), transparent 60%);
+    }
+    .glass-card {
+      background: rgba(18, 18, 24, 0.9);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+    }
+    .slide-fade {
+      animation: fadeIn 0.4s ease-out forwards;
+    }
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: scale(0.98) translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+      }
+    }
+
+    /* FULL-COLOR PDF PRINT STYLESHEET (GUARANTEED NO BLANK PAGES) */
+    @media print {
+      @page {
+        size: landscape;
+        margin: 10mm;
+      }
+      html, body {
+        background-color: #09090d !important;
+        color: #ffffff !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        height: auto !important;
+        overflow: visible !important;
+        padding: 0 !important;
+        margin: 0 !important;
+      }
+      .no-print {
+        display: none !important;
+      }
+      .slide-container, main {
+        display: block !important;
+        height: auto !important;
+        overflow: visible !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        max-width: 100% !important;
+      }
+      .slide-card, .hidden {
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        page-break-after: always !important;
+        break-after: page !important;
+        height: auto !important;
+        min-height: 180mm !important;
+        box-sizing: border-box !important;
+        background-color: #121218 !important;
+        border: 2px solid rgba(245, 158, 11, 0.3) !important;
+        border-radius: 20px !important;
+        margin: 0 0 10mm 0 !important;
+        padding: 2.5rem !important;
+        box-shadow: none !important;
+      }
+      .slide-card * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+      .bg-neutral-950\/80, .bg-neutral-950\/90, .bg-neutral-950 {
+        background-color: #050508 !important;
+        border-color: rgba(255, 255, 255, 0.15) !important;
+      }
+      .bg-neutral-900\/90, .bg-neutral-900 {
+        background-color: #121218 !important;
+      }
+      .bg-red-950\/30 {
+        background-color: rgba(69, 10, 10, 0.7) !important;
+      }
+      .bg-green-950\/30 {
+        background-color: rgba(5, 46, 22, 0.7) !important;
+      }
+      .text-amber-400 { color: #fbbf24 !important; }
+      .text-green-400 { color: #4ade80 !important; }
+      .text-red-400 { color: #f87171 !important; }
+      .text-white { color: #ffffff !important; }
+      .text-neutral-300 { color: #d4d4d8 !important; }
+      .text-neutral-400 { color: #a1a1aa !important; }
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between p-4 md:p-8 glow-bg select-none">
+
+  <!-- TOP PROGRESS BAR -->
+  <div class="fixed top-0 left-0 right-0 h-1.5 bg-neutral-900 z-50 no-print">
+    <div id="progress-bar" class="h-full bg-gradient-to-r from-amber-500 via-amber-400 to-amber-300 transition-all duration-300 w-1/7"></div>
+  </div>
+
+  <!-- TOP HEADER CONTROL BAR -->
+  <header class="flex justify-between items-center pb-4 border-b border-white/10 no-print z-40">
+    <div class="flex items-center gap-3">
+      <div class="h-10 w-10 bg-gradient-to-tr from-amber-600 via-amber-500 to-amber-300 text-neutral-950 rounded-2xl flex items-center justify-center font-extrabold text-xl shadow-xl shadow-amber-500/20 border border-amber-300/40">
+        👑
+      </div>
+      <div>
+        <h1 class="text-base font-extrabold text-white tracking-wide font-heading">AI-HOS Enterprise Suite</h1>
+        <p class="text-xs text-neutral-400">Next-Gen Autonomous AI Operating System • Executive Deck</p>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-3">
+      <!-- Slide Selector Dropdown -->
+      <select 
+        id="slide-select"
+        onchange="jumpToSlide(parseInt(this.value))"
+        class="bg-neutral-900 border border-white/15 text-neutral-200 text-xs font-bold px-3 py-2 rounded-xl focus:outline-none focus:border-amber-500 cursor-pointer"
+      >
+        <option value="0">Slide 1: Executive Cover</option>
+        <option value="1">Slide 2: Market Challenge vs Solution</option>
+        <option value="2">Slide 3: Unified Platform Architecture</option>
+        <option value="3">Slide 4: Guest Digital Experience & PWA</option>
+        <option value="4">Slide 5: Multi-Brand CCTV & Intercom</option>
+        <option value="5">Slide 6: Financial ROI & Metrics</option>
+        <option value="6">Slide 7: Enterprise Deployment & Contact</option>
+      </select>
+
+      <!-- Fullscreen Toggle -->
+      <button 
+        onclick="toggleFullscreen()"
+        class="px-3.5 py-2 bg-neutral-900 hover:bg-neutral-800 text-neutral-300 border border-white/15 rounded-xl font-bold text-xs transition cursor-pointer"
+      >
+        ⛶ Fullscreen
+      </button>
+
+      <!-- Export to Full-Color PDF -->
+      <button 
+        onclick="printPresentation()" 
+        class="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-neutral-950 font-extrabold text-xs rounded-xl shadow-lg shadow-amber-500/20 transition flex items-center gap-2 cursor-pointer border border-amber-300/50"
+      >
+        <span>🖨️</span>
+        <span>Export Full-Color PDF</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- MAIN SLIDES CONTAINER -->
+  <main class="flex-1 my-6 flex items-center justify-center relative z-10 slide-container">
+    <div class="w-full max-w-5xl">
+
+      <!-- SLIDE 1: Executive Cover -->
+      <div id="slide-0" class="slide-card glass-card rounded-3xl p-8 md:p-14 space-y-8 text-center slide-fade">
+        <div class="space-y-3">
+          <span class="px-4 py-1.5 bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-extrabold rounded-full inline-block uppercase tracking-widest badge-print">
+            EXECUTIVE PRESENTATION DECK
+          </span>
+          <h1 class="text-4xl md:text-6xl font-extrabold text-white tracking-tight leading-tight font-heading">
+            AI-HOS Enterprise Suite
+          </h1>
+          <p class="text-lg md:text-2xl text-neutral-300 max-w-2xl mx-auto font-light leading-relaxed">
+            The World’s First Autonomous AI Operating System for Modern Luxury Hotels & Resorts
+          </p>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-left max-w-3xl mx-auto pt-4">
+          <div class="bg-neutral-950/80 border border-amber-500/20 p-5 rounded-2xl space-y-1 shadow-inner">
+            <span class="text-4xl font-extrabold text-amber-400 font-heading block">+35%</span>
+            <span class="text-xs text-neutral-300 font-semibold">RevPAR Revenue Growth</span>
+            <p class="text-[10px] text-neutral-400">Dynamic pricing & upsell automation</p>
+          </div>
+          <div class="bg-neutral-950/80 border border-amber-500/20 p-5 rounded-2xl space-y-1 shadow-inner">
+            <span class="text-4xl font-extrabold text-amber-400 font-heading block">50%</span>
+            <span class="text-xs text-neutral-300 font-semibold">Labor Hours Saved</span>
+            <p class="text-[10px] text-neutral-400">Autonomous ticket & order routing</p>
+          </div>
+          <div class="bg-neutral-950/80 border border-amber-500/20 p-5 rounded-2xl space-y-1 shadow-inner">
+            <span class="text-4xl font-extrabold text-amber-400 font-heading block">96%</span>
+            <span class="text-xs text-neutral-300 font-semibold">Guest Satisfaction (NPS)</span>
+            <p class="text-[10px] text-neutral-400">Sub-8min service delivery speed</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- SLIDE 2: Market Challenge vs Solution -->
+      <div id="slide-1" class="slide-card glass-card hidden rounded-3xl p-8 md:p-14 space-y-8 slide-fade">
+        <div>
+          <span class="text-xs font-extrabold text-amber-500 uppercase tracking-widest block">Market Analysis</span>
+          <h2 class="text-3xl md:text-5xl font-extrabold text-white mt-1 font-heading">The $100B Legacy Bottleneck vs. AI-HOS</h2>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="bg-red-950/30 border border-red-900/40 p-6 rounded-2xl space-y-4">
+            <h3 class="text-lg font-extrabold text-red-400 flex items-center gap-2 font-heading">
+              <span>❌</span> Legacy Fragmented Operations
+            </h3>
+            <ul class="space-y-3 text-xs text-neutral-300">
+              <li class="flex items-start gap-2.5">
+                <span class="text-red-400 font-bold">•</span>
+                <span><strong>Disconnected Software</strong>: PMS, POS, KDS, and WhatsApp run in separate silos.</span>
+              </li>
+              <li class="flex items-start gap-2.5">
+                <span class="text-red-400 font-bold">•</span>
+                <span><strong>Slow Response Speed</strong>: Towel and AC complaint requests take 25+ minutes.</span>
+              </li>
+              <li class="flex items-start gap-2.5">
+                <span class="text-red-400 font-bold">•</span>
+                <span><strong>Inventory Leakage</strong>: Food orders don't sync with raw kitchen ingredient stock.</span>
+              </li>
+              <li class="flex items-start gap-2.5">
+                <span class="text-red-400 font-bold">•</span>
+                <span><strong>Manual Friction</strong>: Slow check-in queues and paper dining menus.</span>
+              </li>
+            </ul>
+          </div>
+
+          <div class="bg-green-950/30 border border-green-900/40 p-6 rounded-2xl space-y-4">
+            <h3 class="text-lg font-extrabold text-green-400 flex items-center gap-2 font-heading">
+              <span>⚡</span> The AI-HOS Enterprise Operating System
+            </h3>
+            <ul class="space-y-3 text-xs text-neutral-300">
+              <li class="flex items-start gap-2.5">
+                <span class="text-green-400 font-bold">✓</span>
+                <span><strong>Unified Single Source of Truth</strong>: Real-time synchronization across all hotel roles.</span>
+              </li>
+              <li class="flex items-start gap-2.5">
+                <span class="text-green-400 font-bold">✓</span>
+                <span><strong>🚨 Auto SLA Breach Engine</strong>: Automatically alerts GM if open ticket &gt; 15 mins.</span>
+              </li>
+              <li class="flex items-start gap-2.5">
+                <span class="text-green-400 font-bold">✓</span>
+                <span><strong>Auto Stock Deduction</strong>: Deducts Paneer, Butter, Rice automatically on food orders.</span>
+              </li>
+              <li class="flex items-start gap-2.5">
+                <span class="text-green-400 font-bold">✓</span>
+                <span><strong>Touchless Guest PWA</strong>: 1-Click Check-In/Out, Voice Assistant, & Dial 100 Speed-Dial.</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- SLIDE 3: Unified Platform Architecture -->
+      <div id="slide-2" class="slide-card glass-card hidden rounded-3xl p-8 md:p-14 space-y-8 slide-fade">
+        <div>
+          <span class="text-xs font-extrabold text-amber-500 uppercase tracking-widest block">Core Ecosystem</span>
+          <h2 class="text-3xl md:text-5xl font-extrabold text-white mt-1 font-heading">5 Interconnected Role Engines</h2>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-xs">
+          <div class="bg-neutral-950/90 border border-white/10 p-5 rounded-2xl space-y-2">
+            <h3 class="font-extrabold text-amber-400 text-sm flex items-center gap-2 font-heading">
+              <span>📱</span> Guest PWA (/room-qr)
+            </h3>
+            <p class="text-neutral-400">Touchless gourmet food menu, 4-language support, Web Speech voice assistant, Dial 100 intercom, & auto log-out.</p>
+          </div>
+
+          <div class="bg-neutral-950/90 border border-white/10 p-5 rounded-2xl space-y-2">
+            <h3 class="font-extrabold text-amber-400 text-sm flex items-center gap-2 font-heading">
+              <span>🏨</span> Reception Ledger (/reception)
+            </h3>
+            <p class="text-neutral-400">1-Click Fast Check-In/Out, Police C-Form registration compliance, invoice printing, & Intercom console.</p>
+          </div>
+
+          <div class="bg-neutral-950/90 border border-white/10 p-5 rounded-2xl space-y-2">
+            <h3 class="font-extrabold text-amber-400 text-sm flex items-center gap-2 font-heading">
+              <span>👨‍🍳</span> Kitchen KDS (/kitchen)
+            </h3>
+            <p class="text-neutral-400">5-stage order delivery lifecycle, kitchen countdown timers, & AI Chef Daily Prep Forecaster.</p>
+          </div>
+
+          <div class="bg-neutral-950/90 border border-white/10 p-5 rounded-2xl space-y-2">
+            <h3 class="font-extrabold text-amber-400 text-sm flex items-center gap-2 font-heading">
+              <span>👑</span> GM Command Tower (/manager)
+            </h3>
+            <p class="text-neutral-400">Revenue simulator, Task Master Inspector, SLA Breach alerts, CCTV wall, & 07:30 AM morning summary.</p>
+          </div>
+
+          <div class="bg-neutral-950/90 border border-white/10 p-5 rounded-2xl space-y-2">
+            <h3 class="font-extrabold text-amber-400 text-sm flex items-center gap-2 font-heading">
+              <span>🏢</span> Super-Admin (/admin)
+            </h3>
+            <p class="text-neutral-400">Hotel branding, suite inventory, F&B menu, raw stock, staff HR RBAC, & multi-brand CCTV controls.</p>
+          </div>
+
+          <div class="bg-neutral-950/90 border border-white/10 p-5 rounded-2xl space-y-2">
+            <h3 class="font-extrabold text-amber-400 text-sm flex items-center gap-2 font-heading">
+              <span>📹</span> CCTV & WebRTC Intercom
+            </h3>
+            <p class="text-neutral-400">Multi-brand CCTV RTSP streaming (CP Plus, Hikvision) & direct WebRTC audio intercom calls.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- SLIDE 4: Guest Digital Experience & PWA -->
+      <div id="slide-3" class="slide-card glass-card hidden rounded-3xl p-8 md:p-14 space-y-8 slide-fade">
+        <div>
+          <span class="text-xs font-extrabold text-amber-500 uppercase tracking-widest block">Guest Innovation</span>
+          <h2 class="text-3xl md:text-5xl font-extrabold text-white mt-1 font-heading">In-Room Guest Touchless PWA</h2>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-5 text-xs">
+          <div class="bg-neutral-950/90 border border-white/10 p-5 rounded-2xl space-y-2">
+            <span class="text-amber-400 text-2xl block">🌐</span>
+            <h3 class="font-extrabold text-white text-sm font-heading">Multi-Language & Currency</h3>
+            <p class="text-neutral-400">Real-time UI translation in <strong>English, Hindi (हिन्दी), Gujarati (ગુજરાતી), and French (Français)</strong> with multi-currency (₹, $, €, £, AED).</p>
+          </div>
+
+          <div class="bg-neutral-950/90 border border-white/10 p-5 rounded-2xl space-y-2">
+            <span class="text-amber-400 text-2xl block">🎙️</span>
+            <h3 class="font-extrabold text-white text-sm font-heading">Web Speech Voice Assistant</h3>
+            <p class="text-neutral-400">Hands-free voice commanding for towels, housekeeping, and food orders in any language.</p>
+          </div>
+
+          <div class="bg-neutral-950/90 border border-white/10 p-5 rounded-2xl space-y-2">
+            <span class="text-amber-400 text-2xl block">🔒</span>
+            <h3 class="font-extrabold text-white text-sm font-heading">100% Session Invalidation</h3>
+            <p class="text-neutral-400">When reception checks out a room, the guest QR code session automatically clears to protect privacy.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- SLIDE 5: CCTV Hardware & Intercom -->
+      <div id="slide-4" class="slide-card glass-card hidden rounded-3xl p-8 md:p-14 space-y-8 slide-fade">
+        <div>
+          <span class="text-xs font-extrabold text-amber-500 uppercase tracking-widest block">Hardware Integration</span>
+          <h2 class="text-3xl md:text-5xl font-extrabold text-white mt-1 font-heading">Multi-Brand CCTV & Audio Intercom Setup</h2>
+        </div>
+
+        <div class="bg-neutral-950/90 border border-white/10 p-6 rounded-2xl space-y-5">
+          <div class="flex flex-wrap gap-2 text-xs font-extrabold">
+            <span class="px-3 py-1 bg-amber-500/20 text-amber-400 rounded-xl border border-amber-500/30">CP Plus</span>
+            <span class="px-3 py-1 bg-amber-500/20 text-amber-400 rounded-xl border border-amber-500/30">Hikvision</span>
+            <span class="px-3 py-1 bg-amber-500/20 text-amber-400 rounded-xl border border-amber-500/30">Dahua</span>
+            <span class="px-3 py-1 bg-amber-500/20 text-amber-400 rounded-xl border border-amber-500/30">Uniview</span>
+            <span class="px-3 py-1 bg-amber-500/20 text-amber-400 rounded-xl border border-amber-500/30">Honeywell ONVIF</span>
+          </div>
+
+          <div class="p-4 bg-neutral-900 rounded-xl border border-white/10 text-xs font-mono text-amber-300 overflow-x-auto">
+            [ IP Cameras ] ──► [ PoE Switch ] ──► [ Hotel NVR ] ──► [ RTSP Gateway ] ──► [ AI-HOS Dashboard ]
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-neutral-300 pt-2">
+            <div class="bg-neutral-900/60 p-4 rounded-xl border border-white/5 space-y-1">
+              <span class="font-extrabold text-white block">📹 CCTV Surveillance Wall</span>
+              <p class="text-neutral-400">4-Camera live RTSP/HLS stream monitor with motion sensors and full HD expansion.</p>
+            </div>
+            <div class="bg-neutral-900/60 p-4 rounded-xl border border-white/5 space-y-1">
+              <span class="font-extrabold text-white block">📞 Speed-Dial Intercom (Dial 100)</span>
+              <p class="text-neutral-400">Zero-lag WebRTC audio intercom calling directly connecting guest phones to Front Desk.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SLIDE 6: Financial ROI & Metrics -->
+      <div id="slide-5" class="slide-card glass-card hidden rounded-3xl p-8 md:p-14 space-y-8 slide-fade">
+        <div>
+          <span class="text-xs font-extrabold text-amber-500 uppercase tracking-widest block">Business Impact</span>
+          <h2 class="text-3xl md:text-5xl font-extrabold text-white mt-1 font-heading">Measurable Operational ROI</h2>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs text-neutral-200">
+            <thead class="bg-neutral-950 text-neutral-400 uppercase text-[10px] tracking-wider border-b border-white/10">
+              <tr>
+                <th class="py-3 px-4">Performance Metric</th>
+                <th class="py-3 px-4">Legacy Operations</th>
+                <th class="py-3 px-4">With AI-HOS Platform</th>
+                <th class="py-3 px-4 text-right">Business Impact</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-white/5">
+              <tr>
+                <td class="py-3.5 px-4 font-bold text-white">Average Ticket Response Speed</td>
+                <td class="py-3.5 px-4 text-neutral-400">25 Minutes</td>
+                <td class="py-3.5 px-4 font-extrabold text-green-400">6 Minutes</td>
+                <td class="py-3.5 px-4 text-right font-extrabold text-amber-400">⚡ 75% Faster</td>
+              </tr>
+              <tr>
+                <td class="py-3.5 px-4 font-bold text-white">In-Room Dining Revenue / Room</td>
+                <td class="py-3.5 px-4 text-neutral-400">₹1,800 / month</td>
+                <td class="py-3.5 px-4 font-extrabold text-green-400">₹3,400 / month</td>
+                <td class="py-3.5 px-4 text-right font-extrabold text-amber-400">📈 +88% Growth</td>
+              </tr>
+              <tr>
+                <td class="py-3.5 px-4 font-bold text-white">Front Desk Staff Time Saved</td>
+                <td class="py-3.5 px-4 text-neutral-400">Baseline</td>
+                <td class="py-3.5 px-4 font-extrabold text-green-400">4.5 Hours / Day</td>
+                <td class="py-3.5 px-4 text-right font-extrabold text-amber-400">⏱️ 50% Time Saved</td>
+              </tr>
+              <tr>
+                <td class="py-3.5 px-4 font-bold text-white">Guest Satisfaction Score (NPS)</td>
+                <td class="py-3.5 px-4 text-neutral-400">72%</td>
+                <td class="py-3.5 px-4 font-extrabold text-green-400">96%</td>
+                <td class="py-3.5 px-4 text-right font-extrabold text-amber-400">🌟 +24% Boost</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- SLIDE 7: Enterprise Deployment & Contact -->
+      <div id="slide-6" class="slide-card glass-card hidden rounded-3xl p-8 md:p-14 space-y-8 text-center slide-fade">
+        <div class="space-y-3">
+          <span class="px-4 py-1.5 bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-extrabold rounded-full inline-block uppercase tracking-widest badge-print">
+            READY FOR DEPLOYMENT
+          </span>
+          <h2 class="text-3xl md:text-5xl font-extrabold text-white font-heading">Elevate Your Property with AI-HOS</h2>
+          <p class="text-neutral-400 text-sm max-w-lg mx-auto">
+            Contact our engineering deployment team today to schedule an on-site installation or live demo.
+          </p>
+        </div>
+
+        <div class="pt-4 flex flex-wrap justify-center gap-4 text-xs font-extrabold">
+          <a href="http://localhost:3000" target="_blank" class="bg-neutral-950 border border-white/10 px-6 py-4 rounded-2xl text-neutral-200 hover:border-amber-500 transition shadow-xl">
+            🌐 Live System Portal: <span class="text-amber-400 block text-sm mt-0.5 font-mono">http://localhost:3000</span>
+          </a>
+          <div class="bg-neutral-950 border border-white/10 px-6 py-4 rounded-2xl text-neutral-200 shadow-xl">
+            ✉️ Email Support: <span class="text-amber-400 block text-sm mt-0.5 font-mono">support@ai-hos.com</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- BOTTOM NAVIGATION CONTROL FOOTER -->
+  <footer class="flex justify-between items-center pt-4 border-t border-white/10 no-print z-40">
+    <div class="flex items-center gap-3">
+      <span id="slide-counter" class="text-xs font-extrabold text-amber-400 bg-neutral-900 px-3.5 py-1.5 rounded-xl border border-white/10 shadow">
+        Slide 1 of 7
+      </span>
+      <div id="dot-container" class="flex gap-1.5"></div>
+    </div>
+
+    <div class="flex gap-2">
+      <button 
+        id="btn-prev" 
+        onclick="changeSlide(-1)" 
+        class="px-5 py-2.5 bg-neutral-900 hover:bg-neutral-800 text-neutral-200 font-extrabold text-xs rounded-xl border border-white/10 transition disabled:opacity-30 active:scale-95 cursor-pointer"
+      >
+        ← Previous
+      </button>
+      <button 
+        id="btn-next" 
+        onclick="changeSlide(1)" 
+        class="px-6 py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-neutral-950 font-extrabold text-xs rounded-xl shadow-lg shadow-amber-500/20 transition active:scale-95 border border-amber-300/40 disabled:opacity-30 cursor-pointer"
+      >
+        Next →
+      </button>
+    </div>
+  </footer>
+
+  <!-- SCRIPT FOR SLIDE NAVIGATION & PRINT HANDLER -->
+  <script>
+    let currentIndex = 0;
+    const totalSlides = 7;
+
+    function renderSlide(index) {
+      for (let i = 0; i < totalSlides; i++) {
+        const el = document.getElementById(`slide-${i}`);
+        if (el) {
+          if (i === index) {
+            el.classList.remove('hidden');
+          } else {
+            el.classList.add('hidden');
+          }
+        }
+      }
+
+      // Update progress bar
+      const pct = ((index + 1) / totalSlides) * 100;
+      document.getElementById('progress-bar').style.width = `${pct}%`;
+
+      // Update counter & select dropdown
+      document.getElementById('slide-counter').textContent = `Slide ${index + 1} of ${totalSlides}`;
+      document.getElementById('slide-select').value = index;
+
+      document.getElementById('btn-prev').disabled = index === 0;
+      document.getElementById('btn-next').disabled = index === totalSlides - 1;
+
+      renderDots(index);
+    }
+
+    function renderDots(activeIndex) {
+      const container = document.getElementById('dot-container');
+      container.innerHTML = '';
+      for (let i = 0; i < totalSlides; i++) {
+        const dot = document.createElement('button');
+        dot.className = `h-2 rounded-full transition-all duration-300 ${i === activeIndex ? 'w-6 bg-amber-500' : 'w-2 bg-neutral-800 hover:bg-neutral-600'}`;
+        dot.onclick = () => jumpToSlide(i);
+        container.appendChild(dot);
+      }
+    }
+
+    function changeSlide(direction) {
+      const newIdx = currentIndex + direction;
+      if (newIdx >= 0 && newIdx < totalSlides) {
+        currentIndex = newIdx;
+        renderSlide(currentIndex);
+      }
+    }
+
+    function jumpToSlide(index) {
+      if (index >= 0 && index < totalSlides) {
+        currentIndex = index;
+        renderSlide(currentIndex);
+      }
+    }
+
+    function toggleFullscreen() {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(err => console.log(err));
+      } else {
+        if (document.exitFullscreen) {
+          document.exitFullscreen();
+        }
+      }
+    }
+
+    // FOOLPROOF PRINT HANDLER: TEMPORARILY SHOW ALL SLIDES BEFORE WINDOW.PRINT()
+    function printPresentation() {
+      const allSlides = document.querySelectorAll('.slide-card');
+      allSlides.forEach(s => s.classList.remove('hidden'));
+      
+      setTimeout(() => {
+        window.print();
+        renderSlide(currentIndex);
+      }, 100);
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight' || e.key === 'Space') changeSlide(1);
+      if (e.key === 'ArrowLeft') changeSlide(-1);
+    });
+
+    // Initialize
+    renderSlide(0);
+  </script>
+
+</body>
+</html>
