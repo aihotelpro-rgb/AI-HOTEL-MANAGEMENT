@@ -1621,8 +1621,8 @@ function GuestRoomQRContent() {
               <span className="text-[10px] uppercase font-extrabold tracking-wider text-green-400 block">
                 Direct Front Desk Speed-Dial (Dial 100)
               </span>
-              <h3 className="text-lg font-extrabold text-white mt-1">Calling Palace Reception...</h3>
-              <p className="text-xs text-neutral-400 mt-0.5">Suite {roomNumber} • High-Definition Audio Intercom</p>
+              <h3 className="text-lg font-extrabold text-white mt-1">Calling Hotel Blue Bird Inn Front Desk...</h3>
+              <p className="text-xs text-neutral-400 mt-0.5">Room {roomNumber} • High-Definition Audio Intercom</p>
             </div>
 
             {/* Call Timer & Audio Wave */}

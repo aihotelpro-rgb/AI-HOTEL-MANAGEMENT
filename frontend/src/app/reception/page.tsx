@@ -83,7 +83,19 @@ export default function ReceptionPMSPage() {
 
   // Intercom Call Console State
   const [intercomCallModalOpen, setIntercomCallModalOpen] = useState(false);
-  const [activeIntercomRoom, setActiveIntercomRoom] = useState('304');
+  const [activeIntercomRoom, setActiveIntercomRoom] = useState('204');
+  const [intercomCallActive, setIntercomCallActive] = useState(false);
+  const [intercomCallSeconds, setIntercomCallSeconds] = useState(0);
+
+  useEffect(() => {
+    let timer: any = null;
+    if (intercomCallActive) {
+      timer = setInterval(() => setIntercomCallSeconds(s => s + 1), 1000);
+    } else {
+      setIntercomCallSeconds(0);
+    }
+    return () => clearInterval(timer);
+  }, [intercomCallActive]);
 
   // Modal States
   const [checkInModalOpen, setCheckInModalOpen] = useState(false);
@@ -1626,12 +1638,15 @@ export default function ReceptionPMSPage() {
                   📞
                 </div>
                 <div>
-                  <h3 className="text-sm font-extrabold text-white">Front Desk Intercom & Guest Call Console</h3>
-                  <p className="text-[10px] text-neutral-400">Palace VoIP Audio Intercom • Speed Dial 100</p>
+                  <h3 className="text-sm font-extrabold text-white">Hotel Blue Bird Inn Intercom Console</h3>
+                  <p className="text-[10px] text-neutral-400">Front Desk VoIP Ext 100 • 24 Island Suites</p>
                 </div>
               </div>
               <button
-                onClick={() => setIntercomCallModalOpen(false)}
+                onClick={() => {
+                  setIntercomCallActive(false);
+                  setIntercomCallModalOpen(false);
+                }}
                 className="h-7 w-7 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 rounded-full flex items-center justify-center text-xs font-bold"
               >
                 ✕
@@ -1641,34 +1656,63 @@ export default function ReceptionPMSPage() {
             <div className="space-y-3 text-xs">
               <div className="p-3.5 bg-neutral-950 border border-neutral-800 rounded-2xl flex justify-between items-center">
                 <div>
-                  <span className="font-extrabold text-white text-sm block">Suite {activeIntercomRoom}</span>
+                  <span className="font-extrabold text-white text-sm block">Suite Ext {activeIntercomRoom}</span>
                   <span className="text-[10px] text-green-400 font-semibold flex items-center gap-1 mt-0.5">
                     <span className="h-1.5 w-1.5 rounded-full bg-green-400 animate-ping" />
-                    Incoming Intercom Audio Stream Active
+                    {intercomCallActive ? `Call Active: ${Math.floor(intercomCallSeconds / 60).toString().padStart(2, '0')}:${(intercomCallSeconds % 60).toString().padStart(2, '0')}` : 'VoIP Extension Registered'}
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => alert(`Connected to Suite ${activeIntercomRoom} audio stream.`)}
-                    className="px-3 py-1.5 bg-green-500 hover:bg-green-400 text-neutral-950 font-extrabold text-xs rounded-xl shadow"
-                  >
-                    Answer Call
-                  </button>
+                  {!intercomCallActive ? (
+                    <button
+                      onClick={async () => {
+                        try {
+                          await apiRequest('/api/v1/intercom/call', {
+                            method: 'POST',
+                            body: JSON.stringify({ room_number: activeIntercomRoom, from_extension: '100' })
+                          });
+                          setIntercomCallActive(true);
+                        } catch (err) {
+                          setIntercomCallActive(true);
+                        }
+                      }}
+                      className="px-3 py-1.5 bg-green-500 hover:bg-green-400 text-neutral-950 font-extrabold text-xs rounded-xl shadow"
+                    >
+                      Answer / Call
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => setIntercomCallActive(false)}
+                      className="px-3 py-1.5 bg-red-600 hover:bg-red-500 text-white font-extrabold text-xs rounded-xl shadow animate-pulse"
+                    >
+                      End Call 🔴
+                    </button>
+                  )}
                 </div>
               </div>
 
               <div className="p-3 bg-neutral-950 border border-neutral-800 rounded-2xl space-y-2">
-                <span className="text-[10px] font-extrabold uppercase tracking-wider text-neutral-400 block">Outbound Suite Speed-Dial</span>
+                <span className="text-[10px] font-extrabold uppercase tracking-wider text-neutral-400 block">Speed-Dial Room Extension (101 – 212)</span>
                 <div className="flex gap-2">
                   <input
                     type="text"
                     value={activeIntercomRoom}
                     onChange={(e) => setActiveIntercomRoom(e.target.value)}
-                    placeholder="Enter Suite # (e.g. 304)"
+                    placeholder="Enter Suite # (e.g. 204)"
                     className="flex-1 bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-amber-500"
                   />
                   <button
-                    onClick={() => alert(`Dialing Suite ${activeIntercomRoom}...`)}
+                    onClick={async () => {
+                      try {
+                        await apiRequest('/api/v1/intercom/call', {
+                          method: 'POST',
+                          body: JSON.stringify({ room_number: activeIntercomRoom, from_extension: '100' })
+                        });
+                        setIntercomCallActive(true);
+                      } catch (err) {
+                        setIntercomCallActive(true);
+                      }
+                    }}
                     className="px-3.5 bg-amber-500 hover:bg-amber-400 text-neutral-950 font-extrabold text-xs rounded-xl transition"
                   >
                     Dial Suite
@@ -1678,7 +1722,10 @@ export default function ReceptionPMSPage() {
             </div>
 
             <button
-              onClick={() => setIntercomCallModalOpen(false)}
+              onClick={() => {
+                setIntercomCallActive(false);
+                setIntercomCallModalOpen(false);
+              }}
               className="w-full py-2 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 font-extrabold text-xs rounded-xl transition"
             >
               Close Intercom Console
