@@ -3,53 +3,51 @@ import { NextRequest, NextResponse } from 'next/server';
 export const dynamic = 'force-dynamic';
 
 const BRIEFING_TEXT = `# 👑 Executive Morning Briefing
-*The Grand Palace Resort & Heritage Spa • Jaipur*
+*Hotel Blue Bird Inn • Garacharma, Sri Vijayapuram, Andaman & Nicobar Islands*
 
 ## 📊 Daily Performance Summary
-- **Occupancy Rate**: 94.0% (47 of 50 Suites Occupied)
-- **RevPAR (Revenue per Available Room)**: ₹11,280.00
-- **ADR (Average Daily Rate)**: ₹12,000.00
-- **Daily Projected Turnover**: ₹5,64,000.00 (Rooms + In-Room Dining)
+- **Hotel Inventory**: 24 Deluxe Island Suites across 2 Floors (12 Rooms/Floor)
+- **Occupancy Rate**: 91.7% (22 of 24 Rooms Occupied)
+- **RevPAR (Revenue per Available Room)**: ₹4,125.00
+- **ADR (Average Daily Rate)**: ₹4,500.00
+- **Daily Turnover**: ₹99,000.00 (Room Accommodations + Island F&B Dining)
+
+## 📞 Intercom System Status
+- **Ext 100 (Front Desk Console)**: 100% Online & Active
+- **Suite Extensions (Ext 101 – 212)**: 24 Lines Registered via VoIP Speed Dial
+- **Intercom Health Check**: Clean audio signal on all 2 floors
 
 ## 🌟 VIP Guests & Notable Arrivals
-- **Maharaja Raghavendra Singh** (Suite 304) — Royal Canopy Suite Check-In. Airport luxury Mercedes S-Class transfer arranged for 10:00 AM.
-- **Pooja Sharma** (Suite 102) — Corporate Executive Guest. Special request for organic sandalwood aromatics.
-- **Vikram Malhotra** (Suite 501) — Maharaja Penthouse Check-In (4-Night Stay).
+- **Maharaja Raghavendra Singh** (Room 204) — Royal Sea Breeze Check-In. Intercom VoIP Speed Dial active.
+- **Pooja Sharma** (Room 101) — Executive Guest.
 
-## 🍽️ Kitchen KDS & Dining Operations
-- **Active Orders Queue**: 1 Order in Preparation (Royal Butter Chicken & Garlic Naan Basket).
-- **Average Preparation Time**: 16.4 minutes (Target: <20 min).
-- **Top Dish**: Royal Butter Chicken (Murgh Makhani) — 24 portions ordered today.
+## 🍽️ Kitchen KDS & Island Dining
+- **Active Orders Queue**: 1 Order in Preparation (Andaman Fresh Catch Fish Curry).
+- **Average Food Delivery Time**: 14.2 minutes.
 
-## 🧹 Housekeeping & Facility Operations
-- **Turnover Matrix**: 47 Suites Inspected & Clean, 3 Suites Under Turnover.
-- **Open Staff Tickets**: 2 Active Requests (Bath Towel Delivery to Suite 304 & Espresso Machine Maintenance in Suite 102).
-- **Surveillance**: 4K UHD Cameras (CAM-01 to CAM-04) 100% Operational.
-
-## 📈 AI Dynamic Yield Optimization Directive
-- **Pricing Strategy**: Increase weekend BAR rates by **+12%** for Suite Categories 300-500.
-- **Market Demand Alert**: Jaipur Heritage Festival high demand detected. Projected weekend occupancy is 100%.`;
+## 🧹 Housekeeping & Facilities
+- **Matrix**: 22 Suites Inspected & Clean, 2 Suites Under Turnover.
+- **Surveillance**: 4K UHD Cameras Active across Ground Archway & Floor 1-2 Corridors.`;
 
 const EXECUTIVE_BRIEFING = {
   date: new Date().toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }),
-  occupancy_rate: 94.0,
-  rev_par: 11280.0,
-  revpar: 11280.0,
-  adr: 12000.0,
-  total_revenue: 564000.0,
-  room_revenue: 450000.0,
-  dining_revenue: 84000.0,
-  open_tickets_count: 2,
+  hotel_name: "Hotel Blue Bird Inn",
+  location: "Garacharma, Sri Vijayapuram, Andaman and Nicobar Islands",
+  total_rooms: 24,
+  total_floors: 2,
+  occupancy_rate: 91.7,
+  rev_par: 4125.0,
+  revpar: 4125.0,
+  adr: 4500.0,
+  total_revenue: 99000.0,
+  room_revenue: 82500.0,
+  dining_revenue: 16500.0,
+  open_tickets_count: 1,
   active_orders_count: 1,
   briefing_text: BRIEFING_TEXT,
-  sentiment_score: 98,
-  sentiment_summary: "Guests report exceptional royal dining and seamless AI concierge response times.",
-  pricing_recommendation: "Increase weekend BAR rates by +12% for Suite Categories 300-500 due to upcoming Jaipur Heritage Festival demand.",
-  key_highlights: [
-    "VIP Arrival: Maharaja Raghavendra Singh checked into Suite 304.",
-    "KDS Dining Efficiency: Average food prep time reduced to 16.4 minutes.",
-    "Housekeeping Matrix: 47 of 50 suites inspected & ready for check-in."
-  ]
+  sentiment_score: 99,
+  sentiment_summary: "Guests rate island dining and instant 1-click intercom speed dial 99% positive.",
+  pricing_recommendation: "Maintain ₹4,500 ADR rate for Deluxe Island King & Sea Breeze Suites."
 };
 
 export async function OPTIONS() {

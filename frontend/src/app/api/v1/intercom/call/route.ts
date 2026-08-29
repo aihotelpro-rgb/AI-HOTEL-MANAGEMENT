@@ -13,20 +13,22 @@ export async function OPTIONS() {
   });
 }
 
-export async function GET() {
+export async function POST(req: NextRequest) {
+  const body = await req.json().catch(() => ({}));
+  const targetRoom = body.room_number || body.extension || '100';
+
   return NextResponse.json(
     {
-      status: "online",
-      service: "Hotel Blue Bird Inn AI Suite",
-      hotel_name: "Hotel Blue Bird Inn",
-      location: "Garacharma, Sri Vijayapuram, Andaman and Nicobar Islands",
-      available_rooms: 22,
-      total_rooms: 24,
-      total_floors: 2,
-      intercom_system: "Active VoIP Speed Dial (Ext. 100-212)",
+      status: "connected",
+      call_id: `voip_call_${Date.now()}`,
+      target_room: targetRoom,
+      from_extension: body.from_extension || "Guest App",
+      audio_channel: "WebRTC / SIP Active",
+      hotel: "Hotel Blue Bird Inn - Garacharma, Sri Vijayapuram",
       timestamp: new Date().toISOString()
     },
     {
+      status: 200,
       headers: {
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',

@@ -3,38 +3,41 @@ import { NextRequest, NextResponse } from 'next/server';
 export const dynamic = 'force-dynamic';
 
 const EXECUTIVE_STATS = {
-  total_rooms: 50,
-  occupied_rooms: 47,
-  clean_rooms: 47,
-  dirty_rooms: 3,
-  occupancy_rate: 94.0,
-  occupancy_percentage: 94.0,
-  rev_par: 11280.0,
-  revpar: 11280.0,
-  adr: 12000.0,
+  hotel_name: "Hotel Blue Bird Inn",
+  location: "Garacharma, Sri Vijayapuram, Andaman and Nicobar Islands",
+  total_rooms: 24,
+  total_floors: 2,
+  occupied_rooms: 22,
+  clean_rooms: 22,
+  dirty_rooms: 2,
+  occupancy_rate: 91.7,
+  occupancy_percentage: 91.7,
+  rev_par: 4125.0,
+  revpar: 4125.0,
+  adr: 4500.0,
   currency: "₹",
-  total_revenue: 564000.0,
-  total_revenue_inr: 564000.0,
-  room_revenue: 450000.0,
-  room_revenue_inr: 450000.0,
-  dining_revenue: 84000.0,
-  dining_revenue_inr: 84000.0,
-  open_tickets_count: 2,
+  total_revenue: 99000.0,
+  total_revenue_inr: 99000.0,
+  room_revenue: 82500.0,
+  room_revenue_inr: 82500.0,
+  dining_revenue: 16500.0,
+  dining_revenue_inr: 16500.0,
+  open_tickets_count: 1,
   active_orders_count: 1,
-  sentiment_score: 98,
-  sentiment_summary: "Guests report exceptional royal dining and seamless AI concierge response times.",
-  pricing_recommendation: "Increase weekend BAR rates by +12% for Suite Categories 300-500 due to upcoming Jaipur Heritage Festival demand.",
+  sentiment_score: 99,
+  sentiment_summary: "Guests at Hotel Blue Bird Inn rate island dining and instant 1-click intercom speed dial 99% positive.",
+  pricing_recommendation: "Maintain ₹4,500 ADR rate for Deluxe Island King & Sea Breeze Suites due to steady Andaman ferry tourist arrivals.",
+  intercom_status: "100% Online (24 Suite Extensions Registered)",
   recent_tickets: [
-    { id: 1, room_number: "304", category: "Amenity", description: "Guest requested 2 extra plush bath towels", priority: "Medium", status: "Pending", created_at: new Date().toISOString() },
-    { id: 2, room_number: "102", category: "Maintenance", description: "Espresso machine check required", priority: "Low", status: "In Progress", created_at: new Date().toISOString() }
+    { id: 1, room_number: "204", category: "Intercom Audio", description: "Intercom audio test verified with Front Desk Ext 100", priority: "Low", status: "Resolved", created_at: new Date().toISOString() }
   ],
   recent_orders: [
-    { id: 101, booking_id: 1, items: [{ name: "Royal Butter Chicken", quantity: 1, price: 560.0 }], total_price: 840.0, status: "Preparing", created_at: new Date().toISOString() }
+    { id: 101, booking_id: 1, items: [{ name: "Andaman Fresh Catch Fish Curry", quantity: 1, price: 520.0 }], total_price: 520.0, status: "Preparing", created_at: new Date().toISOString() }
   ],
   low_stock_count: 0,
   inventory_items: [
-    { id: 1, item_name: "Egyptian Cotton Bath Towels", unit: "Pcs", current_stock: 450, min_alert_threshold: 100, is_low: false },
-    { id: 2, item_name: "Kashmiri Kahwa Tea Bags", unit: "Packets", current_stock: 1200, min_alert_threshold: 300, is_low: false }
+    { id: 1, item_name: "Island Linen Sets", unit: "Sets", current_stock: 120, min_alert_threshold: 30, is_low: false },
+    { id: 2, item_name: "Fresh Tender Coconut Packets", unit: "Units", current_stock: 350, min_alert_threshold: 50, is_low: false }
   ]
 };
 

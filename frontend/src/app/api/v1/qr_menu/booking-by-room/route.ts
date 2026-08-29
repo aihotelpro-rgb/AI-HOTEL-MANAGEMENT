@@ -13,18 +13,22 @@ export async function OPTIONS() {
   });
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const url = new URL(req.url);
+  const room = url.searchParams.get('room') || '204';
+  
   return NextResponse.json(
     {
-      status: "online",
-      service: "Hotel Blue Bird Inn AI Suite",
+      booking_id: 1,
+      room_number: room,
+      guest_name: room === '101' ? 'Pooja Sharma' : 'Maharaja Raghavendra Singh',
+      check_in: new Date().toISOString(),
+      check_out: new Date(Date.now() + 86400000 * 3).toISOString(),
+      is_active: true,
       hotel_name: "Hotel Blue Bird Inn",
       location: "Garacharma, Sri Vijayapuram, Andaman and Nicobar Islands",
-      available_rooms: 22,
-      total_rooms: 24,
-      total_floors: 2,
-      intercom_system: "Active VoIP Speed Dial (Ext. 100-212)",
-      timestamp: new Date().toISOString()
+      intercom_extension: room,
+      front_desk_extension: "100"
     },
     {
       headers: {

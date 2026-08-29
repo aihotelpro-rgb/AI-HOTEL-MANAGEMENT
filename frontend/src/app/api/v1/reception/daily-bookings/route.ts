@@ -7,40 +7,29 @@ const DAILY_BOOKINGS = [
     id: 1,
     booking_id: 1,
     guest_name: "Maharaja Raghavendra Singh",
-    room_number: "304",
-    room_type: "Deluxe Heritage King",
+    room_number: "204",
+    room_type: "Super Deluxe Sea Breeze",
     check_in: new Date().toISOString().split('T')[0],
     check_out: new Date(Date.now() + 86400000 * 3).toISOString().split('T')[0],
     status: "Confirmed",
     total_nights: 3,
-    room_rate: 6500.0,
-    is_vip: true
+    room_rate: 5500.0,
+    is_vip: true,
+    intercom_extension: "204"
   },
   {
     id: 2,
     booking_id: 2,
     guest_name: "Pooja Sharma",
-    room_number: "102",
-    room_type: "Executive Heritage Room",
+    room_number: "101",
+    room_type: "Deluxe Island King",
     check_in: new Date().toISOString().split('T')[0],
     check_out: new Date(Date.now() + 86400000 * 2).toISOString().split('T')[0],
     status: "CheckedIn",
     total_nights: 2,
-    room_rate: 3800.0,
-    is_vip: false
-  },
-  {
-    id: 3,
-    booking_id: 3,
-    guest_name: "Vikram Malhotra",
-    room_number: "501",
-    room_type: "Maharaja Penthouse Suite",
-    check_in: new Date().toISOString().split('T')[0],
-    check_out: new Date(Date.now() + 86400000 * 4).toISOString().split('T')[0],
-    status: "Confirmed",
-    total_nights: 4,
-    room_rate: 18000.0,
-    is_vip: true
+    room_rate: 3500.0,
+    is_vip: false,
+    intercom_extension: "101"
   }
 ];
 
