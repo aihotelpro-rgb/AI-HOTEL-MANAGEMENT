@@ -16,14 +16,18 @@ export async function OPTIONS() {
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
   const targetRoom = body.room_number || body.extension || '100';
+  const fromExt = body.from_extension || (targetRoom === '100' ? 'Guest Room' : '100');
+  const callId = `voip_call_${Date.now()}`;
 
   return NextResponse.json(
     {
       status: "connected",
-      call_id: `voip_call_${Date.now()}`,
+      call_id: callId,
       target_room: targetRoom,
-      from_extension: body.from_extension || "Guest App",
-      audio_channel: "WebRTC / SIP Active",
+      from_extension: fromExt,
+      caller_name: fromExt === '100' ? 'Front Desk Console' : `Room ${fromExt}`,
+      target_name: targetRoom === '100' ? 'Front Desk Console' : `Room ${targetRoom}`,
+      audio_channel: "Opus WebRTC 48kHz HD",
       hotel: "Hotel Blue Bird Inn - Garacharma, Sri Vijayapuram",
       timestamp: new Date().toISOString()
     },
