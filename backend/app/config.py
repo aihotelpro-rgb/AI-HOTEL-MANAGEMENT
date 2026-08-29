@@ -4,7 +4,7 @@ from typing import Optional, List
 
 class Settings(BaseSettings):
     ENVIRONMENT: str = "production"
-    DATABASE_URL: str = "sqlite+aiosqlite:///./ai_hotel.db"
+    DATABASE_URL: str = "postgresql+asyncpg://postgres.eszefwyralssfhktrwno:Sankar%401986%2304@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres"
     REDIS_URL: str = "redis://redis:6379/0"
     JWT_SECRET: str = "super_secret_jwt_key_ai_hos_2026_prod_x987654321"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 480
