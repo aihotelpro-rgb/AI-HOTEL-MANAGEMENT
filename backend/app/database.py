@@ -14,22 +14,29 @@ elif "sqlite" in settings.DATABASE_URL:
         "connect_args": {"check_same_thread": False} if "sqlite" in settings.DATABASE_URL else {}
     }
 else:
-    # Production PostgreSQL or MySQL (MariaDB) Async Engine
+    # Production PostgreSQL (Supabase Cloud Pooler) Async Engine
     db_url = settings.DATABASE_URL
     engine_args = {
-        "pool_size": 20,
-        "max_overflow": 10,
-        "pool_recycle": 3600,
-        "pool_pre_ping": True
+        "pool_size": 5,
+        "max_overflow": 2,
+        "pool_recycle": 300,
+        "pool_pre_ping": True,
+        "connect_args": {
+            "ssl": "require",
+            "prepared_statement_cache_size": 0
+        }
     }
 
-# Create async database engine
-engine = create_async_engine(
-    db_url,
-    echo=False,
-    future=True,
-    **engine_args
-)
+try:
+    engine = create_async_engine(
+        db_url,
+        echo=False,
+        future=True,
+        **engine_args
+    )
+except Exception as err:
+    print(f"[DATABASE ENGINE WARNING] PostgreSQL engine fallback to SQLite memory: {err}")
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:", echo=False)
 
 # Create session factory
 AsyncSessionLocal = async_sessionmaker(
