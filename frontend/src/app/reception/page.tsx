@@ -1562,17 +1562,17 @@ export default function ReceptionPMSPage() {
 
             {/* Printable Bedside Standee Preview */}
             <div id="printable-qr-standee" className="bg-neutral-950 p-6 rounded-2xl border border-neutral-800 space-y-3 flex flex-col items-center">
-              <span className="text-[11px] font-extrabold uppercase text-amber-400 tracking-widest">The Grand Palace Resort</span>
-              <h2 className="text-2xl font-extrabold text-white">SUITE {selectedQrRoom}</h2>
+              <span className="text-[11px] font-extrabold uppercase text-amber-400 tracking-widest">Hotel Blue Bird Inn</span>
+              <h2 className="text-2xl font-extrabold text-white">ROOM {selectedQrRoom}</h2>
               <div className="bg-white p-3 rounded-2xl shadow-md border border-neutral-700">
                 <img 
-                  src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(`http://localhost:3000/room-qr?room=${selectedQrRoom}`)}`} 
-                  alt={`QR Code Suite ${selectedQrRoom}`}
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(`https://www.hotelbluebirdnest.com/room-qr?room=${selectedQrRoom}`)}`} 
+                  alt={`QR Code Room ${selectedQrRoom}`}
                   className="h-44 w-44"
                 />
               </div>
               <p className="text-[10px] text-neutral-400 leading-tight pt-1">
-                Scan with Phone Camera for Gourmet Dining, Bill Folio & 24/7 AI Concierge
+                Scan with Phone Camera for Gourmet Dining, Bill Folio, Intercom & 24/7 AI Concierge
               </p>
               <div className="flex gap-1 text-[9px] font-bold text-neutral-500">
                 <span>EN</span> • <span>HI</span> • <span>GU</span> • <span>FR</span>
@@ -1595,7 +1595,7 @@ export default function ReceptionPMSPage() {
                     printWin.document.write(`
                       <html>
                         <head>
-                          <title>Bedside Standee QR - Suite ${selectedQrRoom}</title>
+                          <title>Bedside Standee QR - Room ${selectedQrRoom}</title>
                           <style>
                             body { font-family: 'Helvetica Neue', Arial, sans-serif; text-align: center; padding: 40px; background: #000; color: #fff; }
                             .card { border: 2px solid #d97706; padding: 30px; border-radius: 20px; max-width: 300px; margin: 0 auto; background: #111; }
@@ -1606,10 +1606,10 @@ export default function ReceptionPMSPage() {
                         </head>
                         <body>
                           <div class="card">
-                            <h2 style="font-size: 14px; text-transform: uppercase; color: #d97706;">The Grand Palace Resort</h2>
-                            <h1>SUITE ${selectedQrRoom}</h1>
-                            <img src="https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(`http://localhost:3000/room-qr?room=${selectedQrRoom}`)}" />
-                            <p>Scan with Phone Camera for Gourmet In-Room Dining, Folio & AI Concierge</p>
+                            <h2 style="font-size: 14px; text-transform: uppercase; color: #d97706;">Hotel Blue Bird Inn</h2>
+                            <h1>ROOM ${selectedQrRoom}</h1>
+                            <img src="https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(`https://www.hotelbluebirdnest.com/room-qr?room=${selectedQrRoom}`)}" />
+                            <p>Scan with Phone Camera for Gourmet Dining, Folio, Intercom & AI Concierge</p>
                           </div>
                           <script>window.print();</script>
                         </body>
