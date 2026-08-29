@@ -75,22 +75,23 @@ from sqlalchemy import text
 
 @app.on_event("startup")
 async def startup_event():
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-
-    # Safe column migration for SQLite fallback
-    if "sqlite" in settings.DATABASE_URL:
+    try:
         async with engine.begin() as conn:
-            try:
-                await conn.execute(text("ALTER TABLE bookings ADD COLUMN channel VARCHAR DEFAULT 'Direct Website'"))
-            except Exception:
-                pass # Column already exists
+            await conn.run_sync(Base.metadata.create_all)
 
-    async with AsyncSessionLocal() as session:
-        result = await session.execute(select(User).limit(1))
-        user = result.scalars().first()
-        if not user:
-            logger.info("Initializing Seed Data for AI-HOS Enterprise Suite...")
+        # Safe column migration for SQLite fallback
+        if "sqlite" in settings.DATABASE_URL:
+            async with engine.begin() as conn:
+                try:
+                    await conn.execute(text("ALTER TABLE bookings ADD COLUMN channel VARCHAR DEFAULT 'Direct Website'"))
+                except Exception:
+                    pass # Column already exists
+
+        async with AsyncSessionLocal() as session:
+            result = await session.execute(select(User).limit(1))
+            user = result.scalars().first()
+            if not user:
+                logger.info("Initializing Seed Data for AI-HOS Enterprise Suite...")
             
             # 1. Hotel Settings & Visual Branding
             settings = HotelSettings(
@@ -405,6 +406,8 @@ async def startup_event():
 
             await session.commit()
             logger.info("Database initialized successfully with rich media & Indian hospitality specifications.")
+    except Exception as e:
+        logger.warning(f"Startup DB auto-init notice (service starting normally): {e}")
 
 @app.get("/")
 async def root():
@@ -414,3 +417,7 @@ async def root():
         "currency": "₹ (INR)",
         "docs": "/docs"
     }
+
+@app.get("/health")
+async def health():
+    return {"status": "ok", "service": "AI-HOS Enterprise Suite"}
