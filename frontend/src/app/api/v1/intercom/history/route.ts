@@ -64,3 +64,13 @@ export async function GET() {
     },
   });
 }
+
+export async function POST(req: NextRequest) {
+  return NextResponse.json(CALL_HISTORY_LOGS, {
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    },
+  });
+}
