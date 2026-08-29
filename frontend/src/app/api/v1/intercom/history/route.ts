@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 
-export const CALL_HISTORY_LOGS = [
+const CALL_HISTORY_LOGS = [
   {
     id: 1001,
     call_id: "voip_call_98110",
