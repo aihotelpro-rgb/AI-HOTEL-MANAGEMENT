@@ -235,13 +235,72 @@ async function handleApiRequest(req: NextRequest) {
     });
   }
 
+  // Intercom history & call
+  if (path.includes('intercom/history')) {
+    return NextResponse.json([
+      {
+        id: 1001,
+        call_id: "voip_call_98110",
+        from_extension: "204",
+        caller_name: "Maharaja Raghavendra Singh (Room 204)",
+        target_extension: "100",
+        target_name: "Front Desk Console",
+        call_type: "Incoming",
+        status: "Completed",
+        duration: "01:24",
+        timestamp: new Date(Date.now() - 600000).toISOString(),
+        audio_codec: "Opus WebRTC HD"
+      },
+      {
+        id: 1002,
+        call_id: "voip_call_98115",
+        from_extension: "100",
+        caller_name: "Front Desk Receptionist",
+        target_extension: "101",
+        target_name: "Pooja Sharma (Room 101)",
+        call_type: "Outbound",
+        status: "Completed",
+        duration: "00:42",
+        timestamp: new Date(Date.now() - 1800000).toISOString(),
+        audio_codec: "Opus WebRTC HD"
+      },
+      {
+        id: 1003,
+        call_id: "voip_call_98120",
+        from_extension: "208",
+        caller_name: "Room 208 (Sea Breeze)",
+        target_extension: "100",
+        target_name: "Front Desk Console",
+        call_type: "Incoming",
+        status: "Missed",
+        duration: "00:00",
+        timestamp: new Date(Date.now() - 3600000).toISOString(),
+        audio_codec: "Opus WebRTC HD"
+      }
+    ]);
+  }
+
+  if (path.includes('intercom/call')) {
+    return NextResponse.json({
+      status: "connected",
+      call_id: `voip_call_${Date.now()}`,
+      target_room: "204",
+      from_extension: "100",
+      caller_name: "Front Desk Console",
+      target_name: "Room 204",
+      audio_channel: "Opus WebRTC 48kHz HD",
+      hotel: "Hotel Blue Bird Inn - Garacharma, Sri Vijayapuram",
+      timestamp: new Date().toISOString()
+    });
+  }
+
   // Availability / Health check
   if (path.includes('public/availability') || path.includes('health')) {
     return NextResponse.json({
       status: "online",
-      service: "AI-HOS Enterprise Suite",
-      available_rooms: 47,
-      total_rooms: 50
+      service: "Hotel Blue Bird Inn AI Suite",
+      available_rooms: 22,
+      total_rooms: 24
     });
   }
 
