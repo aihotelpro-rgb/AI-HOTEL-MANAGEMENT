@@ -98,6 +98,56 @@ export default function ReceptionPMSPage() {
     }
   };
 
+  const playReceptionRingbackChime = () => {
+    try {
+      if (typeof window === 'undefined') return;
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      const osc1 = ctx.createOscillator();
+      const osc2 = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc1.frequency.setValueAtTime(440, ctx.currentTime);
+      osc2.frequency.setValueAtTime(480, ctx.currentTime);
+      gain.gain.setValueAtTime(0.12, ctx.currentTime);
+
+      osc1.connect(gain);
+      osc2.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc1.start();
+      osc2.start();
+
+      setTimeout(() => {
+        try {
+          osc1.stop();
+          osc2.stop();
+          ctx.close();
+        } catch (e) {}
+      }, 1800);
+    } catch (err) {
+      console.warn('Audio ringback tone skipped', err);
+    }
+  };
+
+  const executeReceptionCall = async (targetRoom: string) => {
+    playReceptionRingbackChime();
+    setIntercomCallActive(true);
+    try {
+      if (typeof navigator !== 'undefined' && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        await navigator.mediaDevices.getUserMedia({ audio: true }).catch(() => {});
+      }
+      await apiRequest('/api/v1/intercom/call', {
+        method: 'POST',
+        body: JSON.stringify({ room_number: targetRoom, from_extension: '100', target_room: targetRoom })
+      });
+      loadIntercomHistory();
+    } catch (err) {
+      console.warn('Reception call API logged', err);
+    }
+  };
+
   useEffect(() => {
     if (intercomCallModalOpen) {
       loadIntercomHistory();
@@ -1704,17 +1754,7 @@ export default function ReceptionPMSPage() {
                   <div className="flex items-center gap-2">
                     {!intercomCallActive ? (
                       <button
-                        onClick={async () => {
-                          try {
-                            await apiRequest('/api/v1/intercom/call', {
-                              method: 'POST',
-                              body: JSON.stringify({ room_number: activeIntercomRoom, from_extension: '100' })
-                            });
-                            setIntercomCallActive(true);
-                          } catch (err) {
-                            setIntercomCallActive(true);
-                          }
-                        }}
+                        onClick={() => executeReceptionCall(activeIntercomRoom)}
                         className="px-3 py-1.5 bg-green-500 hover:bg-green-400 text-neutral-950 font-extrabold text-xs rounded-xl shadow"
                       >
                         Answer / Call
@@ -1737,21 +1777,11 @@ export default function ReceptionPMSPage() {
                       type="text"
                       value={activeIntercomRoom}
                       onChange={(e) => setActiveIntercomRoom(e.target.value)}
-                      placeholder="Enter Suite # (e.g. 204)"
+                      placeholder="Enter Room # (e.g. 204)"
                       className="flex-1 bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-amber-500"
                     />
                     <button
-                      onClick={async () => {
-                        try {
-                          await apiRequest('/api/v1/intercom/call', {
-                            method: 'POST',
-                            body: JSON.stringify({ room_number: activeIntercomRoom, from_extension: '100' })
-                          });
-                          setIntercomCallActive(true);
-                        } catch (err) {
-                          setIntercomCallActive(true);
-                        }
-                      }}
+                      onClick={() => executeReceptionCall(activeIntercomRoom)}
                       className="px-3.5 bg-amber-500 hover:bg-amber-400 text-neutral-950 font-extrabold text-xs rounded-xl transition"
                     >
                       Dial Suite

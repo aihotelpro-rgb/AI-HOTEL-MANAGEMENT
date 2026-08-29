@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Sparkles, Utensils, Building, ChefHat, LayoutDashboard, Key, ShieldCheck, Settings, Crown } from 'lucide-react';
+import { Sparkles, Utensils, Building, ChefHat, LayoutDashboard, Key, ShieldCheck, Settings, Crown, PhoneCall } from 'lucide-react';
 
 export default function Home() {
   return (
@@ -13,13 +13,16 @@ export default function Home() {
         <div>
           <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-950/60 border border-amber-500/40 rounded-full text-[11px] font-extrabold uppercase text-amber-400 tracking-widest mb-3">
             <Crown className="h-3.5 w-3.5" />
-            5-Star Indian Royal Hospitality & AI Systems
+            Luxury Island Hospitality & AI Systems
           </div>
           <h1 className="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-amber-400 to-amber-600 tracking-tight">
-            The Grand Palace Resort
+            Hotel Blue Bird Inn
           </h1>
+          <p className="text-amber-400/90 text-xs font-semibold mt-1">
+            Garacharma, Sri Vijayapuram, Andaman & Nicobar Islands
+          </p>
           <p className="text-neutral-400 text-xs mt-2 max-w-lg mx-auto leading-relaxed">
-            AI-HOS Enterprise Suite featuring 5-Stage Live In-Room Dining Delivery (₹ INR), 50-Room Front Desk PMS, Kitchen KDS, Housekeeping Turnovers, GM Yield AI, and Super-Admin Master Control.
+            24 Luxury Island Rooms across 2 Floors • Live VoIP Intercom Calling • 5-Stage Gourmet Island Dining (₹ INR) • Front Desk PMS & GM Executive Yield AI.
           </p>
         </div>
 
@@ -29,20 +32,20 @@ export default function Home() {
             <span className="text-[10px] uppercase font-extrabold tracking-wider text-amber-400">Guest Experience Web App</span>
             <span className="text-[10px] text-green-400 font-bold bg-green-950/60 px-2 py-0.5 rounded-full border border-green-700/40">App-Free QR (₹ INR)</span>
           </div>
-          <h3 className="font-extrabold text-neutral-100 text-sm">Suite 304 Digital Pass & In-Room Experience</h3>
-          <p className="text-neutral-400 text-xs">Gourmet dining ordering, live 5-stage delivery tracker, 24/7 AI Concierge, and stay folio ledger.</p>
+          <h3 className="font-extrabold text-neutral-100 text-sm">Room 204 Digital Pass & In-Room Intercom</h3>
+          <p className="text-neutral-400 text-xs">Gourmet dining ordering, live 5-stage delivery tracker, WebRTC Front Desk Intercom, 24/7 AI Concierge, and stay folio ledger.</p>
           <Link
-            href="/room-qr?room=304"
+            href="/room-qr?room=204"
             className="block w-full py-3 px-4 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-neutral-950 font-extrabold text-xs rounded-xl transition text-center shadow-lg"
           >
-            Launch Guest In-Room App (Suite 304) →
+            Launch Guest In-Room App (Room 204) →
           </Link>
         </div>
 
         {/* Staff Operations Grid */}
         <div className="space-y-3 pt-2">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] text-neutral-500 uppercase tracking-widest font-extrabold">Staff Operations Portals (Sidebar Enabled)</span>
+            <span className="text-[10px] text-neutral-500 uppercase tracking-widest font-extrabold">Staff Operations Portals</span>
             <Link href="/login" className="text-[10px] text-amber-500 hover:underline font-bold">Staff Login Portal →</Link>
           </div>
 
@@ -55,8 +58,8 @@ export default function Home() {
                 <Building className="h-4 w-4" />
               </div>
               <div>
-                <h4 className="text-xs font-bold text-neutral-100 group-hover:text-amber-400">Front Desk PMS</h4>
-                <p className="text-[10px] text-neutral-400 mt-0.5">50-room matrix, 1-click check-in/out & GST folio.</p>
+                <h4 className="text-xs font-bold text-neutral-100 group-hover:text-amber-400">Front Desk PMS & Intercom</h4>
+                <p className="text-[10px] text-neutral-400 mt-0.5">24-room matrix, 1-click check-in/out, Call History & GST folio.</p>
               </div>
             </Link>
 
@@ -108,7 +111,7 @@ export default function Home() {
               </div>
               <div>
                 <h4 className="text-xs font-bold text-neutral-100 group-hover:text-amber-400">Super-Admin Master Control</h4>
-                <p className="text-[10px] text-neutral-400 mt-0.5">Configure Hotel Details, Logo, Wi-Fi, 50 Rooms, Menu Dishes & Staff Roles.</p>
+                <p className="text-[10px] text-neutral-400 mt-0.5">Configure Hotel Blue Bird Inn Settings, 24 Rooms, Menu & Staff Roles.</p>
               </div>
             </Link>
           </div>
@@ -116,7 +119,7 @@ export default function Home() {
 
         <div className="pt-2 text-[11px] text-neutral-500 flex items-center justify-center gap-1">
           <ShieldCheck className="h-3.5 w-3.5 text-green-500" />
-          <span>Full-Fledged Production System • ₹ INR Currency • Left Sidebar Layout</span>
+          <span>Garacharma, Sri Vijayapuram • Hotel Blue Bird Inn AI Suite • ₹ INR Currency</span>
         </div>
 
       </div>

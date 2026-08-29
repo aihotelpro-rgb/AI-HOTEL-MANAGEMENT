@@ -206,7 +206,7 @@ const STATIC_DEMO_MENU: MenuItem[] = [
 
 function GuestRoomQRContent() {
   const searchParams = useSearchParams();
-  const roomNumber = searchParams.get('room') || '304';
+  const roomNumber = searchParams.get('room') || '204';
   
   // Navigation tabs
   const [activeTab, setActiveTab] = useState<'dining' | 'tracker' | 'concierge' | 'amenities' | 'folio'>('dining');
@@ -215,7 +215,7 @@ function GuestRoomQRContent() {
   const [onlineStatus, setOnlineStatus] = useState<boolean>(true);
   const [bookingId, setBookingId] = useState<number | null>(null);
   const [guestName, setGuestName] = useState<string>('Maharaja Raghavendra Singh');
-  const [hotelName, setHotelName] = useState<string>('The Grand Palace Resort & Heritage Spa');
+  const [hotelName, setHotelName] = useState<string>('Hotel Blue Bird Inn');
   const [hotelLogo, setHotelLogo] = useState<string>('');
   const [language, setLanguage] = useState<'EN' | 'HI' | 'GU' | 'FR'>('EN');
 
@@ -386,6 +386,55 @@ function GuestRoomQRContent() {
   // Intercom Direct Calling State
   const [isCallActive, setIsCallActive] = useState(false);
   const [callSeconds, setCallSeconds] = useState(0);
+
+  const playRingbackChime = () => {
+    try {
+      if (typeof window === 'undefined') return;
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      const osc1 = ctx.createOscillator();
+      const osc2 = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc1.frequency.setValueAtTime(440, ctx.currentTime);
+      osc2.frequency.setValueAtTime(480, ctx.currentTime);
+      gain.gain.setValueAtTime(0.12, ctx.currentTime);
+
+      osc1.connect(gain);
+      osc2.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc1.start();
+      osc2.start();
+
+      setTimeout(() => {
+        try {
+          osc1.stop();
+          osc2.stop();
+          ctx.close();
+        } catch (e) {}
+      }, 1800);
+    } catch (err) {
+      console.warn('Audio ringback tone skipped', err);
+    }
+  };
+
+  const startIntercomCall = async () => {
+    playRingbackChime();
+    setIsCallActive(true);
+    try {
+      if (typeof navigator !== 'undefined' && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        await navigator.mediaDevices.getUserMedia({ audio: true }).catch(() => {});
+      }
+      await apiRequest('/api/v1/intercom/call', {
+        method: 'POST',
+        body: JSON.stringify({ room_number: roomNumber, from_extension: roomNumber, target_room: '100' })
+      });
+    } catch (err) {
+      console.warn('Intercom call API logged', err);
+    }
+  };
 
   useEffect(() => {
     let interval: any = null;
@@ -1531,7 +1580,7 @@ function GuestRoomQRContent() {
             <div className="flex flex-wrap gap-1.5 pt-1">
               <button
                 type="button"
-                onClick={() => setIsCallActive(true)}
+                onClick={startIntercomCall}
                 className="px-2.5 py-1 bg-green-950/80 border border-green-700 hover:border-green-500 text-green-300 text-[10px] font-extrabold rounded-xl transition flex items-center gap-1 shadow animate-pulse"
               >
                 <span>{t('call_reception')}</span>
