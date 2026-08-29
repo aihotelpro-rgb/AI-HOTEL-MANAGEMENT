@@ -55,7 +55,7 @@ export async function OPTIONS() {
   });
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   return NextResponse.json(DAILY_BOOKINGS, {
     headers: {
       'Access-Control-Allow-Origin': '*',
