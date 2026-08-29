@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+export const dynamic = 'force-dynamic';
+
 const HOTEL_SETTINGS = {
   id: 1,
   hotel_name: "The Grand Palace Resort & Heritage Spa",
