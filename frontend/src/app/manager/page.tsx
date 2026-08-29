@@ -78,6 +78,7 @@ interface Briefing {
   open_tickets_count: number;
   active_orders_count: number;
   briefing_text: string;
+  briefing_summary?: string;
   sentiment_score: number;
   sentiment_summary: string;
   pricing_recommendation: string;
@@ -681,7 +682,7 @@ export default function ManagerDashboard() {
             <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 shadow-2xl min-h-[520px] overflow-y-auto">
               {briefing ? (
                 <div className="prose prose-invert max-w-none">
-                  {renderBriefingText(briefing.briefing_text)}
+                  {renderBriefingText(briefing.briefing_text || briefing.briefing_summary || '')}
                 </div>
               ) : (
                 <div className="py-24 text-center text-neutral-500">
