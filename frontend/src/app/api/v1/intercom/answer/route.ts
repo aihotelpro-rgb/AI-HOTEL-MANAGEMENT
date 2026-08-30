@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { updateCallStatus, getCallQueue, IntercomCall } from '../store';
+import { updateCallStatus } from '../store';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,11 +14,11 @@ export async function OPTIONS() {
 }
 
 // POST /api/v1/intercom/answer
-// Called by reception to answer or decline an incoming call
-// Body: { call_id: string, action: 'answer' | 'decline' | 'end' }
+// Called to answer, decline, or end an intercom call.
+// Body: { call_id: string, action: 'answer' | 'decline' | 'end', duration_seconds?: number }
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
-  const { call_id, action } = body;
+  const { call_id, action, duration_seconds } = body;
 
   if (!call_id || !action) {
     return NextResponse.json({ error: 'call_id and action are required' }, { status: 400, headers: CORS_HEADERS });
@@ -32,10 +32,7 @@ export async function POST(req: NextRequest) {
   } else if (action === 'decline') {
     updated = updateCallStatus(call_id, 'declined', { ended_at: now, duration_seconds: 0 });
   } else if (action === 'end') {
-    // Find the call and calculate duration
-    const call = getCallQueue().find((c: IntercomCall) => c.call_id === call_id);
-    const startMs = call?.answered_at ? new Date(call.answered_at).getTime() : Date.now();
-    const durSecs = Math.floor((Date.now() - startMs) / 1000);
+    const durSecs = duration_seconds !== undefined ? Number(duration_seconds) : undefined;
     updated = updateCallStatus(call_id, 'completed', { ended_at: now, duration_seconds: durSecs });
   }
 

@@ -1904,7 +1904,20 @@ function GuestRoomQRContent() {
             )}
 
             <button
-              onClick={() => {
+              onClick={async () => {
+                if (currentCallId) {
+                  const durSecs = callSeconds;
+                  try {
+                    await apiRequest('/api/v1/intercom/answer', {
+                      method: 'POST',
+                      body: JSON.stringify({
+                        call_id: currentCallId,
+                        action: callStatus === 'ringing' ? 'decline' : 'end',
+                        duration_seconds: durSecs
+                      })
+                    });
+                  } catch (err) {}
+                }
                 setIsCallActive(false);
                 setCurrentCallId(null);
                 setCallStatus('idle');

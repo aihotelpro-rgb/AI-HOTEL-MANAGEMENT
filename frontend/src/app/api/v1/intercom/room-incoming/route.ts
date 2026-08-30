@@ -14,8 +14,7 @@ export async function OPTIONS() {
 }
 
 // GET /api/v1/intercom/room-incoming?room=204
-// Polled by the guest room browser every 3 seconds.
-// Returns any active ringing incoming call from Front Desk for that room.
+// Polled by guest room browser to check for incoming calls from Front Desk
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const room = searchParams.get('room') || '';
@@ -29,11 +28,11 @@ export async function GET(req: NextRequest) {
 }
 
 // POST /api/v1/intercom/room-incoming
-// Called by guest room browser to answer or decline a reception-initiated call.
-// Body: { call_id: string, action: 'answer' | 'decline' | 'end' }
+// Called by guest room browser to answer, decline, or end calls
+// Body: { call_id: string, action: 'answer' | 'decline' | 'end', duration_seconds?: number }
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
-  const { call_id, action } = body;
+  const { call_id, action, duration_seconds } = body;
 
   if (!call_id || !action) {
     return NextResponse.json({ error: 'call_id and action required' }, { status: 400, headers: CORS_HEADERS });
@@ -47,7 +46,8 @@ export async function POST(req: NextRequest) {
   } else if (action === 'decline') {
     updated = updateCallStatus(call_id, 'declined', { ended_at: now, duration_seconds: 0 });
   } else if (action === 'end') {
-    updated = updateCallStatus(call_id, 'completed', { ended_at: now });
+    const durSecs = duration_seconds !== undefined ? Number(duration_seconds) : undefined;
+    updated = updateCallStatus(call_id, 'completed', { ended_at: now, duration_seconds: durSecs });
   }
 
   return NextResponse.json(

@@ -48,6 +48,7 @@ if (!global.__intercomCallHistory) {
       target_extension: '100',
       status: 'completed',
       started_at: new Date(Date.now() - 7200000).toISOString(),
+      answered_at: new Date(Date.now() - 7199000).toISOString(),
       ended_at: new Date(Date.now() - 7116000).toISOString(),
       duration_seconds: 84,
       hotel: 'Hotel Blue Bird Inn',
@@ -98,36 +99,74 @@ export function getRoomIncomingCalls(roomNumber: string): IntercomCall[] {
   );
 }
 
-// ── Update status in either queue ───────────────────────────────────────────
+// ── Update status in any queue or history with accurate duration math ───────
 export function updateCallStatus(
   call_id: string,
   status: IntercomCall['status'],
   extra?: Partial<IntercomCall>
 ) {
-  // Check inbound queue first
+  const now = new Date().toISOString();
+
+  const processRecord = (item: IntercomCall): IntercomCall => {
+    let durSecs = extra?.duration_seconds;
+    if (durSecs === undefined || durSecs === null) {
+      if (status === 'completed') {
+        const start = extra?.answered_at || item.answered_at || item.started_at;
+        const startMs = start ? new Date(start).getTime() : Date.now();
+        durSecs = Math.max(1, Math.floor((Date.now() - startMs) / 1000));
+      } else {
+        durSecs = 0;
+      }
+    }
+    return {
+      ...item,
+      status,
+      ended_at: extra?.ended_at || (['completed', 'declined', 'missed'].includes(status) ? now : item.ended_at),
+      duration_seconds: durSecs,
+      ...extra,
+    };
+  };
+
+  // 1. Check inbound queue (room -> reception)
   let idx = global.__intercomCallQueue.findIndex((c) => c.call_id === call_id);
   if (idx !== -1) {
-    global.__intercomCallQueue[idx] = { ...global.__intercomCallQueue[idx], status, ...extra };
+    const updated = processRecord(global.__intercomCallQueue[idx]);
+    global.__intercomCallQueue[idx] = updated;
     if (['completed', 'missed', 'declined'].includes(status)) {
-      const finished = global.__intercomCallQueue.splice(idx, 1)[0];
-      _pushToHistory(finished);
+      global.__intercomCallQueue.splice(idx, 1);
+      _pushToHistory(updated);
     }
     return true;
   }
-  // Check room-incoming (outbound) queue
+
+  // 2. Check room-incoming queue (reception -> room)
   idx = global.__intercomRoomCallQueue.findIndex((c) => c.call_id === call_id);
   if (idx !== -1) {
-    global.__intercomRoomCallQueue[idx] = { ...global.__intercomRoomCallQueue[idx], status, ...extra };
+    const updated = processRecord(global.__intercomRoomCallQueue[idx]);
+    global.__intercomRoomCallQueue[idx] = updated;
     if (['completed', 'missed', 'declined'].includes(status)) {
-      const finished = global.__intercomRoomCallQueue.splice(idx, 1)[0];
-      _pushToHistory(finished);
+      global.__intercomRoomCallQueue.splice(idx, 1);
+      _pushToHistory(updated);
     }
     return true;
   }
+
+  // 3. Check history directly (if call was already moved or registered)
+  idx = global.__intercomCallHistory.findIndex((c) => c.call_id === call_id);
+  if (idx !== -1) {
+    const updated = processRecord(global.__intercomCallHistory[idx]);
+    global.__intercomCallHistory[idx] = updated;
+    return true;
+  }
+
   return false;
 }
 
 function _pushToHistory(call: IntercomCall) {
+  // Deduplicate by call_id before pushing
+  global.__intercomCallHistory = global.__intercomCallHistory.filter(
+    (c) => c.call_id !== call.call_id
+  );
   global.__intercomCallHistory.unshift(call);
   if (global.__intercomCallHistory.length > 50) {
     global.__intercomCallHistory = global.__intercomCallHistory.slice(0, 50);

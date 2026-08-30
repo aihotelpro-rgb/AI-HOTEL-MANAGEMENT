@@ -247,17 +247,25 @@ export default function ReceptionPMSPage() {
   };
 
   const endReceptionCall = async () => {
-    // Calculate duration and update the outbound call record in history
-    if (outboundCallId && outboundCallStartedAt) {
-      const durSecs = Math.floor((Date.now() - new Date(outboundCallStartedAt).getTime()) / 1000);
+    const targetCallId = activeCallId || outboundCallId;
+    if (targetCallId) {
+      const durSecs = intercomCallSeconds;
       try {
         await apiRequest('/api/v1/intercom/answer', {
           method: 'POST',
-          body: JSON.stringify({ call_id: outboundCallId, action: 'end' })
+          body: JSON.stringify({
+            call_id: targetCallId,
+            action: 'end',
+            duration_seconds: durSecs
+          })
         });
-      } catch (err) {}
+      } catch (err) {
+        console.warn('End reception call failed', err);
+      }
     }
     setIntercomCallActive(false);
+    setIntercomCallSeconds(0);
+    setActiveCallId(null);
     setOutboundCallId(null);
     setOutboundCallStartedAt(null);
     loadIntercomHistory();
