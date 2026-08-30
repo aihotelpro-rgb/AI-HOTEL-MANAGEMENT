@@ -529,6 +529,92 @@ function GuestRoomQRContent() {
   const [pendingSyncCount, setPendingSyncCount] = useState(0);
   const [showSyncAlert, setShowSyncAlert] = useState(false);
 
+  // ── Incoming call FROM reception ──────────────────────────────────────────
+  const [incomingReceptionCall, setIncomingReceptionCall] = useState<any>(null);
+  const [incomingReceptionVisible, setIncomingReceptionVisible] = useState(false);
+  const [incomingCallAnswered, setIncomingCallAnswered] = useState(false);
+
+  const playIncomingRingTone = () => {
+    try {
+      if (typeof window === 'undefined') return;
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      const beep = (startAt: number, freq: number, dur: number) => {
+        const osc = ctx.createOscillator();
+        const g = ctx.createGain();
+        osc.frequency.setValueAtTime(freq, ctx.currentTime + startAt);
+        g.gain.setValueAtTime(0, ctx.currentTime + startAt);
+        g.gain.linearRampToValueAtTime(0.25, ctx.currentTime + startAt + 0.02);
+        g.gain.linearRampToValueAtTime(0, ctx.currentTime + startAt + dur);
+        osc.connect(g);
+        g.connect(ctx.destination);
+        osc.start(ctx.currentTime + startAt);
+        osc.stop(ctx.currentTime + startAt + dur + 0.05);
+      };
+      // Distinctive incoming ring: high-low-high pattern
+      beep(0, 800, 0.2);
+      beep(0.3, 600, 0.2);
+      beep(0.6, 800, 0.2);
+      beep(0.9, 600, 0.2);
+      setTimeout(() => { try { ctx.close(); } catch (e) {} }, 1500);
+    } catch (err) {
+      console.warn('Incoming ring tone skipped', err);
+    }
+  };
+
+  const answerReceptionCall = async (call: any) => {
+    try {
+      await apiRequest('/api/v1/intercom/room-incoming', {
+        method: 'POST',
+        body: JSON.stringify({ call_id: call.call_id, action: 'answer' }),
+      });
+    } catch (err) {}
+    setIncomingReceptionVisible(false);
+    setIncomingReceptionCall(null);
+    setIncomingCallAnswered(true);
+    // Open the intercom call modal so guest can talk
+    setIsCallActive(true);
+    setCallStatus('active');
+    setCallStatusMsg('✅ Connected — Reception is on the line');
+  };
+
+  const declineReceptionCall = async (call: any) => {
+    try {
+      await apiRequest('/api/v1/intercom/room-incoming', {
+        method: 'POST',
+        body: JSON.stringify({ call_id: call.call_id, action: 'decline' }),
+      });
+    } catch (err) {}
+    setIncomingReceptionVisible(false);
+    setIncomingReceptionCall(null);
+  };
+
+  // Poll for incoming calls from reception every 3 seconds
+  useEffect(() => {
+    if (!roomNumber) return;
+    const poll = setInterval(async () => {
+      try {
+        const calls: any[] = await apiRequest(`/api/v1/intercom/room-incoming?room=${roomNumber}`);
+        if (!Array.isArray(calls)) return;
+        const ringing = calls.find((c: any) => c.status === 'ringing');
+        if (ringing && incomingReceptionCall?.call_id !== ringing.call_id) {
+          setIncomingReceptionCall(ringing);
+          setIncomingReceptionVisible(true);
+          playIncomingRingTone();
+        }
+        if (!ringing && incomingReceptionCall) {
+          setIncomingReceptionCall(null);
+          setIncomingReceptionVisible(false);
+        }
+      } catch (err) {
+        // silently fail
+      }
+    }, 3000);
+    return () => clearInterval(poll);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roomNumber]);
+
   // 1. Initial Load & PWA Service Worker Registration
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -811,6 +897,43 @@ function GuestRoomQRContent() {
   return (
     <div className="max-w-md mx-auto min-h-screen bg-neutral-950 flex flex-col pb-24 relative selection:bg-amber-500 selection:text-neutral-950">
       
+      {/* ═══ INCOMING CALL FROM RECEPTION ═══ */}
+      {incomingReceptionVisible && incomingReceptionCall && (
+        <div className="fixed inset-0 z-[9999] flex items-end justify-center pb-6 px-4 bg-black/50 backdrop-blur-sm">
+          <div className="w-full max-w-sm bg-neutral-900 border-2 border-amber-500 rounded-3xl shadow-2xl overflow-hidden animate-slide-up">
+            {/* Pulsing amber top bar */}
+            <div className="h-1.5 bg-amber-500 animate-pulse w-full" />
+            <div className="p-5">
+              <div className="flex items-center gap-4">
+                {/* Animated phone */}
+                <div className="h-14 w-14 rounded-full bg-amber-500/20 border-2 border-amber-500 flex items-center justify-center shrink-0 animate-pulse">
+                  <span className="text-2xl animate-bounce">📞</span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[9px] uppercase font-extrabold tracking-widest text-amber-400">📲 Incoming Call from Hotel</p>
+                  <h3 className="text-base font-black text-white">Front Desk Reception</h3>
+                  <p className="text-xs text-neutral-400">Ext 100 → Room {roomNumber} · {new Date(incomingReceptionCall.started_at).toLocaleTimeString()}</p>
+                </div>
+              </div>
+              <div className="flex gap-3 mt-4">
+                <button
+                  onClick={() => answerReceptionCall(incomingReceptionCall)}
+                  className="flex-1 py-3 bg-green-500 hover:bg-green-400 text-neutral-950 font-black text-sm rounded-2xl transition shadow-lg flex items-center justify-center gap-2"
+                >
+                  <span>📞</span> Answer
+                </button>
+                <button
+                  onClick={() => declineReceptionCall(incomingReceptionCall)}
+                  className="flex-1 py-3 bg-red-600 hover:bg-red-500 text-white font-black text-sm rounded-2xl transition shadow-lg flex items-center justify-center gap-2"
+                >
+                  <span>🔴</span> Decline
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Network Status Header */}
       <div className={`text-[11px] py-1.5 px-4 text-center font-bold flex items-center justify-center gap-2 transition-colors ${onlineStatus ? 'bg-neutral-900/90 text-green-400 border-b border-neutral-800' : 'bg-red-950 text-red-400 border-b border-red-900'}`}>
         {onlineStatus ? (

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCallHistory, IntercomCall } from '../store';
+import { addRoomIncomingCall, getCallHistory, IntercomCall } from '../store';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,15 +14,13 @@ export async function OPTIONS() {
 }
 
 // POST /api/v1/intercom/outbound
-// Called by Front Desk (reception) when they dial out to a room.
-// This is an outbound call: Front Desk Ext 100 → Room Ext (e.g. 204)
-// It logs directly to history (reception-to-room calls don't ring in the
-// guest browser — they are logged as outbound call records).
+// Called by Front Desk when they dial out to a room.
+// PUTS the call into the per-room incoming queue so the room browser can detect it.
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
 
   const targetRoom = String(body.target_room || body.room_number || 'Unknown');
-  const callId = `voip_outbound_${Date.now()}_to${targetRoom}`;
+  const callId = `voip_out_${Date.now()}_to${targetRoom}`;
   const now = new Date().toISOString();
 
   const outboundCall: IntercomCall = {
@@ -31,25 +29,24 @@ export async function POST(req: NextRequest) {
     caller_name: 'Front Desk Reception (Ext 100)',
     from_extension: '100',
     target_extension: targetRoom,
-    status: 'completed',
+    status: 'ringing',           // ← RINGING so room browser detects it
     started_at: now,
-    answered_at: now,
-    ended_at: now,
-    duration_seconds: 0,
     hotel: 'Hotel Blue Bird Inn - Garacharma, Sri Vijayapuram',
   };
 
-  // Push directly to history (outbound calls don't go through the ringing queue)
+  // Add to room-facing incoming queue (room browser polls /room-incoming?room=XX)
+  addRoomIncomingCall(outboundCall);
+
+  // Also log as a call-in-progress in history (status will update when answered/ended)
   const history = getCallHistory();
-  history.unshift(outboundCall);
-  // Cap at 50
+  history.unshift({ ...outboundCall });
   if (history.length > 50) history.splice(50);
 
   return NextResponse.json(
     {
-      status: 'dialing',
+      status: 'ringing',
       call_id: callId,
-      message: `Front Desk dialing Room ${targetRoom} (Ext ${targetRoom})`,
+      message: `Front Desk ringing Room ${targetRoom} (Ext ${targetRoom})`,
       target_room: targetRoom,
     },
     { status: 200, headers: CORS_HEADERS }
