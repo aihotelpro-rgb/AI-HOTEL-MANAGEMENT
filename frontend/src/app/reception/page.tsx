@@ -88,6 +88,8 @@ export default function ReceptionPMSPage() {
   const [intercomCallSeconds, setIntercomCallSeconds] = useState(0);
   const [intercomTab, setIntercomTab] = useState<'console' | 'history'>('console');
   const [intercomCallLogs, setIntercomCallLogs] = useState<any[]>([]);
+  const [outboundCallId, setOutboundCallId] = useState<string | null>(null);
+  const [outboundCallStartedAt, setOutboundCallStartedAt] = useState<string | null>(null);
 
   // Incoming call notification state (live polling)
   const [incomingCall, setIncomingCall] = useState<any>(null);
@@ -225,19 +227,40 @@ export default function ReceptionPMSPage() {
 
   const executeReceptionCall = async (targetRoom: string) => {
     playReceptionRingbackChime();
+    const now = new Date().toISOString();
     setIntercomCallActive(true);
+    setOutboundCallStartedAt(now);
     try {
       if (typeof navigator !== 'undefined' && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
         await navigator.mediaDevices.getUserMedia({ audio: true }).catch(() => {});
       }
-      await apiRequest('/api/v1/intercom/call', {
+      // Use /outbound so it logs as a reception-initiated outbound call (not the guest inbound queue)
+      const result = await apiRequest('/api/v1/intercom/outbound', {
         method: 'POST',
-        body: JSON.stringify({ room_number: targetRoom, from_extension: '100', target_room: targetRoom })
+        body: JSON.stringify({ target_room: targetRoom, from_extension: '100', room_number: targetRoom })
       });
+      if (result?.call_id) setOutboundCallId(result.call_id);
       loadIntercomHistory();
     } catch (err) {
-      console.warn('Reception call API logged', err);
+      console.warn('Reception outbound call logged', err);
     }
+  };
+
+  const endReceptionCall = async () => {
+    // Calculate duration and update the outbound call record in history
+    if (outboundCallId && outboundCallStartedAt) {
+      const durSecs = Math.floor((Date.now() - new Date(outboundCallStartedAt).getTime()) / 1000);
+      try {
+        await apiRequest('/api/v1/intercom/answer', {
+          method: 'POST',
+          body: JSON.stringify({ call_id: outboundCallId, action: 'end' })
+        });
+      } catch (err) {}
+    }
+    setIntercomCallActive(false);
+    setOutboundCallId(null);
+    setOutboundCallStartedAt(null);
+    loadIntercomHistory();
   };
 
   useEffect(() => {
@@ -578,42 +601,51 @@ export default function ReceptionPMSPage() {
   return (
     <div className="flex flex-col md:flex-row h-screen bg-neutral-950 text-neutral-100 selection:bg-amber-500 selection:text-neutral-950 overflow-hidden">
       
-      {/* ═══ INCOMING CALL NOTIFICATION OVERLAY ═══ */}
+      {/* ═══ INCOMING CALL ALERT ─ TOP-LEFT CORNER (DESKTOP) ═══ */}
       {incomingCallVisible && incomingCall && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="relative bg-neutral-900 border-2 border-green-500 rounded-3xl p-6 shadow-2xl max-w-sm w-full mx-4 animate-bounce-slow">
-            {/* Pulsing ring animation */}
-            <div className="absolute -inset-1 rounded-3xl border-2 border-green-500/40 animate-ping pointer-events-none" />
+        <div className="fixed top-4 left-4 z-[9999] w-80 max-w-[calc(100vw-2rem)]">
+          <div className="relative bg-neutral-900 border-2 border-green-500 rounded-2xl shadow-2xl overflow-hidden">
+            {/* Animated top accent bar */}
+            <div className="h-1 w-full bg-green-500 animate-pulse" />
 
-            {/* Phone icon animated */}
-            <div className="flex flex-col items-center gap-4 text-center">
-              <div className="relative">
-                <div className="h-20 w-20 rounded-full bg-green-500/20 border-4 border-green-500 flex items-center justify-center animate-pulse">
-                  <span className="text-4xl animate-bounce">📞</span>
+            <div className="p-4">
+              <div className="flex items-start gap-3">
+                {/* Pulsing phone icon */}
+                <div className="relative shrink-0">
+                  <div className="h-12 w-12 rounded-full bg-green-500/20 border-2 border-green-500 flex items-center justify-center animate-pulse">
+                    <span className="text-2xl animate-bounce">📞</span>
+                  </div>
+                  <div className="absolute -top-1 -right-1 h-4 w-4 bg-red-500 rounded-full flex items-center justify-center animate-ping">
+                    <div className="h-2 w-2 bg-red-400 rounded-full" />
+                  </div>
                 </div>
-                <div className="absolute -top-1 -right-1 h-5 w-5 bg-red-500 rounded-full flex items-center justify-center">
-                  <span className="text-[9px] text-white font-black">!</span>
+
+                <div className="flex-1 min-w-0">
+                  <p className="text-[9px] uppercase font-extrabold tracking-widest text-green-400">🔔 Incoming Intercom Call</p>
+                  <h3 className="text-base font-black text-white leading-tight">Room {incomingCall.from_room}</h3>
+                  <p className="text-xs text-neutral-300 truncate">{incomingCall.caller_name}</p>
+                  <p className="text-[10px] text-neutral-500 mt-0.5">Ext {incomingCall.from_extension} → Ext 100 · {new Date(incomingCall.started_at).toLocaleTimeString()}</p>
                 </div>
+
+                <button
+                  onClick={() => declineIncomingCall(incomingCall)}
+                  className="shrink-0 h-6 w-6 rounded-full bg-neutral-800 hover:bg-neutral-700 text-neutral-400 hover:text-white flex items-center justify-center text-xs font-bold"
+                  title="Dismiss"
+                >
+                  ✕
+                </button>
               </div>
 
-              <div>
-                <p className="text-[10px] uppercase font-extrabold tracking-widest text-green-400 mb-1">🔔 INCOMING INTERCOM CALL</p>
-                <h2 className="text-xl font-black text-white">Room {incomingCall.from_room}</h2>
-                <p className="text-sm text-neutral-300 font-semibold mt-0.5">{incomingCall.caller_name}</p>
-                <p className="text-[10px] text-neutral-500 mt-1">→ Ext 100 · Front Desk Console</p>
-                <p className="text-[10px] text-neutral-600 mt-0.5">{new Date(incomingCall.started_at).toLocaleTimeString()}</p>
-              </div>
-
-              <div className="flex gap-3 w-full mt-2">
+              <div className="flex gap-2 mt-3">
                 <button
                   onClick={() => answerIncomingCall(incomingCall)}
-                  className="flex-1 py-3 bg-green-500 hover:bg-green-400 text-neutral-950 font-black text-sm rounded-2xl transition shadow-lg flex items-center justify-center gap-2"
+                  className="flex-1 py-2 bg-green-500 hover:bg-green-400 text-neutral-950 font-black text-xs rounded-xl transition shadow flex items-center justify-center gap-1.5"
                 >
                   <span>📞</span> Answer
                 </button>
                 <button
                   onClick={() => declineIncomingCall(incomingCall)}
-                  className="flex-1 py-3 bg-red-600 hover:bg-red-500 text-white font-black text-sm rounded-2xl transition shadow-lg flex items-center justify-center gap-2"
+                  className="flex-1 py-2 bg-red-600 hover:bg-red-500 text-white font-black text-xs rounded-xl transition shadow flex items-center justify-center gap-1.5"
                 >
                   <span>🔴</span> Decline
                 </button>
@@ -1908,11 +1940,11 @@ export default function ReceptionPMSPage() {
                         onClick={() => executeReceptionCall(activeIntercomRoom)}
                         className="px-3 py-1.5 bg-green-500 hover:bg-green-400 text-neutral-950 font-extrabold text-xs rounded-xl shadow"
                       >
-                        Answer / Call
+                        📞 Dial Room
                       </button>
                     ) : (
                       <button
-                        onClick={() => setIntercomCallActive(false)}
+                        onClick={endReceptionCall}
                         className="px-3 py-1.5 bg-red-600 hover:bg-red-500 text-white font-extrabold text-xs rounded-xl shadow animate-pulse"
                       >
                         End Call 🔴
@@ -1949,47 +1981,76 @@ export default function ReceptionPMSPage() {
                 {intercomCallLogs.length === 0 ? (
                   <p className="text-xs text-neutral-500 text-center py-6">No call logs recorded yet.</p>
                 ) : (
-                  intercomCallLogs.map((log: any) => (
-                    <div key={log.id || log.call_id} className="p-3 bg-neutral-950 border border-neutral-800 rounded-2xl flex justify-between items-center text-xs">
-                      <div>
-                        <div className="flex items-center gap-1.5">
-                          <span className={`px-1.5 py-0.5 rounded text-[9px] font-extrabold ${log.call_type === 'Incoming' ? 'bg-blue-500/20 text-blue-400' : 'bg-amber-500/20 text-amber-400'}`}>
-                            {log.call_type || 'Call'}
-                          </span>
-                          <span className="font-extrabold text-white">{log.caller_name || `Ext ${log.from_extension}`}</span>
+                  intercomCallLogs.map((log: any, idx: number) => {
+                    // Support both old field names (from dummy data) and new store field names
+                    const callId = log.call_id || log.id || idx;
+                    const callerName = log.caller_name || `Ext ${log.from_extension || log.from_room}`;
+                    const targetName = log.target_extension === '100' || log.target_name?.includes('Front Desk')
+                      ? 'Front Desk (Ext 100)'
+                      : `Room ${log.target_extension || log.target_room || '?'}`;
+                    const callType = log.from_extension === '100' || log.from_room === '100' ? 'Outbound' : 'Incoming';
+                    const statusRaw: string = (log.status || 'completed');
+                    const statusLabel = statusRaw.charAt(0).toUpperCase() + statusRaw.slice(1);
+                    const statusColor = statusRaw === 'completed' || statusRaw === 'active'
+                      ? 'text-green-400'
+                      : statusRaw === 'missed'
+                      ? 'text-red-400'
+                      : statusRaw === 'declined'
+                      ? 'text-orange-400'
+                      : 'text-neutral-400';
+                    const durationSecs = log.duration_seconds ?? 0;
+                    const durLabel = log.duration ||
+                      `${Math.floor(durationSecs / 60).toString().padStart(2, '0')}:${(durationSecs % 60).toString().padStart(2, '0')}`;
+                    const timeLabel = log.started_at || log.timestamp
+                      ? new Date(log.started_at || log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                      : '--:--';
+                    const dialTarget = (log.from_extension === '100' || log.from_room === '100')
+                      ? (log.target_extension || log.target_room || '204')
+                      : (log.from_extension || log.from_room || '204');
+
+                    return (
+                      <div key={callId} className="p-3 bg-neutral-950 border border-neutral-800 rounded-2xl flex justify-between items-center text-xs gap-2">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className={`px-1.5 py-0.5 rounded text-[9px] font-extrabold shrink-0 ${
+                              callType === 'Incoming' ? 'bg-blue-500/20 text-blue-400' : 'bg-amber-500/20 text-amber-400'
+                            }`}>
+                              {callType === 'Incoming' ? '↙ IN' : '↗ OUT'}
+                            </span>
+                            <span className="font-extrabold text-white truncate">{callerName}</span>
+                          </div>
+                          <p className="text-[10px] text-neutral-400 mt-0.5 truncate">
+                            ➡ {targetName} · <span className="text-neutral-500">{timeLabel}</span>
+                          </p>
                         </div>
-                        <p className="text-[10px] text-neutral-400 mt-0.5">
-                          ➡ {log.target_name || `Ext ${log.target_extension}`} • <span className="text-neutral-500">{new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                        </p>
-                      </div>
-                      <div className="text-right flex items-center gap-2">
-                        <div>
-                          <span className={`text-[10px] font-bold block ${log.status === 'Completed' ? 'text-green-400' : log.status === 'Active' ? 'text-amber-400 animate-pulse' : 'text-red-400'}`}>
-                            {log.status}
-                          </span>
-                          <span className="text-[9px] text-neutral-500 font-mono">{log.duration}</span>
+                        <div className="text-right flex items-center gap-2 shrink-0">
+                          <div>
+                            <span className={`text-[10px] font-bold block ${statusColor}`}>
+                              {statusLabel}
+                            </span>
+                            <span className="text-[9px] text-neutral-500 font-mono">{durLabel}</span>
+                          </div>
+                          <button
+                            onClick={() => {
+                              setActiveIntercomRoom(String(dialTarget));
+                              setIntercomTab('console');
+                            }}
+                            className="px-2 py-1 bg-neutral-800 hover:bg-neutral-700 text-amber-400 rounded-lg text-[10px] font-bold whitespace-nowrap"
+                            title="Redial Extension"
+                          >
+                            📞 Redial
+                          </button>
                         </div>
-                        <button
-                          onClick={() => {
-                            const dialTarget = log.from_extension === '100' ? log.target_extension : log.from_extension;
-                            setActiveIntercomRoom(dialTarget);
-                            setIntercomTab('console');
-                          }}
-                          className="px-2 py-1 bg-neutral-800 hover:bg-neutral-700 text-amber-400 rounded-lg text-[10px] font-bold"
-                          title="Redial Extension"
-                        >
-                          📞 Redial
-                        </button>
                       </div>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
             )}
 
             <button
-              onClick={() => {
-                setIntercomCallActive(false);
+              onClick={async () => {
+                if (intercomCallActive) await endReceptionCall();
                 setIntercomCallModalOpen(false);
               }}
               className="w-full py-2 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 font-extrabold text-xs rounded-xl transition"
