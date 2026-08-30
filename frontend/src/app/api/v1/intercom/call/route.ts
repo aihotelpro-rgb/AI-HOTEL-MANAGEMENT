@@ -1,43 +1,58 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { addCallToQueue, getCallQueue, expireRingingCalls, IntercomCall } from '../store';
 
 export const dynamic = 'force-dynamic';
 
+const CORS_HEADERS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+};
+
 export async function OPTIONS() {
-  return new NextResponse(null, {
-    status: 200,
-    headers: {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    },
-  });
+  return new NextResponse(null, { status: 200, headers: CORS_HEADERS });
 }
 
+// POST /api/v1/intercom/call
+// Called by guest room browser when they tap "Call Reception"
+// Adds call to the server-side queue — reception polls this queue
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
-  const targetRoom = body.room_number || body.extension || '100';
-  const fromExt = body.from_extension || (targetRoom === '100' ? 'Guest Room' : '100');
-  const callId = `voip_call_${Date.now()}`;
+
+  expireRingingCalls();
+
+  const fromRoom = String(body.room_number || body.from_extension || 'Unknown');
+  const callId = `voip_${Date.now()}_room${fromRoom}`;
+
+  const newCall: IntercomCall = {
+    call_id: callId,
+    from_room: fromRoom,
+    caller_name: body.caller_name || `Room ${fromRoom} Guest`,
+    from_extension: fromRoom,
+    target_extension: '100',
+    status: 'ringing',
+    started_at: new Date().toISOString(),
+    hotel: 'Hotel Blue Bird Inn - Garacharma, Sri Vijayapuram',
+  };
+
+  addCallToQueue(newCall);
 
   return NextResponse.json(
     {
-      status: "connected",
+      status: 'ringing',
       call_id: callId,
-      target_room: targetRoom,
-      from_extension: fromExt,
-      caller_name: fromExt === '100' ? 'Front Desk Console' : `Room ${fromExt}`,
-      target_name: targetRoom === '100' ? 'Front Desk Console' : `Room ${targetRoom}`,
-      audio_channel: "Opus WebRTC 48kHz HD",
-      hotel: "Hotel Blue Bird Inn - Garacharma, Sri Vijayapuram",
-      timestamp: new Date().toISOString()
+      message: `Ringing Front Desk (Ext 100) from Room ${fromRoom}`,
+      from_room: fromRoom,
+      queue_position: getCallQueue().length,
     },
-    {
-      status: 200,
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-      },
-    }
+    { status: 200, headers: CORS_HEADERS }
   );
+}
+
+// GET /api/v1/intercom/call
+// Returns current active ringing call queue (used by reception to poll)
+export async function GET() {
+  expireRingingCalls();
+  const queue = getCallQueue();
+  return NextResponse.json(queue, { status: 200, headers: CORS_HEADERS });
 }

@@ -386,6 +386,9 @@ function GuestRoomQRContent() {
   // Intercom Direct Calling State
   const [isCallActive, setIsCallActive] = useState(false);
   const [callSeconds, setCallSeconds] = useState(0);
+  const [currentCallId, setCurrentCallId] = useState<string | null>(null);
+  const [callStatus, setCallStatus] = useState<'idle' | 'ringing' | 'active' | 'declined' | 'missed'>('idle');
+  const [callStatusMsg, setCallStatusMsg] = useState('');
 
   const playRingbackChime = () => {
     try {
@@ -423,18 +426,62 @@ function GuestRoomQRContent() {
   const startIntercomCall = async () => {
     playRingbackChime();
     setIsCallActive(true);
+    setCallStatus('ringing');
+    setCallStatusMsg('🔔 Ringing Front Desk (Ext 100)...');
     try {
       if (typeof navigator !== 'undefined' && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
         await navigator.mediaDevices.getUserMedia({ audio: true }).catch(() => {});
       }
-      await apiRequest('/api/v1/intercom/call', {
+      const result = await apiRequest('/api/v1/intercom/call', {
         method: 'POST',
-        body: JSON.stringify({ room_number: roomNumber, from_extension: roomNumber, target_room: '100' })
+        body: JSON.stringify({
+          room_number: roomNumber,
+          from_extension: roomNumber,
+          caller_name: `Room ${roomNumber} Guest`,
+          target_room: '100'
+        })
       });
+      // Store call_id so we can poll for answer status
+      if (result?.call_id) {
+        setCurrentCallId(result.call_id);
+      }
     } catch (err) {
       console.warn('Intercom call API logged', err);
     }
   };
+
+  // Poll call status once reception answers/declines
+  useEffect(() => {
+    if (!currentCallId || callStatus === 'idle') return;
+    const pollStatus = setInterval(async () => {
+      try {
+        const status = await apiRequest(`/api/v1/intercom/status?call_id=${currentCallId}`);
+        if (status?.status === 'active') {
+          setCallStatus('active');
+          setCallStatusMsg('✅ Connected — Reception Answered');
+          clearInterval(pollStatus);
+        } else if (status?.status === 'declined') {
+          setCallStatus('declined');
+          setCallStatusMsg('📵 Reception is busy — Please try again');
+          setIsCallActive(false);
+          setCurrentCallId(null);
+          clearInterval(pollStatus);
+          setTimeout(() => { setCallStatus('idle'); setCallStatusMsg(''); }, 4000);
+        } else if (status?.status === 'missed' || status?.error === 'expired') {
+          setCallStatus('missed');
+          setCallStatusMsg('⚠️ No answer — Reception may be busy');
+          setIsCallActive(false);
+          setCurrentCallId(null);
+          clearInterval(pollStatus);
+          setTimeout(() => { setCallStatus('idle'); setCallStatusMsg(''); }, 4000);
+        }
+      } catch (err) {
+        // ignore polling errors
+      }
+    }, 3000);
+    return () => clearInterval(pollStatus);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentCallId]);
 
   useEffect(() => {
     let interval: any = null;
@@ -769,7 +816,7 @@ function GuestRoomQRContent() {
         {onlineStatus ? (
           <>
             <span className="h-2 w-2 rounded-full bg-green-500 animate-pulse"></span>
-            <span>Palace Wi-Fi Connected • Suite {roomNumber}</span>
+            <span>BlueBirdInn-Guest Wi-Fi • Room {roomNumber}</span>
           </>
         ) : (
           <>
@@ -777,6 +824,25 @@ function GuestRoomQRContent() {
             <span>Offline Mode Active • In-App Caching Enabled</span>
           </>
         )}
+      </div>
+
+      {/* 24-Room Quick Switch Selector Bar */}
+      <div className="flex items-center justify-between text-[11px] bg-neutral-950 border-b border-neutral-800 px-4 py-1.5">
+        <span className="text-neutral-400 font-bold text-[10px] uppercase tracking-wider flex items-center gap-1">
+          <span>🏨</span>
+          <span>Switch Island Suite:</span>
+        </span>
+        <select
+          value={roomNumber}
+          onChange={(e) => window.location.href = `/room-qr?room=${e.target.value}`}
+          className="bg-neutral-900 border border-neutral-700 rounded-xl px-2.5 py-1 text-xs text-amber-400 font-extrabold focus:outline-none focus:border-amber-500"
+        >
+          {Array.from({ length: 24 }, (_, i) => {
+            const f = Math.floor(i / 12) + 1;
+            const r = `${f}${(i % 12 + 1).toString().padStart(2, '0')}`;
+            return <option key={r} value={r}>Room {r} ({f === 2 ? 'Floor 2 Sea Breeze' : 'Floor 1 King'})</option>;
+          })}
+        </select>
       </div>
 
       {/* Multi-Language & Multi-Currency Selector Bar */}
@@ -1661,38 +1727,69 @@ function GuestRoomQRContent() {
       {/* Direct Reception WebRTC Intercom Audio Call Modal */}
       {isCallActive && (
         <div className="fixed inset-0 bg-neutral-950/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-6 max-w-sm w-full shadow-2xl text-center space-y-5 animate-in zoom-in-95">
-            <div className="mx-auto h-20 w-20 bg-green-500/20 text-green-400 border border-green-500/40 rounded-full flex items-center justify-center text-3xl shadow-xl animate-pulse">
-              📞
+          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-6 max-w-sm w-full shadow-2xl text-center space-y-5">
+            {/* Animated phone icon — changes color by call status */}
+            <div className={`mx-auto h-20 w-20 rounded-full flex items-center justify-center text-3xl shadow-xl transition-colors ${callStatus === 'active' ? 'bg-green-500/30 border-2 border-green-500 animate-none' : callStatus === 'declined' || callStatus === 'missed' ? 'bg-red-500/20 border-2 border-red-500' : 'bg-green-500/20 border border-green-500/40 animate-pulse'}`}>
+              {callStatus === 'declined' || callStatus === 'missed' ? '📵' : '📞'}
             </div>
 
             <div>
-              <span className="text-[10px] uppercase font-extrabold tracking-wider text-green-400 block">
-                Direct Front Desk Speed-Dial (Dial 100)
+              <span className={`text-[10px] uppercase font-extrabold tracking-wider block mb-1 ${callStatus === 'active' ? 'text-green-400' : callStatus === 'declined' ? 'text-red-400' : 'text-amber-400'}`}>
+                {callStatus === 'ringing' ? '🔔 RINGING FRONT DESK · EXT 100' :
+                 callStatus === 'active' ? '✅ CALL CONNECTED' :
+                 callStatus === 'declined' ? '📵 CALL DECLINED' :
+                 callStatus === 'missed' ? '⚠️ NO ANSWER' : 'INTERCOM CALL'}
               </span>
-              <h3 className="text-lg font-extrabold text-white mt-1">Calling Hotel Blue Bird Inn Front Desk...</h3>
-              <p className="text-xs text-neutral-400 mt-0.5">Room {roomNumber} • High-Definition Audio Intercom</p>
+              <h3 className="text-lg font-extrabold text-white mt-1">Hotel Blue Bird Inn Front Desk</h3>
+              <p className="text-xs text-neutral-400 mt-0.5">Room {roomNumber} → Ext 100 · Reception</p>
+              {callStatusMsg && (
+                <p className={`text-xs font-semibold mt-2 px-3 py-1.5 rounded-xl ${callStatus === 'active' ? 'bg-green-950/60 text-green-400' : callStatus === 'declined' || callStatus === 'missed' ? 'bg-red-950/60 text-red-400' : 'bg-neutral-950 text-amber-400'}`}>
+                  {callStatusMsg}
+                </p>
+              )}
             </div>
 
-            {/* Call Timer & Audio Wave */}
-            <div className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 space-y-2">
-              <span className="text-xl font-extrabold font-mono text-amber-400 block">
-                {Math.floor(callSeconds / 60).toString().padStart(2, '0')}:{(callSeconds % 60).toString().padStart(2, '0')}
-              </span>
-              <div className="flex items-center justify-center gap-1 h-6">
-                <span className="w-1 bg-green-400 h-3 animate-bounce rounded-full" />
-                <span className="w-1 bg-green-400 h-5 animate-bounce delay-100 rounded-full" />
-                <span className="w-1 bg-green-400 h-2 animate-bounce delay-200 rounded-full" />
-                <span className="w-1 bg-green-400 h-6 animate-bounce delay-150 rounded-full" />
-                <span className="w-1 bg-green-400 h-4 animate-bounce delay-75 rounded-full" />
+            {/* Call Timer & Audio Wave — only while active or ringing */}
+            {(callStatus === 'ringing' || callStatus === 'active') && (
+              <div className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 space-y-2">
+                <span className="text-xl font-extrabold font-mono text-amber-400 block">
+                  {Math.floor(callSeconds / 60).toString().padStart(2, '0')}:{(callSeconds % 60).toString().padStart(2, '0')}
+                </span>
+                <div className="flex items-center justify-center gap-1 h-6">
+                  {callStatus === 'ringing' ? (
+                    // Pulse dots while ringing
+                    <>
+                      <span className="w-2 h-2 bg-amber-400 rounded-full animate-bounce" />
+                      <span className="w-2 h-2 bg-amber-400 rounded-full animate-bounce delay-100" />
+                      <span className="w-2 h-2 bg-amber-400 rounded-full animate-bounce delay-200" />
+                    </>
+                  ) : (
+                    // Audio waveform while connected
+                    <>
+                      <span className="w-1 bg-green-400 h-3 animate-bounce rounded-full" />
+                      <span className="w-1 bg-green-400 h-5 animate-bounce delay-100 rounded-full" />
+                      <span className="w-1 bg-green-400 h-2 animate-bounce delay-200 rounded-full" />
+                      <span className="w-1 bg-green-400 h-6 animate-bounce delay-150 rounded-full" />
+                      <span className="w-1 bg-green-400 h-4 animate-bounce delay-75 rounded-full" />
+                    </>
+                  )}
+                </div>
+                <p className="text-[10px] text-neutral-600">
+                  {callStatus === 'ringing' ? 'Dialing... Reception will ring shortly' : 'Voice channel open · Speak normally'}
+                </p>
               </div>
-            </div>
+            )}
 
             <button
-              onClick={() => setIsCallActive(false)}
+              onClick={() => {
+                setIsCallActive(false);
+                setCurrentCallId(null);
+                setCallStatus('idle');
+                setCallStatusMsg('');
+              }}
               className="w-full py-3 bg-red-600 hover:bg-red-500 text-white font-extrabold text-xs rounded-2xl transition shadow-xl flex items-center justify-center gap-2"
             >
-              <span>🔴 End Call</span>
+              <span>🔴 {callStatus === 'ringing' ? 'Cancel Call' : 'End Call'}</span>
             </button>
           </div>
         </div>

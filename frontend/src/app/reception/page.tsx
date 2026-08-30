@@ -89,13 +89,105 @@ export default function ReceptionPMSPage() {
   const [intercomTab, setIntercomTab] = useState<'console' | 'history'>('console');
   const [intercomCallLogs, setIntercomCallLogs] = useState<any[]>([]);
 
+  // Incoming call notification state (live polling)
+  const [incomingCall, setIncomingCall] = useState<any>(null);
+  const [incomingCallVisible, setIncomingCallVisible] = useState(false);
+  const [activeCallId, setActiveCallId] = useState<string | null>(null);
+
   const loadIntercomHistory = async () => {
     try {
       const logs = await apiRequest('/api/v1/intercom/history');
-      setIntercomCallLogs(logs);
+      setIntercomCallLogs(Array.isArray(logs) ? logs : []);
     } catch (err) {
       console.error('Failed to load intercom logs', err);
     }
+  };
+
+  // Play a distinct incoming ring chime (different from outbound ringback)
+  const playIncomingRingTone = () => {
+    try {
+      if (typeof window === 'undefined') return;
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+
+      // Three-beep incoming ring pattern: 880Hz → 660Hz → 880Hz
+      const beep = (startAt: number, freq: number, dur: number) => {
+        const osc = ctx.createOscillator();
+        const g = ctx.createGain();
+        osc.frequency.setValueAtTime(freq, ctx.currentTime + startAt);
+        g.gain.setValueAtTime(0, ctx.currentTime + startAt);
+        g.gain.linearRampToValueAtTime(0.22, ctx.currentTime + startAt + 0.02);
+        g.gain.linearRampToValueAtTime(0, ctx.currentTime + startAt + dur);
+        osc.connect(g);
+        g.connect(ctx.destination);
+        osc.start(ctx.currentTime + startAt);
+        osc.stop(ctx.currentTime + startAt + dur + 0.05);
+      };
+
+      beep(0,    880, 0.18);
+      beep(0.25, 660, 0.18);
+      beep(0.50, 880, 0.18);
+      beep(0.80, 660, 0.18);
+      beep(1.05, 880, 0.25);
+
+      setTimeout(() => { try { ctx.close(); } catch(e){} }, 1800);
+    } catch (err) {
+      console.warn('Incoming ring tone skipped', err);
+    }
+  };
+
+  // Poll server every 3 seconds for incoming calls from guest rooms
+  const pollForIncomingCalls = async () => {
+    try {
+      const queue: any[] = await apiRequest('/api/v1/intercom/call');
+      if (!Array.isArray(queue)) return;
+      // Find first ringing call not already being handled
+      const ringing = queue.find(c => c.status === 'ringing');
+      if (ringing && incomingCall?.call_id !== ringing.call_id) {
+        setIncomingCall(ringing);
+        setIncomingCallVisible(true);
+        playIncomingRingTone();
+      }
+      // If our active call was answered/completed on server side, update UI
+      if (!ringing && incomingCall && incomingCall.status === 'ringing') {
+        // Call expired or was declined from another tab — clear it
+        setIncomingCall(null);
+        setIncomingCallVisible(false);
+      }
+    } catch (err) {
+      // silently fail — polling should not crash the page
+    }
+  };
+
+  const answerIncomingCall = async (call: any) => {
+    try {
+      await apiRequest('/api/v1/intercom/answer', {
+        method: 'POST',
+        body: JSON.stringify({ call_id: call.call_id, action: 'answer' })
+      });
+      setActiveIntercomRoom(call.from_room);
+      setActiveCallId(call.call_id);
+      setIntercomCallActive(true);
+      setIntercomCallModalOpen(true);
+      setIntercomTab('console');
+      setIncomingCallVisible(false);
+      setIncomingCall(null);
+    } catch (err) {
+      console.warn('Answer call failed', err);
+    }
+  };
+
+  const declineIncomingCall = async (call: any) => {
+    try {
+      await apiRequest('/api/v1/intercom/answer', {
+        method: 'POST',
+        body: JSON.stringify({ call_id: call.call_id, action: 'decline' })
+      });
+    } catch (err) {}
+    setIncomingCallVisible(false);
+    setIncomingCall(null);
+    loadIntercomHistory();
   };
 
   const playReceptionRingbackChime = () => {
@@ -163,6 +255,15 @@ export default function ReceptionPMSPage() {
     }
     return () => clearInterval(timer);
   }, [intercomCallActive]);
+
+  // Start polling for incoming calls as soon as reception page loads
+  useEffect(() => {
+    const poll = setInterval(pollForIncomingCalls, 3000);
+    // Also poll once immediately
+    pollForIncomingCalls();
+    return () => clearInterval(poll);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Modal States
   const [checkInModalOpen, setCheckInModalOpen] = useState(false);
@@ -477,6 +578,51 @@ export default function ReceptionPMSPage() {
   return (
     <div className="flex flex-col md:flex-row h-screen bg-neutral-950 text-neutral-100 selection:bg-amber-500 selection:text-neutral-950 overflow-hidden">
       
+      {/* ═══ INCOMING CALL NOTIFICATION OVERLAY ═══ */}
+      {incomingCallVisible && incomingCall && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="relative bg-neutral-900 border-2 border-green-500 rounded-3xl p-6 shadow-2xl max-w-sm w-full mx-4 animate-bounce-slow">
+            {/* Pulsing ring animation */}
+            <div className="absolute -inset-1 rounded-3xl border-2 border-green-500/40 animate-ping pointer-events-none" />
+
+            {/* Phone icon animated */}
+            <div className="flex flex-col items-center gap-4 text-center">
+              <div className="relative">
+                <div className="h-20 w-20 rounded-full bg-green-500/20 border-4 border-green-500 flex items-center justify-center animate-pulse">
+                  <span className="text-4xl animate-bounce">📞</span>
+                </div>
+                <div className="absolute -top-1 -right-1 h-5 w-5 bg-red-500 rounded-full flex items-center justify-center">
+                  <span className="text-[9px] text-white font-black">!</span>
+                </div>
+              </div>
+
+              <div>
+                <p className="text-[10px] uppercase font-extrabold tracking-widest text-green-400 mb-1">🔔 INCOMING INTERCOM CALL</p>
+                <h2 className="text-xl font-black text-white">Room {incomingCall.from_room}</h2>
+                <p className="text-sm text-neutral-300 font-semibold mt-0.5">{incomingCall.caller_name}</p>
+                <p className="text-[10px] text-neutral-500 mt-1">→ Ext 100 · Front Desk Console</p>
+                <p className="text-[10px] text-neutral-600 mt-0.5">{new Date(incomingCall.started_at).toLocaleTimeString()}</p>
+              </div>
+
+              <div className="flex gap-3 w-full mt-2">
+                <button
+                  onClick={() => answerIncomingCall(incomingCall)}
+                  className="flex-1 py-3 bg-green-500 hover:bg-green-400 text-neutral-950 font-black text-sm rounded-2xl transition shadow-lg flex items-center justify-center gap-2"
+                >
+                  <span>📞</span> Answer
+                </button>
+                <button
+                  onClick={() => declineIncomingCall(incomingCall)}
+                  className="flex-1 py-3 bg-red-600 hover:bg-red-500 text-white font-black text-sm rounded-2xl transition shadow-lg flex items-center justify-center gap-2"
+                >
+                  <span>🔴</span> Decline
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Unified Left Side Navigation Bar */}
       <Sidebar />
 
@@ -492,13 +638,18 @@ export default function ReceptionPMSPage() {
             <div className="min-w-0 flex-1 overflow-hidden">
               <div className="flex items-center gap-2 min-w-0">
                 <h1 className="text-xs sm:text-sm md:text-base font-black tracking-tight text-white truncate leading-none">
-                  Front Desk & Reception PMS
+                  Front Desk · Hotel Blue Bird Inn
                 </h1>
                 <span className="text-[10px] font-extrabold px-2 py-0.5 bg-neutral-800 text-amber-400 border border-neutral-700 rounded-full shrink-0 whitespace-nowrap hidden sm:inline-block">
-                  50 Rooms
+                  24 Rooms
                 </span>
+                {incomingCall && incomingCallVisible && (
+                  <span className="text-[10px] font-extrabold px-2 py-0.5 bg-green-950 text-green-400 border border-green-700 rounded-full shrink-0 whitespace-nowrap animate-pulse hidden sm:inline-block">
+                    📞 Room {incomingCall.from_room} Calling...
+                  </span>
+                )}
               </div>
-              <p className="text-[11px] text-neutral-400 mt-0.5 truncate">Guest Ledger, 1-Click Check-In/Out & Inbound Stream</p>
+              <p className="text-[11px] text-neutral-400 mt-0.5 truncate">Garacharma, Sri Vijayapuram · 24 Rooms · 2 Floors · Live Intercom Active</p>
             </div>
           </div>
 
@@ -515,10 +666,10 @@ export default function ReceptionPMSPage() {
             <button
               type="button"
               onClick={() => setIntercomCallModalOpen(true)}
-              className="px-3 py-1.5 bg-green-950/80 hover:bg-green-900 border border-green-700 text-green-300 font-extrabold text-[11px] rounded-xl transition flex items-center gap-1.5 shadow whitespace-nowrap shrink-0"
+              className={`px-3 py-1.5 font-extrabold text-[11px] rounded-xl transition flex items-center gap-1.5 shadow whitespace-nowrap shrink-0 border ${incomingCall && incomingCallVisible ? 'bg-green-500 text-neutral-950 border-green-400 animate-pulse' : 'bg-green-950/80 hover:bg-green-900 border-green-700 text-green-300'}`}
             >
               <span>📞</span>
-              <span className="hidden sm:inline">Intercom Console</span>
+              <span className="hidden sm:inline">{incomingCall && incomingCallVisible ? `Room ${incomingCall.from_room} Calling!` : 'Intercom Console'}</span>
             </button>
             <button
               onClick={loadPMSData}
