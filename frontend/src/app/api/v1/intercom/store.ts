@@ -1,21 +1,8 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// SERVER-SIDE IN-MEMORY INTERCOM SIGNALING STORE
+// SERVER-SIDE IN-MEMORY INTERCOM SIGNALING & WEBRTC STORE
 // Global singleton that persists during the Vercel serverless warm window.
-// Acts as the bidirectional signaling layer between room and reception browsers.
-//
-// TWO QUEUES:
-//   __intercomCallQueue      → Guest room → Reception  (room calls desk)
-//   __intercomRoomCallQueue  → Reception  → Guest room (desk calls room)
+// Acts as the bidirectional signaling layer & WebRTC SDP/ICE exchange store.
 // ─────────────────────────────────────────────────────────────────────────────
-
-declare global {
-  // eslint-disable-next-line no-var
-  var __intercomCallQueue: IntercomCall[];       // room → reception
-  // eslint-disable-next-line no-var
-  var __intercomRoomCallQueue: IntercomCall[];   // reception → room
-  // eslint-disable-next-line no-var
-  var __intercomCallHistory: IntercomCall[];
-}
 
 export interface IntercomCall {
   call_id: string;
@@ -31,12 +18,33 @@ export interface IntercomCall {
   hotel: string;
 }
 
+export interface WebRTCSignals {
+  offer?: any;
+  answer?: any;
+  callerCandidates: any[];
+  receiverCandidates: any[];
+}
+
+declare global {
+  // eslint-disable-next-line no-var
+  var __intercomCallQueue: IntercomCall[];       // room → reception
+  // eslint-disable-next-line no-var
+  var __intercomRoomCallQueue: IntercomCall[];   // reception → room
+  // eslint-disable-next-line no-var
+  var __intercomCallHistory: IntercomCall[];
+  // eslint-disable-next-line no-var
+  var __intercomWebRTCSignals: Record<string, WebRTCSignals>;
+}
+
 // ── Initialize stores once ──────────────────────────────────────────────────
 if (!global.__intercomCallQueue) {
   global.__intercomCallQueue = [];
 }
 if (!global.__intercomRoomCallQueue) {
   global.__intercomRoomCallQueue = [];
+}
+if (!global.__intercomWebRTCSignals) {
+  global.__intercomWebRTCSignals = {};
 }
 if (!global.__intercomCallHistory) {
   global.__intercomCallHistory = [
@@ -75,7 +83,6 @@ export function getCallHistory() { return global.__intercomCallHistory; }
 
 // ── Room→Reception: add to inbound queue ────────────────────────────────────
 export function addCallToQueue(call: IntercomCall) {
-  // Remove any existing ringing call from same room (prevent duplicates)
   global.__intercomCallQueue = global.__intercomCallQueue.filter(
     (c) => !(c.from_room === call.from_room && c.status === 'ringing')
   );
@@ -84,7 +91,6 @@ export function addCallToQueue(call: IntercomCall) {
 
 // ── Reception→Room: add to per-room incoming queue ──────────────────────────
 export function addRoomIncomingCall(call: IntercomCall) {
-  // Remove existing ringing call to same target room (dedup)
   global.__intercomRoomCallQueue = global.__intercomRoomCallQueue.filter(
     (c) => !(c.target_extension === call.target_extension && c.status === 'ringing')
   );
@@ -99,7 +105,40 @@ export function getRoomIncomingCalls(roomNumber: string): IntercomCall[] {
   );
 }
 
-// ── Update status in any queue or history with accurate duration math ───────
+// ── WebRTC Signaling Exchange ────────────────────────────────────────────────
+export function saveWebRTCSignal(
+  call_id: string,
+  sender: 'caller' | 'receiver',
+  type: 'offer' | 'answer' | 'candidate',
+  payload: any
+) {
+  if (!global.__intercomWebRTCSignals[call_id]) {
+    global.__intercomWebRTCSignals[call_id] = { callerCandidates: [], receiverCandidates: [] };
+  }
+  const signals = global.__intercomWebRTCSignals[call_id];
+
+  if (type === 'offer' && sender === 'caller') {
+    signals.offer = payload;
+  } else if (type === 'answer' && sender === 'receiver') {
+    signals.answer = payload;
+  } else if (type === 'candidate') {
+    if (sender === 'caller') {
+      signals.callerCandidates.push(payload);
+    } else {
+      signals.receiverCandidates.push(payload);
+    }
+  }
+}
+
+export function getWebRTCSignals(call_id: string): WebRTCSignals {
+  return global.__intercomWebRTCSignals[call_id] || { callerCandidates: [], receiverCandidates: [] };
+}
+
+export function clearWebRTCSignals(call_id: string) {
+  delete global.__intercomWebRTCSignals[call_id];
+}
+
+// ── Update status in any queue or history ───────────────────────────────────
 export function updateCallStatus(
   call_id: string,
   status: IntercomCall['status'],
@@ -151,7 +190,7 @@ export function updateCallStatus(
     return true;
   }
 
-  // 3. Check history directly (if call was already moved or registered)
+  // 3. Check history directly
   idx = global.__intercomCallHistory.findIndex((c) => c.call_id === call_id);
   if (idx !== -1) {
     const updated = processRecord(global.__intercomCallHistory[idx]);
@@ -163,7 +202,6 @@ export function updateCallStatus(
 }
 
 function _pushToHistory(call: IntercomCall) {
-  // Deduplicate by call_id before pushing
   global.__intercomCallHistory = global.__intercomCallHistory.filter(
     (c) => c.call_id !== call.call_id
   );
@@ -173,7 +211,7 @@ function _pushToHistory(call: IntercomCall) {
   }
 }
 
-// ── Auto-expire ringing calls after 45 seconds ─────────────────────────────
+// ── Auto-expire ringing calls ───────────────────────────────────────────────
 export function expireRingingCalls() {
   const now = Date.now();
   global.__intercomCallQueue

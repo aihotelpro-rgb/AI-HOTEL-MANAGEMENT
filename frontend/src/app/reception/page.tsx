@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiRequest, getAuthToken, clearAuthToken } from '@/lib/api';
+import { IntercomAudioSession } from '@/lib/webrtc';
 import Sidebar from '@/components/Sidebar';
 import ThemeDatePicker from '@/components/ThemeDatePicker';
 import { 
@@ -95,6 +96,7 @@ export default function ReceptionPMSPage() {
   const [incomingCall, setIncomingCall] = useState<any>(null);
   const [incomingCallVisible, setIncomingCallVisible] = useState(false);
   const [activeCallId, setActiveCallId] = useState<string | null>(null);
+  const activeWebRtcRef = useRef<IntercomAudioSession | null>(null);
 
   const loadIntercomHistory = async () => {
     try {
@@ -175,6 +177,11 @@ export default function ReceptionPMSPage() {
       setIntercomTab('console');
       setIncomingCallVisible(false);
       setIncomingCall(null);
+
+      // Start WebRTC audio session as receiver
+      if (activeWebRtcRef.current) activeWebRtcRef.current.stop();
+      activeWebRtcRef.current = new IntercomAudioSession(call.call_id, 'receiver');
+      activeWebRtcRef.current.start();
     } catch (err) {
       console.warn('Answer call failed', err);
     }
@@ -231,15 +238,17 @@ export default function ReceptionPMSPage() {
     setIntercomCallActive(true);
     setOutboundCallStartedAt(now);
     try {
-      if (typeof navigator !== 'undefined' && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-        await navigator.mediaDevices.getUserMedia({ audio: true }).catch(() => {});
-      }
-      // Use /outbound so it logs as a reception-initiated outbound call (not the guest inbound queue)
       const result = await apiRequest('/api/v1/intercom/outbound', {
         method: 'POST',
         body: JSON.stringify({ target_room: targetRoom, from_extension: '100', room_number: targetRoom })
       });
-      if (result?.call_id) setOutboundCallId(result.call_id);
+      if (result?.call_id) {
+        setOutboundCallId(result.call_id);
+        // Start WebRTC audio session as caller
+        if (activeWebRtcRef.current) activeWebRtcRef.current.stop();
+        activeWebRtcRef.current = new IntercomAudioSession(result.call_id, 'caller');
+        activeWebRtcRef.current.start();
+      }
       loadIntercomHistory();
     } catch (err) {
       console.warn('Reception outbound call logged', err);
@@ -247,6 +256,10 @@ export default function ReceptionPMSPage() {
   };
 
   const endReceptionCall = async () => {
+    if (activeWebRtcRef.current) {
+      activeWebRtcRef.current.stop();
+      activeWebRtcRef.current = null;
+    }
     const targetCallId = activeCallId || outboundCallId;
     if (targetCallId) {
       const durSecs = intercomCallSeconds;

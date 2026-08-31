@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 
 export const dynamic = 'force-dynamic';
 import { cacheMenu, getCachedMenu, queueOfflineRequest, getQueuedRequests } from '@/lib/db';
 import { isOnline, apiRequest } from '@/lib/api';
+import { IntercomAudioSession } from '@/lib/webrtc';
 import { 
   Utensils, 
   Sparkles, 
@@ -389,6 +390,7 @@ function GuestRoomQRContent() {
   const [currentCallId, setCurrentCallId] = useState<string | null>(null);
   const [callStatus, setCallStatus] = useState<'idle' | 'ringing' | 'active' | 'declined' | 'missed'>('idle');
   const [callStatusMsg, setCallStatusMsg] = useState('');
+  const roomWebRtcRef = useRef<IntercomAudioSession | null>(null);
 
   const playRingbackChime = () => {
     try {
@@ -429,9 +431,6 @@ function GuestRoomQRContent() {
     setCallStatus('ringing');
     setCallStatusMsg('🔔 Ringing Front Desk (Ext 100)...');
     try {
-      if (typeof navigator !== 'undefined' && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-        await navigator.mediaDevices.getUserMedia({ audio: true }).catch(() => {});
-      }
       const result = await apiRequest('/api/v1/intercom/call', {
         method: 'POST',
         body: JSON.stringify({
@@ -441,9 +440,12 @@ function GuestRoomQRContent() {
           target_room: '100'
         })
       });
-      // Store call_id so we can poll for answer status
       if (result?.call_id) {
         setCurrentCallId(result.call_id);
+        // Start WebRTC audio session as caller
+        if (roomWebRtcRef.current) roomWebRtcRef.current.stop();
+        roomWebRtcRef.current = new IntercomAudioSession(result.call_id, 'caller');
+        roomWebRtcRef.current.start();
       }
     } catch (err) {
       console.warn('Intercom call API logged', err);
@@ -575,8 +577,14 @@ function GuestRoomQRContent() {
     setIncomingCallAnswered(true);
     // Open the intercom call modal so guest can talk
     setIsCallActive(true);
+    setCurrentCallId(call.call_id);
     setCallStatus('active');
     setCallStatusMsg('✅ Connected — Reception is on the line');
+
+    // Start WebRTC audio session as receiver
+    if (roomWebRtcRef.current) roomWebRtcRef.current.stop();
+    roomWebRtcRef.current = new IntercomAudioSession(call.call_id, 'receiver');
+    roomWebRtcRef.current.start();
   };
 
   const declineReceptionCall = async (call: any) => {
@@ -1912,6 +1920,10 @@ function GuestRoomQRContent() {
 
             <button
               onClick={async () => {
+                if (roomWebRtcRef.current) {
+                  roomWebRtcRef.current.stop();
+                  roomWebRtcRef.current = null;
+                }
                 if (currentCallId) {
                   const durSecs = callSeconds;
                   try {
