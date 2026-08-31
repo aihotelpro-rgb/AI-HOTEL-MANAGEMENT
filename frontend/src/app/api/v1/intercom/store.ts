@@ -1,7 +1,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// SERVER-SIDE IN-MEMORY INTERCOM SIGNALING & WEBRTC STORE
+// SERVER-SIDE IN-MEMORY INTERCOM SIGNALING, WEBRTC & AUDIO RELAY STORE
 // Global singleton that persists during the Vercel serverless warm window.
-// Acts as the bidirectional signaling layer & WebRTC SDP/ICE exchange store.
+// Acts as the bidirectional signaling layer, TURN/STUN exchange & HTTP audio relay.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface IntercomCall {
@@ -25,6 +25,13 @@ export interface WebRTCSignals {
   receiverCandidates: any[];
 }
 
+export interface AudioChunk {
+  id: number;
+  sender: 'caller' | 'receiver';
+  audio: string; // Base64 encoded audio blob
+  timestamp: string;
+}
+
 declare global {
   // eslint-disable-next-line no-var
   var __intercomCallQueue: IntercomCall[];       // room → reception
@@ -34,6 +41,8 @@ declare global {
   var __intercomCallHistory: IntercomCall[];
   // eslint-disable-next-line no-var
   var __intercomWebRTCSignals: Record<string, WebRTCSignals>;
+  // eslint-disable-next-line no-var
+  var __intercomAudioRelay: Record<string, AudioChunk[]>;
 }
 
 // ── Initialize stores once ──────────────────────────────────────────────────
@@ -45,6 +54,9 @@ if (!global.__intercomRoomCallQueue) {
 }
 if (!global.__intercomWebRTCSignals) {
   global.__intercomWebRTCSignals = {};
+}
+if (!global.__intercomAudioRelay) {
+  global.__intercomAudioRelay = {};
 }
 if (!global.__intercomCallHistory) {
   global.__intercomCallHistory = [
@@ -136,6 +148,33 @@ export function getWebRTCSignals(call_id: string): WebRTCSignals {
 
 export function clearWebRTCSignals(call_id: string) {
   delete global.__intercomWebRTCSignals[call_id];
+  delete global.__intercomAudioRelay[call_id];
+}
+
+// ── HTTP Audio Chunk Relay Store (Cross-ISP Fallback) ──────────────────────
+let audioChunkCounter = 1;
+
+export function saveAudioChunk(call_id: string, sender: 'caller' | 'receiver', audioBase64: string) {
+  if (!global.__intercomAudioRelay[call_id]) {
+    global.__intercomAudioRelay[call_id] = [];
+  }
+  const chunks = global.__intercomAudioRelay[call_id];
+  chunks.push({
+    id: audioChunkCounter++,
+    sender,
+    audio: audioBase64,
+    timestamp: new Date().toISOString(),
+  });
+  // Cap at last 25 audio chunks to keep memory light
+  if (chunks.length > 25) {
+    global.__intercomAudioRelay[call_id] = chunks.slice(-25);
+  }
+}
+
+export function getNewAudioChunks(call_id: string, recipientRole: 'caller' | 'receiver', lastChunkId: number): AudioChunk[] {
+  const chunks = global.__intercomAudioRelay[call_id] || [];
+  const senderTarget = recipientRole === 'caller' ? 'receiver' : 'caller';
+  return chunks.filter((c) => c.sender === senderTarget && c.id > lastChunkId);
 }
 
 // ── Update status in any queue or history ───────────────────────────────────
