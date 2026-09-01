@@ -220,3 +220,203 @@ class CameraFeed(Base):
     is_active = Column(Boolean, default=True)
     fps = Column(Integer, default=30)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ENTERPRISE CHANNEL MANAGER & REVENUE MANAGEMENT MODELS
+# ─────────────────────────────────────────────────────────────────────────────
+
+class Property(Base):
+    __tablename__ = "properties"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False, default="Hotel Blue Bird Inn")
+    code = Column(String, unique=True, index=True, default="BBN-001")
+    address = Column(String, default="Garacharma, Sri Vijayapuram, A&N Islands")
+    city = Column(String, default="Sri Vijayapuram")
+    state = Column(String, default="Andaman & Nicobar Islands")
+    country = Column(String, default="India")
+    timezone = Column(String, default="Asia/Kolkata")
+    currency_code = Column(String, default="INR")
+    currency_symbol = Column(String, default="₹")
+    total_rooms = Column(Integer, default=24)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+
+class RoomType(Base):
+    __tablename__ = "room_types"
+
+    id = Column(Integer, primary_key=True, index=True)
+    property_id = Column(Integer, ForeignKey("properties.id"), default=1)
+    name = Column(String, nullable=False)       # e.g., "Deluxe Heritage King"
+    code = Column(String, nullable=False)       # e.g., "DHK"
+    total_units = Column(Integer, default=10)
+    base_rate = Column(Float, nullable=False, default=4500.0)
+    max_occupancy = Column(Integer, default=3)
+    description = Column(Text, nullable=True)
+    is_active = Column(Boolean, default=True)
+
+
+class RatePlan(Base):
+    __tablename__ = "rate_plans"
+
+    id = Column(Integer, primary_key=True, index=True)
+    property_id = Column(Integer, ForeignKey("properties.id"), default=1)
+    name = Column(String, nullable=False)       # e.g., "Best Available Rate (BAR)"
+    code = Column(String, nullable=False)       # e.g., "BAR"
+    plan_type = Column(String, default="BAR")   # BAR, Package, NonRefundable, EarlyBird
+    is_refundable = Column(Boolean, default=True)
+    cancellation_policy = Column(Text, default="Free cancellation up to 24 hours before check-in")
+    includes_breakfast = Column(Boolean, default=True)
+    is_active = Column(Boolean, default=True)
+
+
+class OtaChannel(Base):
+    __tablename__ = "ota_channels"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False)       # e.g., "Booking.com"
+    code = Column(String, unique=True, index=True, nullable=False) # BDC, MMT, AGD, EXP, GOI, AIR
+    channel_type = Column(String, default="Global OTA") # Global OTA, Indian OTA, Vacation Rental
+    api_type = Column(String, default="REST")   # REST, XML, JSON
+    api_base_url = Column(String, nullable=True)
+    webhook_url = Column(String, nullable=True)
+    commission_percent = Column(Float, default=15.0)
+    is_active = Column(Boolean, default=True)
+    logo_url = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+
+class OtaCredential(Base):
+    __tablename__ = "ota_credentials"
+
+    id = Column(Integer, primary_key=True, index=True)
+    property_id = Column(Integer, ForeignKey("properties.id"), default=1)
+    ota_id = Column(Integer, ForeignKey("ota_channels.id"), nullable=False)
+    hotel_id_on_ota = Column(String, nullable=True)     # Hotel ID assigned by OTA
+    api_key_encrypted = Column(Text, nullable=True)      # AES-256 encrypted
+    api_secret_encrypted = Column(Text, nullable=True)   # AES-256 encrypted
+    username = Column(String, nullable=True)
+    is_connected = Column(Boolean, default=False)
+    connection_mode = Column(String, default="SANDBOX") # SANDBOX, LIVE, MOCK
+    last_connection_test = Column(DateTime, nullable=True)
+    connection_status = Column(String, default="Configured & Ready")
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+
+
+class ChannelMapping(Base):
+    __tablename__ = "channel_mappings"
+
+    id = Column(Integer, primary_key=True, index=True)
+    property_id = Column(Integer, ForeignKey("properties.id"), default=1)
+    room_type_id = Column(Integer, ForeignKey("room_types.id"), nullable=False)
+    ota_id = Column(Integer, ForeignKey("ota_channels.id"), nullable=False)
+    ota_room_type_code = Column(String, nullable=False)  # OTA's room code
+    ota_room_type_name = Column(String, nullable=True)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+
+class RateMapping(Base):
+    __tablename__ = "rate_mappings"
+
+    id = Column(Integer, primary_key=True, index=True)
+    property_id = Column(Integer, ForeignKey("properties.id"), default=1)
+    rate_plan_id = Column(Integer, ForeignKey("rate_plans.id"), nullable=False)
+    ota_id = Column(Integer, ForeignKey("ota_channels.id"), nullable=False)
+    ota_rate_plan_code = Column(String, nullable=False)  # OTA's rate plan code
+    ota_rate_plan_name = Column(String, nullable=True)
+    is_active = Column(Boolean, default=True)
+
+
+class RoomAvailability(Base):
+    __tablename__ = "room_availability"
+
+    id = Column(Integer, primary_key=True, index=True)
+    property_id = Column(Integer, ForeignKey("properties.id"), default=1)
+    room_type_id = Column(Integer, ForeignKey("room_types.id"), nullable=False)
+    date_str = Column(String, index=True, nullable=False) # Format: YYYY-MM-DD
+    total_rooms = Column(Integer, default=10)
+    rooms_available = Column(Integer, default=10)
+    rooms_booked = Column(Integer, default=0)
+    is_stop_sell = Column(Boolean, default=False)
+    is_closed_to_arrival = Column(Boolean, default=False)
+    is_closed_to_departure = Column(Boolean, default=False)
+    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+
+
+class RateCalendar(Base):
+    __tablename__ = "rate_calendar"
+
+    id = Column(Integer, primary_key=True, index=True)
+    property_id = Column(Integer, ForeignKey("properties.id"), default=1)
+    room_type_id = Column(Integer, ForeignKey("room_types.id"), nullable=False)
+    rate_plan_id = Column(Integer, ForeignKey("rate_plans.id"), nullable=False)
+    date_str = Column(String, index=True, nullable=False) # Format: YYYY-MM-DD
+    rate = Column(Float, nullable=False, default=4500.0)
+    min_los = Column(Integer, default=1)
+    max_los = Column(Integer, nullable=True)
+    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+
+
+class AuditLog(Base):
+    __tablename__ = "audit_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    property_id = Column(Integer, ForeignKey("properties.id"), default=1)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    username = Column(String, default="System Admin")
+    action = Column(String, nullable=False)       # "RATE_UPDATE", "MAPPING_UPDATE", "OTA_SYNC"
+    entity_type = Column(String, nullable=False)  # "RateCalendar", "OtaCredential", "RoomMapping"
+    entity_id = Column(String, nullable=True)
+    old_value = Column(JSON, nullable=True)
+    new_value = Column(JSON, nullable=True)
+    ip_address = Column(String, default="127.0.0.1")
+    created_at = Column(DateTime, default=datetime.datetime.utcnow, index=True)
+
+
+class SyncJob(Base):
+    __tablename__ = "sync_jobs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    property_id = Column(Integer, ForeignKey("properties.id"), default=1)
+    ota_id = Column(Integer, ForeignKey("ota_channels.id"), nullable=True)
+    job_type = Column(String, default="FULL_SYNC") # "RATE", "INVENTORY", "FULL_SYNC"
+    status = Column(String, default="COMPLETED")    # "PENDING", "RUNNING", "COMPLETED", "FAILED"
+    channels_attempted = Column(Integer, default=6)
+    channels_successful = Column(Integer, default=6)
+    records_synced = Column(Integer, default=42)
+    duration_ms = Column(Integer, default=320)
+    started_at = Column(DateTime, default=datetime.datetime.utcnow)
+    completed_at = Column(DateTime, default=datetime.datetime.utcnow)
+    triggered_by = Column(String, default="Super-Admin Console")
+
+
+class SyncError(Base):
+    __tablename__ = "sync_errors"
+
+    id = Column(Integer, primary_key=True, index=True)
+    sync_job_id = Column(Integer, ForeignKey("sync_jobs.id"), nullable=True)
+    ota_code = Column(String, nullable=False)
+    error_code = Column(String, default="OTA_401_UNAUTHORIZED")
+    error_message = Column(Text, nullable=False)
+    retry_count = Column(Integer, default=0)
+    resolved = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+
+class ReservationEvent(Base):
+    __tablename__ = "reservation_events"
+
+    id = Column(Integer, primary_key=True, index=True)
+    booking_id = Column(Integer, ForeignKey("bookings.id"), nullable=True)
+    ota_id = Column(Integer, ForeignKey("ota_channels.id"), nullable=True)
+    ota_booking_ref = Column(String, index=True, nullable=False)
+    event_type = Column(String, default="NEW_RESERVATION")
+    raw_payload = Column(JSON, nullable=True)
+    status = Column(String, default="PROCESSED")
+    processed_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+

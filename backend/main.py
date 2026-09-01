@@ -5,9 +5,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.future import select
 
 from app.database import engine, Base, AsyncSessionLocal
-from app.models import User, Room, Guest, Booking, Order, Ticket, FolioCharge, HotelSettings, MenuItem
+from app.models import (
+    User, Room, Guest, Booking, Order, Ticket, FolioCharge, HotelSettings, MenuItem,
+    Property, RoomType, RatePlan, OtaChannel, OtaCredential, ChannelMapping, RateMapping
+)
 from app.auth import get_password_hash
-from app.routes import auth_routes, qr_menu, reception, housekeeping, concierge, whatsapp, executive, admin, public_booking
+from app.routes import auth_routes, qr_menu, reception, housekeeping, concierge, whatsapp, executive, admin, public_booking, channel_routes, ota_webhooks
+from app.crypto import encrypt_credential
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("ai-hos")
@@ -70,6 +74,8 @@ app.include_router(concierge.router)
 app.include_router(whatsapp.router)
 app.include_router(executive.router)
 app.include_router(public_booking.router)
+app.include_router(channel_routes.router)
+app.include_router(ota_webhooks.router)
 
 from sqlalchemy import text
 
@@ -404,8 +410,90 @@ async def startup_event():
             )
             session.add(ticket1)
 
+            # 6. Seed Enterprise Channel Manager Foundation
+            prop_q = await session.execute(select(Property).limit(1))
+            if not prop_q.scalars().first():
+                default_prop = Property(
+                    id=1,
+                    name="Hotel Blue Bird Inn",
+                    code="BBN-001",
+                    address="Garacharma, Sri Vijayapuram, A&N Islands",
+                    city="Sri Vijayapuram",
+                    state="Andaman & Nicobar Islands",
+                    country="India",
+                    timezone="Asia/Kolkata",
+                    currency_code="INR",
+                    currency_symbol="₹",
+                    total_rooms=24,
+                    is_active=True
+                )
+                session.add(default_prop)
+                await session.flush()
+
+                # Seed Room Types
+                room_types_seed = [
+                    RoomType(id=1, property_id=1, name="Deluxe Heritage Room", code="DHR", total_units=10, base_rate=4500.0, max_occupancy=3, description="Palace view room with king bed"),
+                    RoomType(id=2, property_id=2, name="Royal Heritage Suite", code="RHS", total_units=8, base_rate=9500.0, max_occupancy=4, description="Spacious suite with marble tub"),
+                    RoomType(id=3, property_id=3, name="Maharaja Penthouse Suite", code="MPS", total_units=6, base_rate=18000.0, max_occupancy=4, description="Penthouse suite with private terrace")
+                ]
+                session.add_all(room_types_seed)
+                await session.flush()
+
+                # Seed Rate Plans
+                rate_plans_seed = [
+                    RatePlan(id=1, property_id=1, name="Best Available Rate (BAR)", code="BAR", plan_type="BAR", is_refundable=True, includes_breakfast=True),
+                    RatePlan(id=2, property_id=1, name="Non-Refundable Saver", code="NREF", plan_type="NonRefundable", is_refundable=False, includes_breakfast=False),
+                    RatePlan(id=3, property_id=1, name="Royal Breakfast & Spa Package", code="PKG", plan_type="Package", is_refundable=True, includes_breakfast=True)
+                ]
+                session.add_all(rate_plans_seed)
+                await session.flush()
+
+                # Seed 6 OTA Channels
+                channels_seed = [
+                    OtaChannel(id=1, name="Booking.com Global", code="BDC", channel_type="Global OTA", api_type="XML", commission_percent=18.0, is_active=True, logo_url="https://images.unsplash.com/photo-1566073771259-6a8506099945?w=100"),
+                    OtaChannel(id=2, name="MakeMyTrip & Goibibo", code="MMT", channel_type="Indian OTA", api_type="REST", commission_percent=15.0, is_active=True, logo_url="https://images.unsplash.com/photo-1582719508461-905c673771fd?w=100"),
+                    OtaChannel(id=3, name="Agoda International", code="AGD", channel_type="Asian OTA", api_type="REST", commission_percent=16.5, is_active=True, logo_url="https://images.unsplash.com/photo-1590490360182-c33d57733427?w=100"),
+                    OtaChannel(id=4, name="Expedia Group", code="EXP", channel_type="Global OTA", api_type="XML", commission_percent=17.5, is_active=True, logo_url="https://images.unsplash.com/photo-1618773928121-c32242e63f39?w=100"),
+                    OtaChannel(id=5, name="Goibibo Direct", code="GOI", channel_type="Indian OTA", api_type="REST", commission_percent=15.0, is_active=True, logo_url="https://images.unsplash.com/photo-1566665797739-1674de7a421a?w=100"),
+                    OtaChannel(id=6, name="Airbnb Experiences", code="AIR", channel_type="Vacation Rental", api_type="REST", commission_percent=14.0, is_active=True, logo_url="https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=100")
+                ]
+                session.add_all(channels_seed)
+                await session.flush()
+
+                # Seed OTA Credentials in encrypted vault
+                creds_seed = []
+                for ch in channels_seed:
+                    creds_seed.append(OtaCredential(
+                        property_id=1,
+                        ota_id=ch.id,
+                        hotel_id_on_ota=f"HOTEL-{ch.code}-88192",
+                        api_key_encrypted=encrypt_credential(f"api_key_live_{ch.code.lower()}_2026"),
+                        api_secret_encrypted=encrypt_credential(f"sec_key_live_{ch.code.lower()}_2026"),
+                        is_connected=True,
+                        connection_mode="LIVE",
+                        connection_status="Configured & Active",
+                        last_connection_test=datetime.datetime.utcnow()
+                    ))
+                session.add_all(creds_seed)
+                await session.flush()
+
+                # Seed Channel & Rate Mappings
+                mappings_seed = [
+                    ChannelMapping(property_id=1, room_type_id=1, ota_id=1, ota_room_type_code="BDC_DELUXE_01", ota_room_type_name="Deluxe Heritage Room"),
+                    ChannelMapping(property_id=1, room_type_id=2, ota_id=1, ota_room_type_code="BDC_SUITE_02", ota_room_type_name="Royal Heritage Suite"),
+                    ChannelMapping(property_id=1, room_type_id=1, ota_id=2, ota_room_type_code="MMT_DHR_101", ota_room_type_name="Deluxe Heritage Room"),
+                    ChannelMapping(property_id=1, room_type_id=2, ota_id=2, ota_room_type_code="MMT_RHS_202", ota_room_type_name="Royal Heritage Suite"),
+                ]
+                session.add_all(mappings_seed)
+
+                rate_mappings_seed = [
+                    RateMapping(property_id=1, rate_plan_id=1, ota_id=1, ota_rate_plan_code="BDC_BAR_STD", ota_rate_plan_name="BAR Plan"),
+                    RateMapping(property_id=1, rate_plan_id=1, ota_id=2, ota_rate_plan_code="MMT_BAR_FLEX", ota_rate_plan_name="Flexible BAR Rate")
+                ]
+                session.add_all(rate_mappings_seed)
+
             await session.commit()
-            logger.info("Database initialized successfully with rich media & Indian hospitality specifications.")
+            logger.info("Database initialized successfully with Enterprise Channel Manager models & seed data.")
     except Exception as e:
         logger.warning(f"Startup DB auto-init notice (service starting normally): {e}")
 

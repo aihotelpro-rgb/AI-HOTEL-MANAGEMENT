@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ai-hos-pwa-v1';
+const CACHE_NAME = 'ai-hos-pwa-v2';
 const ASSETS_TO_CACHE = [
   '/',
   '/room-qr',
@@ -45,8 +45,8 @@ self.addEventListener('fetch', (event) => {
   // Ignore non-http/https requests (e.g., chrome-extension://)
   if (!url.startsWith('http://') && !url.startsWith('https://')) return;
 
-  // NEVER intercept or cache API requests (FastAPI backend /api/v1/)
-  if (url.includes('/api/v1/')) return;
+  // NEVER intercept or cache API requests (FastAPI backend /api/)
+  if (url.includes('/api/')) return;
 
   event.respondWith(
     fetch(event.request)
