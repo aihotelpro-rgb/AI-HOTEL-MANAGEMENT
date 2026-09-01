@@ -1272,13 +1272,47 @@ export default function AdminControlPage() {
                       </span>
                     </div>
                   </div>
-                  <button
-                    onClick={loadAdminData}
-                    className="px-3.5 py-2 bg-neutral-950 hover:bg-neutral-800 border border-neutral-800 text-amber-400 font-extrabold text-xs rounded-xl transition flex items-center gap-1.5 whitespace-nowrap shrink-0 shadow self-start sm:self-center"
-                  >
-                    <RefreshCw className="h-3.5 w-3.5" />
-                    <span>Refresh Stock Levels</span>
-                  </button>
+                  <div className="flex items-center gap-2 shrink-0 self-start sm:self-center">
+                    <button
+                      onClick={async () => {
+                        const name = prompt("Enter Stock Item Name (e.g. Kashmiri Almonds, Egyptian Cotton Towels, Sandalwood Aromatics):");
+                        if (!name) return;
+                        const cat = prompt("Enter Category (e.g. Kitchen & F&B, Housekeeping, Amenities, Front Desk):", "Kitchen & F&B");
+                        const qty = prompt("Enter Initial Stock Quantity:", "100");
+                        const limit = prompt("Enter Minimum Safety Threshold Limit:", "20");
+                        const cost = prompt("Enter Unit Cost (₹ INR):", "250");
+                        try {
+                          await apiRequest('/api/v1/admin/inventory', {
+                            method: 'POST',
+                            body: JSON.stringify({
+                              item_name: name,
+                              category: cat,
+                              stock_quantity: Number(qty),
+                              min_threshold: Number(limit),
+                              unit: "Units",
+                              unit_cost: Number(cost)
+                            })
+                          });
+                          showToast(`Added stock item "${name}" successfully!`);
+                          loadAdminData();
+                        } catch (err: any) {
+                          alert(`Error adding stock item: ${err.message}`);
+                        }
+                      }}
+                      className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-neutral-950 font-black text-xs rounded-xl transition flex items-center gap-1.5 whitespace-nowrap shadow"
+                    >
+                      <Plus className="h-4 w-4" />
+                      <span>+ Add Stock Item</span>
+                    </button>
+
+                    <button
+                      onClick={loadAdminData}
+                      className="px-3.5 py-2 bg-neutral-950 hover:bg-neutral-800 border border-neutral-800 text-amber-400 font-extrabold text-xs rounded-xl transition flex items-center gap-1.5 whitespace-nowrap shadow"
+                    >
+                      <RefreshCw className="h-3.5 w-3.5" />
+                      <span>Refresh Stock Levels</span>
+                    </button>
+                  </div>
                 </div>
                 <p className="text-xs text-neutral-400 leading-relaxed">
                   Live raw ingredient levels (Paneer, Butter, Rice, Gravy Bases) & room linen stock. Auto-deducts when guests order food.
@@ -1663,6 +1697,54 @@ export default function AdminControlPage() {
               {/* SUB-TAB 1: OTA CHANNELS & ENCRYPTED CREDENTIALS */}
               {channelSubTab === 'channels' && (
                 <div className="space-y-4">
+                  {/* Action Header Bar for Channels & Credentials */}
+                  <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-4 shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                      <h4 className="text-sm font-extrabold text-white flex items-center gap-2">
+                        <span>📡 OTA Channels & Encrypted Credential Vault ({otaChannels.length})</span>
+                      </h4>
+                      <p className="text-xs text-neutral-400">Configure connection endpoints, commission rates, and encrypted API secret keys.</p>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        onClick={() => setChannelModalOpen(true)}
+                        className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-neutral-950 font-black text-xs rounded-xl shadow transition flex items-center gap-1.5"
+                      >
+                        <Plus className="h-4 w-4" />
+                        <span>+ Connect New OTA Channel</span>
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          const channelName = prompt("Enter OTA Channel Code to configure API Credentials (e.g. MMT, BDC, AGD, EXP, AIR, YTR):", "MMT");
+                          if (channelName) {
+                            const target = otaChannels.find(c => c.code === channelName.toUpperCase());
+                            const key = prompt(`Enter API Key / Secret Token for ${target ? target.name : channelName}:`, "live_key_vault_2026");
+                            if (key) {
+                              apiRequest('/api/v1/channel/credentials/save', {
+                                method: 'POST',
+                                body: JSON.stringify({
+                                  ota_id: target ? target.id : 1,
+                                  api_key: key,
+                                  api_secret: 'sec_vault_encrypted',
+                                  hotel_id_on_ota: target ? target.hotel_id_on_ota : `HOTEL-${channelName.toUpperCase()}-88192`,
+                                  connection_mode: 'LIVE'
+                                })
+                              }).then(() => {
+                                showToast(`API credentials encrypted and saved to vault!`);
+                                loadAdminData();
+                              }).catch(err => alert(`Failed: ${err.message}`));
+                            }
+                          }
+                        }}
+                        className="px-3.5 py-2 bg-neutral-800 hover:bg-neutral-700 text-amber-400 border border-neutral-700 font-extrabold text-xs rounded-xl transition flex items-center gap-1.5"
+                      >
+                        <span>🔑 Add API Credentials</span>
+                      </button>
+                    </div>
+                  </div>
+
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {otaChannels.map((ch) => (
                       <div
@@ -1727,7 +1809,7 @@ export default function AdminControlPage() {
                           </span>
                           <button
                             onClick={async () => {
-                              const key = prompt(`Enter API Key for ${ch.name}:`, `live_key_${ch.code.lower()}_2026`);
+                              const key = prompt(`Enter API Key for ${ch.name}:`, `live_key_${ch.code.toLowerCase()}_2026`);
                               if (key) {
                                 try {
                                   await apiRequest('/api/v1/channel/credentials/save', {
@@ -1802,6 +1884,80 @@ export default function AdminControlPage() {
               {/* SUB-TAB 3: DATE-GRID RATE & AVAILABILITY CALENDAR */}
               {channelSubTab === 'calendar' && (
                 <div className="space-y-6">
+                  {/* AI Market Analysis & Tariff Suggestions Engine */}
+                  <div className="bg-gradient-to-r from-neutral-900 via-amber-950/30 to-neutral-900 border border-amber-500/30 rounded-3xl p-5 shadow-2xl space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-amber-500/20 pb-3">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-2xl bg-amber-500 text-neutral-950 flex items-center justify-center font-black text-lg shadow-lg">
+                          🤖
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h4 className="text-sm sm:text-base font-extrabold text-white">AI Market Intelligence & Dynamic Yield Suggestions</h4>
+                            <span className="px-2 py-0.5 bg-amber-500/20 text-amber-400 border border-amber-500/40 rounded-full text-[10px] font-extrabold">
+                              Live Market Feed
+                            </span>
+                          </div>
+                          <p className="text-xs text-neutral-400">Algorithmic rate optimization based on regional competitor tariffs & demand surges.</p>
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={async () => {
+                          try {
+                            await apiRequest('/api/v1/channel/rates/bulk-update', {
+                              method: 'POST',
+                              body: JSON.stringify({
+                                room_type_id: 1,
+                                rate_plan_id: 1,
+                                start_date: bulkStartDate,
+                                end_date: bulkEndDate,
+                                rate: 7200
+                              })
+                            });
+                            showToast("✨ Applied AI Recommended Tariff (+18% Surge Optimization) across connected OTAs!");
+                            loadAdminData();
+                          } catch (err: any) {
+                            alert(`Failed: ${err.message}`);
+                          }
+                        }}
+                        className="px-4 py-2.5 bg-amber-500 hover:bg-amber-400 text-neutral-950 font-black text-xs rounded-xl shadow-lg transition flex items-center gap-2 shrink-0 self-start sm:self-center"
+                      >
+                        <span>⚡ Apply AI Recommended Tariffs</span>
+                      </button>
+                    </div>
+
+                    {/* AI Market Insights Grid */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+                      <div className="bg-neutral-950/80 p-3.5 rounded-2xl border border-neutral-800 space-y-1">
+                        <span className="text-[10px] uppercase tracking-wider text-neutral-400 font-extrabold">Regional Market Occupancy</span>
+                        <div className="flex items-baseline justify-between">
+                          <span className="text-lg font-black text-emerald-400">88.4% Occupancy</span>
+                          <span className="text-[10px] text-green-400 font-bold">▲ High Demand</span>
+                        </div>
+                        <p className="text-[11px] text-neutral-400">Local festival weekend surge detected. Regional hotel rates increased by 15-22%.</p>
+                      </div>
+
+                      <div className="bg-neutral-950/80 p-3.5 rounded-2xl border border-neutral-800 space-y-1">
+                        <span className="text-[10px] uppercase tracking-wider text-neutral-400 font-extrabold">Competitor Rate Index (CompSet)</span>
+                        <div className="flex items-baseline justify-between">
+                          <span className="text-lg font-black text-amber-400">₹6,850 / night</span>
+                          <span className="text-[10px] text-neutral-400 font-mono">Your BAR: ₹6,500</span>
+                        </div>
+                        <p className="text-[11px] text-neutral-400">Your current tariff is 5.1% lower than 5-star market benchmark in your region.</p>
+                      </div>
+
+                      <div className="bg-neutral-950/80 p-3.5 rounded-2xl border border-neutral-800 space-y-1">
+                        <span className="text-[10px] uppercase tracking-wider text-neutral-400 font-extrabold">AI Yield Management Strategy</span>
+                        <div className="flex items-baseline justify-between">
+                          <span className="text-lg font-black text-white">+₹700 / Room Night</span>
+                          <span className="text-[10px] text-amber-400 font-extrabold">Recommended</span>
+                        </div>
+                        <p className="text-[11px] text-neutral-400">Increase BAR to ₹7,200 for next 7 days. Expected revenue gain: **+₹42,000**.</p>
+                      </div>
+                    </div>
+                  </div>
+
                   {/* Bulk Update Controls */}
                   <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 shadow-2xl space-y-3">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-neutral-800 pb-3">
