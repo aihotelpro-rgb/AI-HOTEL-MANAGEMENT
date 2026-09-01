@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { apiRequest, getAuthToken } from '@/lib/api';
+import { apiRequest, getAuthToken, API_BASE } from '@/lib/api';
 import Sidebar from '@/components/Sidebar';
 import ThemeDatePicker from '@/components/ThemeDatePicker';
 import { 
@@ -574,7 +574,7 @@ export default function KitchenKDSPage() {
                       <div className="flex items-center gap-1.5">
                         <button
                           type="button"
-                          onClick={() => window.open(`http://localhost:8000/api/v1/qr_menu/orders/${order.id}/kitchen-ticket`, '_blank')}
+                          onClick={() => window.open(`${API_BASE}/api/v1/qr_menu/orders/${order.id}/kitchen-ticket`, '_blank')}
                           className="p-1.5 bg-neutral-800 hover:bg-neutral-700 text-amber-400 border border-neutral-700 rounded-lg text-xs font-bold transition flex items-center gap-1"
                           title="Print Thermal Kitchen Ticket (ESC/POS KOT)"
                         >

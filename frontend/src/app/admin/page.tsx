@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { apiRequest, getAuthToken } from '@/lib/api';
+import { apiRequest, getAuthToken, API_BASE } from '@/lib/api';
 import Sidebar from '@/components/Sidebar';
 import { 
   Settings, 
@@ -2456,7 +2456,8 @@ export default function AdminControlPage() {
                     <button
                       type="button"
                       onClick={() => {
-                        navigator.clipboard.writeText('http://localhost:8000/api/v1/whatsapp/webhook');
+                        const url = `${API_BASE || window.location.origin}/api/v1/whatsapp/webhook`;
+                        navigator.clipboard.writeText(url);
                         showToast('WhatsApp Webhook Callback URL copied!');
                       }}
                       className="text-xs text-amber-400 hover:underline font-bold whitespace-nowrap shrink-0"
@@ -2465,7 +2466,7 @@ export default function AdminControlPage() {
                     </button>
                   </div>
                   <p className="font-mono text-neutral-300 break-all select-all bg-neutral-900/80 p-2.5 rounded-xl border border-neutral-800 text-[11px] leading-relaxed">
-                    http://localhost:8000/api/v1/whatsapp/webhook
+                    {API_BASE || (typeof window !== 'undefined' ? window.location.origin : 'https://www.hotelbluebirdnest.com')}/api/v1/whatsapp/webhook
                   </p>
                   <p className="text-[11px] text-neutral-400 pt-0.5">
                     Paste this Webhook Callback URL into Meta Developer Console ➔ WhatsApp ➔ Configuration ➔ Webhook URL.
@@ -3747,7 +3748,8 @@ export default function AdminControlPage() {
                   <button
                     type="button"
                     onClick={() => {
-                      navigator.clipboard.writeText(`http://localhost:8000/api/v1/public/reserve?channel=${newChannelCode.toUpperCase() || 'CODE'}`);
+                      const url = `${API_BASE || window.location.origin}/api/v1/public/reserve?channel=${newChannelCode.toUpperCase() || 'CODE'}`;
+                      navigator.clipboard.writeText(url);
                       showToast('Booking Link copied to clipboard!');
                     }}
                     className="text-[10px] text-amber-400 hover:underline font-bold"
@@ -3755,7 +3757,9 @@ export default function AdminControlPage() {
                     Copy Link 📋
                   </button>
                 </div>
-                <p className="font-mono text-neutral-300 truncate">http://localhost:8000/api/v1/public/reserve?channel={newChannelCode.toUpperCase() || 'CODE'}</p>
+                <p className="font-mono text-neutral-300 truncate">
+                  {API_BASE || (typeof window !== 'undefined' ? window.location.origin : 'https://www.hotelbluebirdnest.com')}/api/v1/public/reserve?channel={newChannelCode.toUpperCase() || 'CODE'}
+                </p>
               </div>
 
               <div className="flex gap-2 pt-2">
