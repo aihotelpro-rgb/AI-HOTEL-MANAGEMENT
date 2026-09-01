@@ -1,40 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { ROOMS_DATA } from '@/lib/roomsStore';
 
 export const dynamic = 'force-dynamic';
-
-const ROOMS_24 = Array.from({ length: 24 }, (_, i) => {
-  const floor = Math.floor(i / 12) + 1;
-  const roomIdx = (i % 12) + 1;
-  const roomNum = `${floor}${roomIdx.toString().padStart(2, '0')}`;
-  const isOccupied = roomNum === '101' || roomNum === '204';
-  
-  let rtype = "Deluxe Island King";
-  let price = 3500.0;
-  if (floor === 2 && roomIdx > 8) {
-    rtype = "Royal Andaman Suite";
-    price = 8500.0;
-  } else if (floor === 2) {
-    rtype = "Super Deluxe Sea Breeze";
-    price = 5500.0;
-  } else if (roomIdx > 8) {
-    rtype = "Executive Bay View Room";
-    price = 4800.0;
-  }
-
-  return {
-    id: i + 1,
-    room_number: roomNum,
-    floor: floor,
-    room_type: rtype,
-    status: isOccupied ? "Occupied" : "Clean",
-    price_per_night: price,
-    image_url: "https://images.unsplash.com/photo-1590490360182-c33d57733427?w=600",
-    is_occupied: isOccupied,
-    current_guest_name: roomNum === '101' ? 'Pooja Sharma' : roomNum === '204' ? 'Maharaja Raghavendra Singh' : null,
-    intercom_extension: roomNum,
-    intercom_status: "Active VoIP"
-  };
-});
 
 export async function OPTIONS() {
   return new NextResponse(null, {
@@ -48,11 +15,50 @@ export async function OPTIONS() {
 }
 
 export async function GET() {
-  return NextResponse.json(ROOMS_24, {
+  return NextResponse.json(ROOMS_DATA, {
     headers: {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     },
   });
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    const body = await req.json();
+    const newId = ROOMS_DATA.length > 0 ? Math.max(...ROOMS_DATA.map(r => r.id)) + 1 : 1;
+    const newRoom = {
+      id: newId,
+      room_number: body.room_number || `${newId}`,
+      floor: Number(body.floor || 1),
+      room_type: body.room_type || "Deluxe Heritage King",
+      status: "Clean",
+      price_per_night: Number(body.price_per_night || 6500.0),
+      image_url: body.image_url || "https://images.unsplash.com/photo-1590490360182-c33d57733427?w=600",
+      area_sqft: Number(body.area_sqft || 550),
+      bed_type: body.bed_type || "Royal King Bed",
+      max_occupancy: body.max_occupancy || "2 Adults + 1 Child",
+      view_type: body.view_type || "Palace Courtyard & Pool View",
+      amenities: body.amenities || ["High-Speed Wi-Fi", "Espresso Bar", "Marble Bathtub"],
+      description: body.description || "Authentic luxury suite with heritage architecture.",
+      is_occupied: false,
+      current_guest_name: null,
+      intercom_extension: body.room_number || `${newId}`,
+      intercom_status: "Active VoIP"
+    };
+
+    ROOMS_DATA.push(newRoom);
+
+    return NextResponse.json(newRoom, {
+      status: 201,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      },
+    });
+  } catch (err: any) {
+    return NextResponse.json({ detail: err.message || 'Error creating room' }, { status: 500 });
+  }
 }

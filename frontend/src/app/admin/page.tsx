@@ -522,6 +522,8 @@ export default function AdminControlPage() {
       const updated = await apiRequest(`/api/v1/admin/rooms/${editingRoom.id}`, {
         method: 'PUT',
         body: JSON.stringify({
+          room_number: editingRoom.room_number,
+          floor: Number(editingRoom.floor),
           room_type: editingRoom.room_type,
           price_per_night: Number(editingRoom.price_per_night),
           image_url: editingRoom.image_url,
@@ -533,9 +535,9 @@ export default function AdminControlPage() {
           description: editingRoom.description
         })
       });
-      setRooms(prev => prev.map(r => r.id === editingRoom.id ? updated : r));
+      setRooms(prev => prev.map(r => r.id === editingRoom.id ? { ...r, ...updated } : r));
       setEditingRoom(null);
-      showToast(`Suite ${updated.room_number} specifications updated!`);
+      showToast(`Suite ${editingRoom.room_number} specifications & photo updated successfully!`);
     } catch (err: any) {
       alert(`Error updating suite: ${err.message}`);
     }
@@ -2619,17 +2621,18 @@ export default function AdminControlPage() {
 
               {/* Suite Photo Upload & URL */}
               <div>
-                <label className="block text-[10px] uppercase font-extrabold text-neutral-400 mb-1">Suite Photo</label>
+                <label className="block text-[10px] uppercase font-extrabold text-neutral-400 mb-1">Suite Photo URL or Custom Upload</label>
                 <div className="flex gap-2">
                   <input
                     type="text"
                     value={editingRoom.image_url || ''}
                     onChange={(e) => setEditingRoom({ ...editingRoom, image_url: e.target.value })}
-                    className="flex-1 text-xs rounded-xl border border-neutral-700 bg-neutral-800 p-2.5 text-neutral-100 focus:outline-none focus:border-amber-500"
+                    placeholder="https://images.unsplash.com/..."
+                    className="flex-1 text-xs rounded-xl border border-neutral-700 bg-neutral-800 p-2.5 text-neutral-100 font-mono focus:outline-none focus:border-amber-500"
                   />
                   <label className="cursor-pointer px-3 py-2 bg-neutral-800 hover:bg-neutral-750 text-amber-400 font-bold text-xs rounded-xl border border-neutral-700 transition flex items-center gap-1 shrink-0">
                     <Upload className="h-3.5 w-3.5" />
-                    Change Photo
+                    Upload File
                     <input 
                       type="file" 
                       accept="image/*" 
@@ -2638,6 +2641,23 @@ export default function AdminControlPage() {
                     />
                   </label>
                 </div>
+
+                {editingRoom.image_url && (
+                  <div className="relative h-32 w-full rounded-2xl overflow-hidden border border-neutral-700 bg-neutral-950 mt-2 shadow-inner group">
+                    <img
+                      src={editingRoom.image_url}
+                      alt="Suite Preview"
+                      className="w-full h-full object-cover"
+                      onError={(e: any) => {
+                        e.target.onerror = null;
+                        e.target.src = "https://images.unsplash.com/photo-1590490360182-c33d57733427?w=600";
+                      }}
+                    />
+                    <div className="absolute bottom-2 left-2 bg-neutral-950/80 backdrop-blur border border-neutral-800 px-2.5 py-0.5 rounded-xl text-[10px] font-extrabold text-amber-400 flex items-center gap-1">
+                      <span>📸 Live Suite Photo Preview</span>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Bed Type & Area */}
