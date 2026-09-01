@@ -228,7 +228,8 @@ export default function KitchenKDSPage() {
   // Confirm Runner Dispatch
   const confirmRunnerDispatch = async () => {
     if (!orderForRunner) return;
-    await handleUpdateStatus(orderForRunner.id, 'OutForDelivery', selectedRunner, runnerETA);
+    const targetStatus = orderForRunner.status === 'Ready' ? 'OutForDelivery' : orderForRunner.status;
+    await handleUpdateStatus(orderForRunner.id, targetStatus, selectedRunner, runnerETA);
     setRunnerModalOpen(false);
     setOrderForRunner(null);
   };
@@ -663,16 +664,26 @@ export default function KitchenKDSPage() {
                       </ul>
                     </div>
 
-                    {/* Runner Assignment Details */}
-                    {order.runner_name && (
-                      <div className="px-4 py-2 bg-neutral-950/80 border-t border-neutral-800 text-[11px] text-purple-300 flex items-center justify-between">
-                        <div className="flex items-center gap-1.5">
-                          <Bike className="h-3.5 w-3.5 text-purple-400" />
-                          <span>Runner: <strong>{order.runner_name}</strong></span>
-                        </div>
-                        <span className="text-[10px] text-neutral-400 font-mono">ETA: ~{order.estimated_minutes || 10}m</span>
+                    {/* Runner Assignment & Delivery Destination Details */}
+                    <div className="px-4 py-2 bg-neutral-950/80 border-t border-neutral-800 text-[11px] flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <Bike className="h-3.5 w-3.5 text-purple-400 shrink-0" />
+                        <span className="text-neutral-300 truncate">
+                          Assigned Delivery: <strong className="text-amber-400 font-extrabold">{order.runner_name || 'Runner Vikram (Default)'}</strong>
+                        </span>
                       </div>
-                    )}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setOrderForRunner(order);
+                          setSelectedRunner(order.runner_name || 'Runner Vikram');
+                          setRunnerModalOpen(true);
+                        }}
+                        className="text-[10px] font-extrabold text-amber-400 hover:text-amber-300 bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 px-2 py-0.5 rounded-lg transition shrink-0 ml-1"
+                      >
+                        {order.runner_name ? 'Change Runner' : 'Assign Runner'}
+                      </button>
+                    </div>
 
                     {/* Lifecycle Action Buttons */}
                     <div className="p-3.5 bg-neutral-850/60 border-t border-neutral-800 flex gap-2">
@@ -737,8 +748,9 @@ export default function KitchenKDSPage() {
                   <thead className="bg-gradient-to-r from-neutral-950 via-neutral-900 to-neutral-950 text-neutral-400 uppercase text-[10px] font-black tracking-widest border-b border-amber-500/30 sticky top-0 z-10 shadow-md">
                     <tr>
                       <th className="p-3.5 pl-4">Order ID</th>
-                      <th className="p-3.5">Suite #</th>
+                      <th className="p-3.5">Suite & Destination</th>
                       <th className="p-3.5">Items Summary</th>
+                      <th className="p-3.5">Assigned Delivery Runner</th>
                       <th className="p-3.5">Elapsed Time</th>
                       <th className="p-3.5">Total Value</th>
                       <th className="p-3.5 pr-4 text-right">Stage Action</th>
@@ -759,6 +771,21 @@ export default function KitchenKDSPage() {
                         </td>
                         <td className="p-3.5 text-neutral-200 font-semibold">
                           {order.items?.map(it => `${it.quantity}x ${it.name}`).join(', ')}
+                        </td>
+                        <td className="p-3.5 whitespace-nowrap">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setOrderForRunner(order);
+                              setSelectedRunner(order.runner_name || 'Runner Vikram');
+                              setRunnerModalOpen(true);
+                            }}
+                            className="px-2.5 py-1 bg-purple-950/80 hover:bg-purple-900 border border-purple-700/60 text-purple-300 font-extrabold text-xs rounded-xl transition flex items-center gap-1.5 shadow-sm"
+                            title="Click to assign or change runner"
+                          >
+                            <Bike className="h-3.5 w-3.5 text-purple-400" />
+                            <span>{order.runner_name || 'Assign Runner'}</span>
+                          </button>
                         </td>
                         <td className="p-3.5 whitespace-nowrap">
                           <span className="px-2.5 py-1 bg-neutral-950 text-amber-400 rounded-lg border border-neutral-800 font-mono font-bold text-xs shadow-sm">
