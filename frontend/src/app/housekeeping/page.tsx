@@ -155,8 +155,9 @@ export default function HousekeepingDashboard() {
         body: JSON.stringify({ status: nextStatus })
       });
       setRooms(prev => prev.map(r => r.room_number === roomNumber ? { ...r, status: nextStatus } : r));
+      addToast('success', `Suite ${roomNumber} Updated`, `Turnover status transitioned to ${nextStatus}.`);
     } catch (err: any) {
-      alert(`Error updating room: ${err.message}`);
+      addToast('alert', 'Room Status Error', `Unable to update Suite ${roomNumber}: ${err.message || 'Server connection error'}`);
     }
   };
 
@@ -167,9 +168,9 @@ export default function HousekeepingDashboard() {
       await handleUpdateRoomStatus(selectedRoom.room_number, 'Clean');
       setInspectModalOpen(false);
       setSelectedRoom(null);
-      alert(`Suite ${selectedRoom.room_number} marked 100% Clean & Ready for Front Desk check-in.`);
+      addToast('success', 'Turnover Inspection Passed', `Suite ${selectedRoom.room_number} is 100% Clean & Released to Front Desk.`);
     } catch (err: any) {
-      alert(`Turnover error: ${err.message}`);
+      addToast('alert', 'Turnover Error', `Failed to complete inspection for Suite ${selectedRoom.room_number}: ${err.message}`);
     } finally {
       setSubmittingInspection(false);
     }
@@ -182,8 +183,9 @@ export default function HousekeepingDashboard() {
         body: JSON.stringify({ status: nextStatus })
       });
       setTickets(prev => prev.map(t => (t.id === ticketId ? { ...t, status: nextStatus } : t)));
+      addToast('success', `Ticket #${ticketId} Updated`, `Repair & Service ticket status transitioned to ${nextStatus}.`);
     } catch (err: any) {
-      alert(`Error updating ticket: ${err.message}`);
+      addToast('alert', 'Ticket Dispatch Error', `Unable to update Ticket #${ticketId}: ${err.message || 'Server connection error'}`);
     }
   };
 

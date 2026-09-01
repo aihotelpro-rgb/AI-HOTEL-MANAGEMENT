@@ -1,47 +1,39 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { HOUSEKEEPING_TICKETS } from '@/lib/housekeepingStore';
 
 export const dynamic = 'force-dynamic';
 
-const TICKETS_LIST = [
-  {
-    id: 1,
-    booking_id: 1,
-    room_number: "304",
-    category: "Amenity",
-    description: "Guest requested 2 extra plush bath towels and herbal sandalwood mist",
-    status: "Pending",
-    priority: "Medium",
-    created_at: new Date().toISOString()
-  },
-  {
-    id: 2,
-    booking_id: 2,
-    room_number: "102",
-    category: "Maintenance",
-    description: "Espresso machine water level indicator check required",
-    status: "In Progress",
-    priority: "Low",
-    created_at: new Date(Date.now() - 3600000).toISOString()
-  }
-];
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+};
 
 export async function OPTIONS() {
-  return new NextResponse(null, {
-    status: 200,
-    headers: {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    },
-  });
+  return new NextResponse(null, { status: 200, headers: corsHeaders });
 }
 
 export async function GET() {
-  return NextResponse.json(TICKETS_LIST, {
-    headers: {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    },
-  });
+  return NextResponse.json(HOUSEKEEPING_TICKETS, { headers: corsHeaders });
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    const body = await req.json();
+    const newTicket = {
+      id: HOUSEKEEPING_TICKETS.length + 1,
+      booking_id: Number(body.booking_id || 101),
+      room_number: body.room_number || "101",
+      category: body.category || "Housekeeping",
+      description: body.description || "Housekeeping request",
+      status: "Pending",
+      priority: body.priority || "Medium",
+      assigned_to: body.assigned_to || "Housekeeping Staff",
+      created_at: new Date().toISOString()
+    };
+    HOUSEKEEPING_TICKETS.unshift(newTicket);
+    return NextResponse.json(newTicket, { status: 201, headers: corsHeaders });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 400, headers: corsHeaders });
+  }
 }
