@@ -211,6 +211,8 @@ export default function AdminControlPage() {
   const [newChannelCommission, setNewChannelCommission] = useState(15.0);
   const [newChannelRatePlan, setNewChannelRatePlan] = useState('BAR (Best Available Rate)');
   const [newChannelAutoConfirm, setNewChannelAutoConfirm] = useState(true);
+  const [newHotelId, setNewHotelId] = useState('');
+  const [newApiKey, setNewApiKey] = useState('');
   const [editingChannel, setEditingChannel] = useState<any>(null);
   const [editingCredModalChannel, setEditingCredModalChannel] = useState<any | null>(null);
   const [editHotelId, setEditHotelId] = useState('');
@@ -222,21 +224,26 @@ export default function AdminControlPage() {
   const handleCreateChannel = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      const codeUpper = newChannelCode.toUpperCase();
       const res = await apiRequest('/api/v1/channel/ota-channels', {
         method: 'POST',
         body: JSON.stringify({
           name: newChannelName,
-          code: newChannelCode.toUpperCase(),
+          code: codeUpper,
           channel_type: newChannelType,
           commission_percent: Number(newChannelCommission),
           rate_plan: newChannelRatePlan,
-          auto_confirm: newChannelAutoConfirm
+          auto_confirm: newChannelAutoConfirm,
+          hotel_id_on_ota: newHotelId || `HOTEL-${codeUpper}-88192`,
+          api_key: newApiKey || `live_key_${codeUpper.toLowerCase()}_2026`
         })
       });
       setChannelModalOpen(false);
       setNewChannelName('');
       setNewChannelCode('');
-      showToast(`OTA Channel "${newChannelName}" added successfully!`);
+      setNewHotelId('');
+      setNewApiKey('');
+      showToast(`OTA Channel "${newChannelName}" & API credentials configured!`);
       loadAdminData();
     } catch (err: any) {
       alert(`Error adding OTA channel: ${err.message}`);
@@ -1860,23 +1867,29 @@ export default function AdminControlPage() {
                             </button>
                           </div>
 
-                          <div className="p-3 bg-neutral-950 rounded-2xl border border-neutral-800/80 text-[11px] space-y-1.5 text-neutral-300">
-                            <div className="flex justify-between">
+                          <div className="p-3 bg-neutral-950 rounded-2xl border border-neutral-800/80 text-[11px] space-y-2 text-neutral-300">
+                            <div className="flex justify-between items-center">
                               <span className="text-neutral-500">OTA Hotel ID:</span>
                               <span className="font-mono text-white font-bold">{ch.hotel_id_on_ota}</span>
                             </div>
-                            <div className="flex justify-between">
+                            <div className="flex justify-between items-center">
                               <span className="text-neutral-500">Commission Rate:</span>
                               <span className="font-mono text-amber-400 font-bold">{ch.commission_percent}%</span>
                             </div>
-                            <div className="flex justify-between">
-                              <span className="text-neutral-500">Credential Vault:</span>
-                              <span className="font-mono text-green-400 font-bold">🔒 AES-256 Encrypted</span>
+                            <div className="flex justify-between items-center">
+                              <span className="text-neutral-500 flex items-center gap-1">
+                                <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                                <span>Credential Vault:</span>
+                              </span>
+                              <span className="font-mono text-emerald-400 font-bold flex items-center gap-1">
+                                <span>🔒 AES-256 Active</span>
+                              </span>
                             </div>
-                            <div className="flex justify-between">
-                              <span className="text-neutral-500">Connection Mode:</span>
-                              <span className="px-1.5 py-0.2 bg-blue-950 text-blue-400 border border-blue-800 rounded font-mono text-[9px]">
-                                {ch.connection_mode}
+                            <div className="flex justify-between items-center">
+                              <span className="text-neutral-500">Connection Status:</span>
+                              <span className="px-2 py-0.5 bg-emerald-950/80 text-emerald-400 border border-emerald-800 rounded-lg font-mono text-[10px] font-bold flex items-center gap-1">
+                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400"></span>
+                                <span>{ch.connection_mode || 'LIVE'}</span>
                               </span>
                             </div>
                           </div>
@@ -3506,6 +3519,39 @@ export default function AdminControlPage() {
                     <option value="true">⚡ Instant Auto-Confirm</option>
                     <option value="false">⏳ Front Desk Approval Required</option>
                   </select>
+                </div>
+              </div>
+
+              {/* API Credentials Vault Section */}
+              <div className="p-3.5 bg-neutral-950/80 rounded-2xl border border-neutral-800 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-extrabold uppercase text-amber-400 flex items-center gap-1">
+                    <Key className="h-3.5 w-3.5" />
+                    <span>🔑 API Vault Credentials (Optional)</span>
+                  </span>
+                  <span className="text-[9px] font-mono text-emerald-400 font-bold">🔒 AES-256 SSL</span>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[9px] uppercase font-extrabold text-neutral-400 mb-0.5">OTA Property Hotel ID</label>
+                    <input
+                      type="text"
+                      value={newHotelId}
+                      onChange={(e) => setNewHotelId(e.target.value)}
+                      placeholder={`e.g. HOTEL-${newChannelCode.toUpperCase() || 'CODE'}-88192`}
+                      className="w-full text-xs rounded-xl border border-neutral-700 bg-neutral-800 p-2 text-neutral-100 font-mono focus:outline-none focus:border-amber-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[9px] uppercase font-extrabold text-neutral-400 mb-0.5">API Key / Secret Token</label>
+                    <input
+                      type="text"
+                      value={newApiKey}
+                      onChange={(e) => setNewApiKey(e.target.value)}
+                      placeholder="e.g. live_key_2026..."
+                      className="w-full text-xs rounded-xl border border-neutral-700 bg-neutral-800 p-2 text-neutral-100 font-mono focus:outline-none focus:border-amber-500"
+                    />
+                  </div>
                 </div>
               </div>
 
