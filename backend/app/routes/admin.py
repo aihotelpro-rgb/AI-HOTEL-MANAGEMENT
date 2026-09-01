@@ -377,6 +377,74 @@ async def restock_inventory_item(
         }
     }
 
+@router.post("/inventory", status_code=status.HTTP_201_CREATED)
+async def create_inventory_item(
+    payload: dict,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(admin_guard)
+):
+    """
+    Create a new raw ingredient / stock inventory item.
+    """
+    inv = InventoryItem(
+        item_name=payload.get("item_name", "New Stock Item"),
+        unit=payload.get("unit", "units"),
+        current_stock=float(payload.get("stock_quantity") or payload.get("current_stock") or 100.0),
+        min_alert_threshold=float(payload.get("min_threshold") or payload.get("min_alert_threshold") or 20.0),
+        cost_per_unit=float(payload.get("unit_cost") or payload.get("cost_per_unit") or 100.0)
+    )
+    db.add(inv)
+    await db.commit()
+    await db.refresh(inv)
+    return inv
+
+@router.put("/inventory/{item_id}")
+async def update_inventory_item(
+    item_id: int,
+    payload: dict,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(admin_guard)
+):
+    """
+    Update details of an existing inventory item.
+    """
+    result = await db.execute(select(InventoryItem).where(InventoryItem.id == item_id))
+    inv = result.scalars().first()
+    if not inv:
+        raise HTTPException(status_code=404, detail="Inventory item not found")
+
+    if "item_name" in payload: inv.item_name = payload["item_name"]
+    if "unit" in payload: inv.unit = payload["unit"]
+    if "current_stock" in payload: inv.current_stock = float(payload["current_stock"])
+    if "stock_quantity" in payload: inv.current_stock = float(payload["stock_quantity"])
+    if "min_alert_threshold" in payload: inv.min_alert_threshold = float(payload["min_alert_threshold"])
+    if "min_threshold" in payload: inv.min_alert_threshold = float(payload["min_threshold"])
+    if "cost_per_unit" in payload: inv.cost_per_unit = float(payload["cost_per_unit"])
+    if "unit_cost" in payload: inv.cost_per_unit = float(payload["unit_cost"])
+
+    await db.commit()
+    await db.refresh(inv)
+    return inv
+
+@router.delete("/inventory/{item_id}", status_code=status.HTTP_200_OK)
+async def delete_inventory_item(
+    item_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(admin_guard)
+):
+    """
+    Delete an inventory item.
+    """
+    result = await db.execute(select(InventoryItem).where(InventoryItem.id == item_id))
+    inv = result.scalars().first()
+    if not inv:
+        raise HTTPException(status_code=404, detail="Inventory item not found")
+
+    item_name = inv.item_name
+    await db.delete(inv)
+    await db.commit()
+    return {"status": "success", "message": f"Inventory item '{item_name}' removed from stock catalog."}
+
 # --- 6. MASTER CCTV CAMERA CONTROL & STREAM MANAGEMENT ---
 DEFAULT_CAMERAS = [
     {

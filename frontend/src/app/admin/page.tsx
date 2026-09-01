@@ -1334,53 +1334,112 @@ export default function AdminControlPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-neutral-800/60">
-                      {inventoryItems.map((inv: any) => (
-                        <tr key={inv.id} className="hover:bg-neutral-950/60 transition">
-                          <td className="py-3.5 px-4 font-extrabold text-white whitespace-nowrap min-w-[170px]">
-                            <span>📦 {inv.item_name}</span>
-                          </td>
-                          <td className="py-3.5 px-4 font-mono font-extrabold text-amber-400 text-sm whitespace-nowrap">
-                            {inv.current_stock} {inv.unit}
-                          </td>
-                          <td className="py-3.5 px-4 text-neutral-400 font-medium whitespace-nowrap">
-                            {inv.min_alert_threshold} {inv.unit}
-                          </td>
-                          <td className="py-3.5 px-4 font-mono whitespace-nowrap">
-                            ₹{inv.cost_per_unit} / {inv.unit}
-                          </td>
-                          <td className="py-3.5 px-4 whitespace-nowrap">
-                            {inv.is_low ? (
-                              <span className="px-2.5 py-1 bg-red-950 text-red-400 border border-red-800 text-[10px] font-extrabold rounded-xl animate-pulse whitespace-nowrap inline-block">
-                                ⚠️ LOW STOCK ALERT
-                              </span>
-                            ) : (
-                              <span className="px-2.5 py-1 bg-green-950 text-green-400 border border-green-800 text-[10px] font-extrabold rounded-xl whitespace-nowrap inline-block">
-                                Healthy Stock
-                              </span>
-                            )}
-                          </td>
-                          <td className="py-3.5 px-4 text-right whitespace-nowrap">
-                            <button
-                              onClick={async () => {
-                                try {
-                                  await apiRequest(`/api/v1/admin/inventory/${inv.id}/restock`, {
-                                    method: 'PUT',
-                                    body: JSON.stringify({ quantity: 15.0 })
-                                  });
-                                  showToast(`Restocked +15 ${inv.unit} of ${inv.item_name}`);
-                                  loadAdminData();
-                                } catch (err: any) {
-                                  alert(`Failed to restock: ${err.message}`);
-                                }
-                              }}
-                              className="px-3.5 py-1.5 bg-amber-500 hover:bg-amber-400 text-neutral-950 font-black text-[11px] rounded-xl transition shadow whitespace-nowrap inline-flex items-center gap-1 shrink-0"
-                            >
-                              <span>+</span>
-                              <span>Restock Stock</span>
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
+                      {inventoryItems.map((inv: any) => {
+                        const name = inv.item_name || inv.name || 'Stock Item';
+                        const stock = inv.current_stock ?? inv.stock_quantity ?? 0;
+                        const threshold = inv.min_alert_threshold ?? inv.min_threshold ?? 10;
+                        const unit = inv.unit || 'Units';
+                        const cost = inv.cost_per_unit ?? inv.unit_cost ?? 0;
+                        const isLow = inv.is_low ?? (stock <= threshold);
+
+                        return (
+                          <tr key={inv.id} className="hover:bg-neutral-950/60 transition">
+                            <td className="py-3.5 px-4 font-extrabold text-white whitespace-nowrap min-w-[170px]">
+                              <span>📦 {name}</span>
+                            </td>
+                            <td className="py-3.5 px-4 font-mono font-extrabold text-amber-400 text-sm whitespace-nowrap">
+                              {stock} {unit}
+                            </td>
+                            <td className="py-3.5 px-4 text-neutral-400 font-medium whitespace-nowrap">
+                              {threshold} {unit}
+                            </td>
+                            <td className="py-3.5 px-4 font-mono whitespace-nowrap">
+                              ₹{cost} / {unit}
+                            </td>
+                            <td className="py-3.5 px-4 whitespace-nowrap">
+                              {isLow ? (
+                                <span className="px-2.5 py-1 bg-red-950 text-red-400 border border-red-800 text-[10px] font-extrabold rounded-xl animate-pulse whitespace-nowrap inline-block">
+                                  ⚠️ LOW STOCK ALERT
+                                </span>
+                              ) : (
+                                <span className="px-2.5 py-1 bg-green-950 text-green-400 border border-green-800 text-[10px] font-extrabold rounded-xl whitespace-nowrap inline-block">
+                                  Healthy Stock
+                                </span>
+                              )}
+                            </td>
+                            <td className="py-3.5 px-4 text-right whitespace-nowrap">
+                              <div className="flex items-center justify-end gap-1.5">
+                                <button
+                                  onClick={async () => {
+                                    const qty = prompt(`Enter restock quantity to add to "${name}":`, "15");
+                                    if (qty) {
+                                      try {
+                                        await apiRequest(`/api/v1/admin/inventory/${inv.id}/restock`, {
+                                          method: 'POST',
+                                          body: JSON.stringify({ quantity: Number(qty) })
+                                        });
+                                        showToast(`Restocked +${qty} ${unit} of ${name}`);
+                                        loadAdminData();
+                                      } catch (err: any) {
+                                        alert(`Failed to restock: ${err.message}`);
+                                      }
+                                    }
+                                  }}
+                                  className="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-neutral-950 font-black text-[11px] rounded-xl transition shadow whitespace-nowrap inline-flex items-center gap-1 shrink-0"
+                                >
+                                  <span>+</span>
+                                  <span>Restock</span>
+                                </button>
+
+                                <button
+                                  onClick={async () => {
+                                    const newName = prompt("Edit Item Name:", name) || name;
+                                    const newThreshold = prompt("Edit Safety Limit:", String(threshold));
+                                    const newCost = prompt("Edit Cost per Unit (₹ INR):", String(cost));
+                                    try {
+                                      await apiRequest(`/api/v1/admin/inventory/${inv.id}`, {
+                                        method: 'PUT',
+                                        body: JSON.stringify({
+                                          item_name: newName,
+                                          min_threshold: Number(newThreshold || threshold),
+                                          min_alert_threshold: Number(newThreshold || threshold),
+                                          unit_cost: Number(newCost || cost),
+                                          cost_per_unit: Number(newCost || cost)
+                                        })
+                                      });
+                                      showToast(`Updated stock item "${newName}"!`);
+                                      loadAdminData();
+                                    } catch (err: any) {
+                                      alert(`Update failed: ${err.message}`);
+                                    }
+                                  }}
+                                  className="p-1.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 rounded-xl transition border border-neutral-700"
+                                  title="Edit Stock Item"
+                                >
+                                  <Edit3 className="h-3.5 w-3.5" />
+                                </button>
+
+                                <button
+                                  onClick={async () => {
+                                    if (!confirm(`Delete stock item "${name}" from inventory?`)) return;
+                                    try {
+                                      await apiRequest(`/api/v1/admin/inventory/${inv.id}`, { method: 'DELETE' });
+                                      showToast(`Deleted stock item "${name}"`);
+                                      loadAdminData();
+                                    } catch (err: any) {
+                                      alert(`Delete failed: ${err.message}`);
+                                    }
+                                  }}
+                                  className="p-1.5 bg-red-950 hover:bg-red-900 text-red-400 rounded-xl transition border border-red-800"
+                                  title="Delete Stock Item"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
