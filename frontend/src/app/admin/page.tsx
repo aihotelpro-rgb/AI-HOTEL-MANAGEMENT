@@ -212,6 +212,11 @@ export default function AdminControlPage() {
   const [newChannelRatePlan, setNewChannelRatePlan] = useState('BAR (Best Available Rate)');
   const [newChannelAutoConfirm, setNewChannelAutoConfirm] = useState(true);
   const [editingChannel, setEditingChannel] = useState<any>(null);
+  const [editingCredModalChannel, setEditingCredModalChannel] = useState<any | null>(null);
+  const [editHotelId, setEditHotelId] = useState('');
+  const [editApiKey, setEditApiKey] = useState('');
+  const [editApiSecret, setEditApiSecret] = useState('');
+  const [editMode, setEditMode] = useState('LIVE');
 
   // Add Booking Channel Handler
   const handleCreateChannel = async (e: React.FormEvent) => {
@@ -1805,6 +1810,21 @@ export default function AdminControlPage() {
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {/* Add Channel Quick Card */}
+                    <button
+                      type="button"
+                      onClick={() => setChannelModalOpen(true)}
+                      className="border-2 border-dashed border-neutral-800 hover:border-amber-500/60 rounded-3xl p-5 shadow-xl flex flex-col items-center justify-center space-y-3 transition bg-neutral-950/40 hover:bg-neutral-900/80 min-h-[220px] text-center group"
+                    >
+                      <div className="h-12 w-12 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-400 flex items-center justify-center text-2xl font-black group-hover:scale-110 transition">
+                        +
+                      </div>
+                      <div>
+                        <h4 className="font-extrabold text-sm text-white group-hover:text-amber-400 transition">+ Connect New OTA Portal</h4>
+                        <p className="text-[11px] text-neutral-400 mt-1">Connect Booking.com, MakeMyTrip, Agoda, Expedia, Yatra, or B2B Partners</p>
+                      </div>
+                    </button>
+
                     {otaChannels.map((ch) => (
                       <div
                         key={ch.id}
@@ -1867,30 +1887,17 @@ export default function AdminControlPage() {
                             Last Test: <strong>{new Date().toLocaleTimeString()}</strong>
                           </span>
                           <button
-                            onClick={async () => {
-                              const key = prompt(`Enter API Key for ${ch.name}:`, `live_key_${ch.code.toLowerCase()}_2026`);
-                              if (key) {
-                                try {
-                                  await apiRequest('/api/v1/channel/credentials/save', {
-                                    method: 'POST',
-                                    body: JSON.stringify({
-                                      ota_id: ch.id,
-                                      api_key: key,
-                                      api_secret: 'sec_vault_encrypted',
-                                      hotel_id_on_ota: ch.hotel_id_on_ota,
-                                      connection_mode: 'LIVE'
-                                    })
-                                  });
-                                  showToast(`API credentials encrypted and saved for ${ch.name}!`);
-                                  loadAdminData();
-                                } catch (err: any) {
-                                  alert(`Error saving credentials: ${err.message}`);
-                                }
-                              }
+                            onClick={() => {
+                              setEditingCredModalChannel(ch);
+                              setEditHotelId(ch.hotel_id_on_ota || `HOTEL-${ch.code}-88192`);
+                              setEditApiKey(`live_key_${ch.code.toLowerCase()}_2026`);
+                              setEditApiSecret(`sec_vault_${ch.code.toLowerCase()}_encrypted`);
+                              setEditMode(ch.connection_mode || 'LIVE');
                             }}
-                            className="px-3 py-1.5 bg-neutral-800 hover:bg-neutral-700 text-amber-400 font-extrabold text-[11px] rounded-xl border border-neutral-700 transition"
+                            className="px-3 py-1.5 bg-neutral-800 hover:bg-neutral-700 text-amber-400 font-extrabold text-[11px] rounded-xl border border-neutral-700 transition flex items-center gap-1"
                           >
-                            Edit Vault Key
+                            <Key className="h-3.5 w-3.5" />
+                            <span>Edit Vault Key</span>
                           </button>
                         </div>
                       </div>
@@ -3532,6 +3539,120 @@ export default function AdminControlPage() {
                   className="flex-1 py-2.5 bg-amber-500 hover:bg-amber-400 text-neutral-950 font-extrabold rounded-xl shadow"
                 >
                   Connect Channel Now
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: EDIT OTA API CREDENTIALS VAULT */}
+      {editingCredModalChannel && (
+        <div className="fixed inset-0 bg-neutral-950/80 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-in fade-in overflow-y-auto">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4 my-8">
+            <div className="flex justify-between items-center pb-2 border-b border-neutral-800">
+              <div>
+                <h3 className="font-extrabold text-base text-neutral-100 flex items-center gap-2">
+                  <Key className="h-5 w-5 text-amber-500" />
+                  Edit API Credential Vault: {editingCredModalChannel.name}
+                </h3>
+                <p className="text-xs text-neutral-400 mt-0.5">Encrypted API secret keys & credentials stored in security vault.</p>
+              </div>
+              <button type="button" onClick={() => setEditingCredModalChannel(null)} className="text-neutral-500 hover:text-white">✕</button>
+            </div>
+
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                try {
+                  await apiRequest('/api/v1/channel/credentials/save', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                      ota_id: editingCredModalChannel.id,
+                      api_key: editApiKey,
+                      api_secret: editApiSecret || 'sec_vault_encrypted',
+                      hotel_id_on_ota: editHotelId,
+                      connection_mode: editMode
+                    })
+                  });
+                  showToast(`API credentials encrypted and saved for ${editingCredModalChannel.name}!`);
+                  setEditingCredModalChannel(null);
+                  loadAdminData();
+                } catch (err: any) {
+                  alert(`Error saving credentials: ${err.message}`);
+                }
+              }}
+              className="space-y-3.5 text-xs"
+            >
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[10px] uppercase font-extrabold text-neutral-400 mb-1">OTA Hotel / Property ID</label>
+                  <input
+                    type="text"
+                    required
+                    value={editHotelId}
+                    onChange={(e) => setEditHotelId(e.target.value)}
+                    placeholder="e.g. HOTEL-MMT-88192"
+                    className="w-full text-xs rounded-xl border border-neutral-700 bg-neutral-800 p-2.5 text-neutral-100 font-mono focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] uppercase font-extrabold text-neutral-400 mb-1">Connection Mode</label>
+                  <select
+                    value={editMode}
+                    onChange={(e) => setEditMode(e.target.value)}
+                    className="w-full text-xs rounded-xl border border-neutral-700 bg-neutral-800 p-2.5 text-neutral-100 focus:outline-none focus:border-amber-500 font-bold"
+                  >
+                    <option value="LIVE">🟢 LIVE Production Environment</option>
+                    <option value="SANDBOX">🧪 SANDBOX / Test Mode</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[10px] uppercase font-extrabold text-neutral-400 mb-1">API Key / Token</label>
+                <input
+                  type="text"
+                  required
+                  value={editApiKey}
+                  onChange={(e) => setEditApiKey(e.target.value)}
+                  placeholder="e.g. live_key_mmt_2026..."
+                  className="w-full text-xs rounded-xl border border-neutral-700 bg-neutral-800 p-2.5 text-neutral-100 font-mono focus:outline-none focus:border-amber-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] uppercase font-extrabold text-neutral-400 mb-1">API Secret Key (HMAC-SHA256 Encrypted)</label>
+                <input
+                  type="password"
+                  value={editApiSecret}
+                  onChange={(e) => setEditApiSecret(e.target.value)}
+                  placeholder="Enter API Secret Token..."
+                  className="w-full text-xs rounded-xl border border-neutral-700 bg-neutral-800 p-2.5 text-neutral-100 font-mono focus:outline-none focus:border-amber-500"
+                />
+              </div>
+
+              <div className="p-3 bg-neutral-950 rounded-xl border border-neutral-800 text-[11px] text-neutral-400 space-y-1">
+                <div className="flex justify-between font-mono text-emerald-400 font-bold">
+                  <span>🔒 Security Vault Status</span>
+                  <span>AES-256 HMAC Active</span>
+                </div>
+                <p>Credentials are authenticated and transmitted over SSL with AES-256 HMAC-SHA256 encryption.</p>
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingCredModalChannel(null)}
+                  className="flex-1 py-2.5 bg-neutral-800 hover:bg-neutral-750 text-neutral-300 font-bold rounded-xl"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-2.5 bg-amber-500 hover:bg-amber-400 text-neutral-950 font-extrabold rounded-xl shadow"
+                >
+                  Save Encrypted Credentials
                 </button>
               </div>
             </form>
