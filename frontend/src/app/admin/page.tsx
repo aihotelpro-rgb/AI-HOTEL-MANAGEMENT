@@ -3370,6 +3370,9 @@ export default function AdminControlPage() {
                     onChange={(e) => setNewStaffRole(e.target.value)}
                     className="w-full text-xs rounded-xl border border-neutral-700 bg-neutral-800 p-2.5 text-neutral-100 focus:outline-none focus:border-amber-500"
                   >
+                    <option value="Runner">Food Runner & Room Service Dispatch</option>
+                    <option value="Butler">VIP Suite Butler Concierge</option>
+                    <option value="Maintenance">Engineering & Maintenance</option>
                     <option value="Reception">Front Desk & Reception PMS</option>
                     <option value="Kitchen">Kitchen Display System (KDS)</option>
                     <option value="Housekeeping">Housekeeping & Turnovers</option>

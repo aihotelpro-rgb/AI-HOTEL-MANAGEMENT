@@ -58,6 +58,7 @@ interface Order {
 export default function KitchenKDSPage() {
   const router = useRouter();
   const [orders, setOrders] = useState<Order[]>([]);
+  const [staffList, setStaffList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -176,6 +177,9 @@ export default function KitchenKDSPage() {
 
   useEffect(() => {
     fetchKitchenOrders();
+    apiRequest('/api/v1/admin/staff')
+      .then(st => { if (Array.isArray(st)) setStaffList(st); })
+      .catch(() => {});
     const interval = setInterval(fetchKitchenOrders, 4000);
     return () => clearInterval(interval);
   }, [previousOrderCount]);
@@ -869,12 +873,21 @@ export default function KitchenKDSPage() {
                 <select
                   value={selectedRunner}
                   onChange={(e) => setSelectedRunner(e.target.value)}
-                  className="w-full text-xs rounded-xl border border-neutral-700 bg-neutral-800 p-2.5 text-neutral-100 focus:outline-none focus:border-amber-500"
+                  className="w-full text-xs rounded-xl border border-neutral-700 bg-neutral-800 p-2.5 text-neutral-100 focus:outline-none focus:border-amber-500 font-bold"
                 >
-                  <option value="Runner Vikram">Runner Vikram (Floor 3-5 Specialist)</option>
-                  <option value="Runner Amit">Runner Amit (Floor 1-2 Specialist)</option>
-                  <option value="Runner Priya">Runner Priya (VIP Suite Concierge)</option>
-                  <option value="Executive Butler Rahul">Executive Butler Rahul (Penthouse)</option>
+                  {staffList.filter(s => s.role === 'Runner' || s.role === 'Butler' || s.role === 'Kitchen').map(s => (
+                    <option key={s.id} value={s.full_name}>
+                      🏃 {s.full_name} ({s.shift || s.employee_id || s.role})
+                    </option>
+                  ))}
+                  {staffList.filter(s => s.role === 'Runner' || s.role === 'Butler' || s.role === 'Kitchen').length === 0 && (
+                    <>
+                      <option value="Runner Vikram">🏃 Runner Vikram (Floor 3-5 Specialist)</option>
+                      <option value="Runner Amit">🏃 Runner Amit (Floor 1-2 Specialist)</option>
+                      <option value="Runner Priya">🏃 Runner Priya (VIP Suite Concierge)</option>
+                      <option value="Executive Butler Rahul">👑 Executive Butler Rahul (Penthouse)</option>
+                    </>
+                  )}
                 </select>
               </div>
 
