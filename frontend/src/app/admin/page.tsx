@@ -383,11 +383,11 @@ export default function AdminControlPage() {
     try {
       const [settingsData, roomsData, menuData, staffData, channelData, inventoryData, cctvData, roomMapData, rateMapData, calendarData, auditData, syncData, legacyConfig, propertiesData] = await Promise.all([
         apiRequest('/api/v1/admin/settings'),
-        apiRequest('/api/v1/admin/rooms'),
+        apiRequest(`/api/v1/admin/rooms?property_id=${selectedPropertyId}`),
         apiRequest('/api/v1/admin/menu'),
         apiRequest('/api/v1/admin/staff'),
         apiRequest('/api/v1/channel/ota-channels').catch(() => []),
-        apiRequest('/api/v1/admin/inventory').catch(() => []),
+        apiRequest(`/api/v1/admin/inventory?property_id=${selectedPropertyId}`).catch(() => []),
         apiRequest('/api/v1/admin/cctv').catch(() => []),
         apiRequest('/api/v1/channel/mapping/rooms').catch(() => []),
         apiRequest('/api/v1/channel/mapping/rates').catch(() => []),
@@ -417,6 +417,10 @@ export default function AdminControlPage() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    loadAdminData();
+  }, [selectedPropertyId]);
 
   // CCTV CAMERA MANAGEMENT HANDLERS
   const [cctvModalOpen, setCctvModalOpen] = useState(false);
