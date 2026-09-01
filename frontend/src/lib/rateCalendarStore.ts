@@ -73,21 +73,22 @@ export function syncRoomsDataWithRate(room_type_id: number, newRate: number) {
 
   let matchedCount = 0;
   ROOMS_DATA.forEach(room => {
+    const t = room.room_type.toLowerCase();
     if (!room_type_id || room_type_id === 0) {
       room.price_per_night = newRate;
       matchedCount++;
     } else if (room_type_id === 1) {
-      if (room.room_type.toLowerCase().includes('deluxe') || room.room_type.toLowerCase().includes('executive') || room.room_type.toLowerCase().includes('king')) {
+      if ((t.includes('deluxe') && !t.includes('super')) || t.includes('executive') || t.includes('king') || t.includes('heritage room')) {
         room.price_per_night = newRate;
         matchedCount++;
       }
     } else if (room_type_id === 2) {
-      if (room.room_type.toLowerCase().includes('super') || room.room_type.toLowerCase().includes('breeze') || room.room_type.toLowerCase().includes('suite')) {
+      if (t.includes('super deluxe') || t.includes('sea breeze') || (t.includes('heritage suite') && !t.includes('maharaja'))) {
         room.price_per_night = newRate;
         matchedCount++;
       }
     } else if (room_type_id === 3) {
-      if (room.room_type.toLowerCase().includes('andaman') || room.room_type.toLowerCase().includes('royal') || room.room_type.toLowerCase().includes('penthouse')) {
+      if (t.includes('andaman') || t.includes('maharaja') || t.includes('penthouse')) {
         room.price_per_night = newRate;
         matchedCount++;
       }

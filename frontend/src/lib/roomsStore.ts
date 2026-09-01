@@ -27,16 +27,16 @@ export let ROOMS_DATA: RoomItem[] = Array.from({ length: 24 }, (_, i) => {
   const isOccupied = roomNum === '101' || roomNum === '204';
   
   let rtype = "Deluxe Island King";
-  let price = 3500.0;
+  let price = 4500.0;
   if (floor === 2 && roomIdx > 8) {
     rtype = "Royal Andaman Suite";
-    price = 8500.0;
+    price = 18000.0;
   } else if (floor === 2) {
     rtype = "Super Deluxe Sea Breeze";
-    price = 5500.0;
+    price = 9500.0;
   } else if (roomIdx > 8) {
     rtype = "Executive Bay View Room";
-    price = 4800.0;
+    price = 4500.0;
   }
 
   return {
