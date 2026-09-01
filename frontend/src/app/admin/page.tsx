@@ -2145,6 +2145,7 @@ export default function AdminControlPage() {
                                             })
                                           });
                                           showToast(`Updated ${d_str} to ₹${newVal.toLocaleString('en-IN')}`);
+                                          loadAdminData();
                                         } catch (err: any) {
                                           alert(`Update failed: ${err.message}`);
                                         }
