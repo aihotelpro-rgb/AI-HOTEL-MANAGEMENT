@@ -72,25 +72,52 @@ async def list_ota_channels(db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(OtaChannel).order_by(OtaChannel.id.asc()))
     channels = result.scalars().all()
     
-    if not channels:
-        seed_channels = [
-            OtaChannel(id=1, name="Booking.com Global", code="BDC", channel_type="Global OTA", api_type="XML", commission_percent=18.0, is_active=True, logo_url="https://images.unsplash.com/photo-1566073771259-6a8506099945?w=100"),
-            OtaChannel(id=2, name="MakeMyTrip & Goibibo", code="MMT", channel_type="Indian OTA", api_type="REST", commission_percent=15.0, is_active=True, logo_url="https://images.unsplash.com/photo-1582719508461-905c673771fd?w=100"),
-            OtaChannel(id=3, name="Agoda International", code="AGD", channel_type="Asian OTA", api_type="REST", commission_percent=16.5, is_active=True, logo_url="https://images.unsplash.com/photo-1590490360182-c33d57733427?w=100"),
-            OtaChannel(id=4, name="Expedia Group", code="EXP", channel_type="Global OTA", api_type="XML", commission_percent=17.5, is_active=True, logo_url="https://images.unsplash.com/photo-1618773928121-c32242e63f39?w=100"),
-            OtaChannel(id=5, name="Goibibo Direct", code="GOI", channel_type="Indian OTA", api_type="REST", commission_percent=15.0, is_active=True, logo_url="https://images.unsplash.com/photo-1566665797739-1674de7a421a?w=100"),
-            OtaChannel(id=6, name="Airbnb Experiences", code="AIR", channel_type="Vacation Rental", api_type="REST", commission_percent=14.0, is_active=True, logo_url="https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=100")
-        ]
-        db.add_all(seed_channels)
-        await db.flush()
+    ALL_20_SEED_OTAS = [
+        {"name": "Self Hotel Website (Direct)", "code": "WEB", "channel_type": "Direct Website", "api_type": "REST", "commission_percent": 0.0, "logo_url": "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=100"},
+        {"name": "Booking.com Global", "code": "BDC", "channel_type": "Global OTA", "api_type": "XML", "commission_percent": 18.0, "logo_url": "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=100"},
+        {"name": "MakeMyTrip India", "code": "MMT", "channel_type": "Indian OTA", "api_type": "REST", "commission_percent": 15.0, "logo_url": "https://images.unsplash.com/photo-1582719508461-905c673771fd?w=100"},
+        {"name": "Goibibo Portal", "code": "GOI", "channel_type": "Indian OTA", "api_type": "REST", "commission_percent": 15.0, "logo_url": "https://images.unsplash.com/photo-1566665797739-1674de7a421a?w=100"},
+        {"name": "Agoda International", "code": "AGD", "channel_type": "Asian OTA", "api_type": "REST", "commission_percent": 16.5, "logo_url": "https://images.unsplash.com/photo-1590490360182-c33d57733427?w=100"},
+        {"name": "Expedia Group", "code": "EXP", "channel_type": "Global OTA", "api_type": "XML", "commission_percent": 17.5, "logo_url": "https://images.unsplash.com/photo-1618773928121-c32242e63f39?w=100"},
+        {"name": "Airbnb Experiences & Stays", "code": "AIR", "channel_type": "Vacation Rental", "api_type": "REST", "commission_percent": 14.0, "logo_url": "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=100"},
+        {"name": "Yatra.com India", "code": "YTR", "channel_type": "Indian OTA", "api_type": "REST", "commission_percent": 15.0, "logo_url": "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=100"},
+        {"name": "ClearTrip Flights & Hotels", "code": "CLT", "channel_type": "Indian OTA", "api_type": "REST", "commission_percent": 14.5, "logo_url": "https://images.unsplash.com/photo-1582719508461-905c673771fd?w=100"},
+        {"name": "EaseMyTrip Portal", "code": "EMT", "channel_type": "Indian OTA", "api_type": "REST", "commission_percent": 14.0, "logo_url": "https://images.unsplash.com/photo-1590490360182-c33d57733427?w=100"},
+        {"name": "Trip.com / Ctrip Global", "code": "CTP", "channel_type": "Global OTA", "api_type": "REST", "commission_percent": 16.0, "logo_url": "https://images.unsplash.com/photo-1618773928121-c32242e63f39?w=100"},
+        {"name": "Google Hotel Ads Direct", "code": "GHA", "channel_type": "Meta Engine", "api_type": "REST", "commission_percent": 0.0, "logo_url": "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=100"},
+        {"name": "TripAdvisor Instant Booking", "code": "TADV", "channel_type": "Meta Engine", "api_type": "REST", "commission_percent": 12.0, "logo_url": "https://images.unsplash.com/photo-1582719508461-905c673771fd?w=100"},
+        {"name": "Hostelworld Global", "code": "HSW", "channel_type": "Global OTA", "api_type": "REST", "commission_percent": 15.0, "logo_url": "https://images.unsplash.com/photo-1590490360182-c33d57733427?w=100"},
+        {"name": "HotelTonight Last-Minute", "code": "HTN", "channel_type": "Last-Minute OTA", "api_type": "REST", "commission_percent": 18.0, "logo_url": "https://images.unsplash.com/photo-1618773928121-c32242e63f39?w=100"},
+        {"name": "Viator / TripAdvisor Experiences", "code": "VTR", "channel_type": "Tours & Experiences", "api_type": "REST", "commission_percent": 20.0, "logo_url": "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=100"},
+        {"name": "Klook Travel Experiences", "code": "KLK", "channel_type": "Asian OTA", "api_type": "REST", "commission_percent": 18.0, "logo_url": "https://images.unsplash.com/photo-1582719508461-905c673771fd?w=100"},
+        {"name": "Traveloka SE Asia", "code": "TVL", "channel_type": "Asian OTA", "api_type": "REST", "commission_percent": 15.0, "logo_url": "https://images.unsplash.com/photo-1590490360182-c33d57733427?w=100"},
+        {"name": "VRBO / HomeAway", "code": "VRBO", "channel_type": "Vacation Rental", "api_type": "REST", "commission_percent": 12.0, "logo_url": "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=100"},
+        {"name": "Corporate B2B Direct Partner", "code": "B2B", "channel_type": "Corporate B2B", "api_type": "REST", "commission_percent": 5.0, "logo_url": "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=100"},
+    ]
 
-        for ch in seed_channels:
+    existing_codes = {c.code for c in channels}
+    missing_otas = [item for item in ALL_20_SEED_OTAS if item["code"] not in existing_codes]
+
+    if missing_otas:
+        for item in missing_otas:
+            new_ch = OtaChannel(
+                name=item["name"],
+                code=item["code"],
+                channel_type=item["channel_type"],
+                api_type=item["api_type"],
+                commission_percent=item["commission_percent"],
+                is_active=True,
+                logo_url=item["logo_url"]
+            )
+            db.add(new_ch)
+            await db.flush()
+
             cred = OtaCredential(
                 property_id=1,
-                ota_id=ch.id,
-                hotel_id_on_ota=f"HOTEL-{ch.code}-88192",
-                api_key_encrypted=encrypt_credential(f"api_key_live_{ch.code.lower()}_2026"),
-                api_secret_encrypted=encrypt_credential(f"sec_key_live_{ch.code.lower()}_2026"),
+                ota_id=new_ch.id,
+                hotel_id_on_ota=f"HOTEL-{item['code']}-88192",
+                api_key_encrypted=encrypt_credential(f"api_key_live_{item['code'].lower()}_2026"),
+                api_secret_encrypted=encrypt_credential(f"sec_key_live_{item['code'].lower()}_2026"),
                 is_connected=True,
                 connection_mode="LIVE",
                 connection_status="Configured & Active",

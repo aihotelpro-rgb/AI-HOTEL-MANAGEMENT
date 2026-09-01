@@ -358,7 +358,7 @@ export default function AdminControlPage() {
   // Load All Admin Data
   const loadAdminData = async () => {
     try {
-      const [settingsData, roomsData, menuData, staffData, channelData, inventoryData, cctvData, roomMapData, rateMapData, calendarData, auditData, syncData] = await Promise.all([
+      const [settingsData, roomsData, menuData, staffData, channelData, inventoryData, cctvData, roomMapData, rateMapData, calendarData, auditData, syncData, legacyConfig] = await Promise.all([
         apiRequest('/api/v1/admin/settings'),
         apiRequest('/api/v1/admin/rooms'),
         apiRequest('/api/v1/admin/menu'),
@@ -370,7 +370,8 @@ export default function AdminControlPage() {
         apiRequest('/api/v1/channel/mapping/rates').catch(() => []),
         apiRequest('/api/v1/channel/rates/calendar?days=14').catch(() => ({ dates: [], grid: [] })),
         apiRequest('/api/v1/channel/audit-logs?limit=30').catch(() => []),
-        apiRequest('/api/v1/channel/sync/health').catch(() => null)
+        apiRequest('/api/v1/channel/sync/health').catch(() => null),
+        apiRequest('/api/v1/admin/channel-engine/status').catch(() => null)
       ]);
       setSettings(settingsData);
       setRooms(roomsData);
@@ -384,6 +385,7 @@ export default function AdminControlPage() {
       if (calendarData) setRateCalendar(calendarData);
       if (auditData) setAuditLogs(auditData);
       if (syncData) setSyncHealth(syncData);
+      if (legacyConfig) setChannelConfig(legacyConfig);
     } catch (err: any) {
       console.error('Failed to load admin data', err);
     } finally {
