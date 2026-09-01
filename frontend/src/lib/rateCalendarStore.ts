@@ -1,3 +1,5 @@
+import { ROOMS_DATA } from './roomsStore';
+
 export interface RateGridCell {
   rate: number;
   available: number;
@@ -66,6 +68,28 @@ export let RATE_CALENDAR_STORE = {
   grid
 };
 
+export function syncRoomsDataWithRate(room_type_id: number, newRate: number) {
+  if (!ROOMS_DATA || ROOMS_DATA.length === 0) return;
+
+  ROOMS_DATA.forEach(room => {
+    if (!room_type_id || room_type_id === 0) {
+      room.price_per_night = newRate;
+    } else if (room_type_id === 1) {
+      if (room.room_type.toLowerCase().includes('deluxe') || room.room_type.toLowerCase().includes('executive')) {
+        room.price_per_night = newRate;
+      }
+    } else if (room_type_id === 2) {
+      if (room.room_type.toLowerCase().includes('super') || room.room_type.toLowerCase().includes('breeze') || room.room_type.toLowerCase().includes('heritage')) {
+        room.price_per_night = newRate;
+      }
+    } else if (room_type_id === 3) {
+      if (room.room_type.toLowerCase().includes('andaman') || room.room_type.toLowerCase().includes('royal') || room.room_type.toLowerCase().includes('penthouse')) {
+        room.price_per_night = newRate;
+      }
+    }
+  });
+}
+
 export function updateSingleRate(room_type_id: number, rate_plan_id: number, date_str: string, rate: number) {
   const row = RATE_CALENDAR_STORE.grid.find(
     r => (room_type_id ? r.room_type_id === room_type_id : true) && (rate_plan_id ? r.rate_plan_id === rate_plan_id : true)
@@ -74,6 +98,8 @@ export function updateSingleRate(room_type_id: number, rate_plan_id: number, dat
   if (row && row.dates[date_str]) {
     row.dates[date_str].rate = rate;
   }
+
+  syncRoomsDataWithRate(room_type_id, rate);
 }
 
 export function bulkUpdateRates(room_type_id: number, rate_plan_id: number, start_date: string, end_date: string, rate: number) {
@@ -87,4 +113,6 @@ export function bulkUpdateRates(room_type_id: number, rate_plan_id: number, star
       }
     }
   }
+
+  syncRoomsDataWithRate(room_type_id, rate);
 }

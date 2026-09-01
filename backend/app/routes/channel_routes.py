@@ -435,8 +435,19 @@ async def update_calendar_rate_cell(
             rate=new_rate
         )
         db.add(rc)
-    else:
         rc.rate = new_rate
+
+    # Sync Suite Inventory Master room prices
+    rooms_q = await db.execute(select(Room))
+    for rm in rooms_q.scalars().all():
+        if rt_id == 1 and ("deluxe" in rm.room_type.lower() or "executive" in rm.room_type.lower()):
+            rm.price_per_night = new_rate
+        elif rt_id == 2 and ("super" in rm.room_type.lower() or "heritage" in rm.room_type.lower()):
+            rm.price_per_night = new_rate
+        elif rt_id == 3 and ("andaman" in rm.room_type.lower() or "royal" in rm.room_type.lower() or "penthouse" in rm.room_type.lower()):
+            rm.price_per_night = new_rate
+        elif rt_id == 0 or not rt_id:
+            rm.price_per_night = new_rate
 
     await db.commit()
     await log_audit(db, "RATE_UPDATE", "RateCalendar", f"{rt_id}_{rp_id}_{date_str}", {"rate": old_rate}, {"rate": new_rate}, current_user.username)
@@ -474,6 +485,18 @@ async def bulk_update_rates(
             rc.rate = new_rate
         updated_count += 1
         curr_date += datetime.timedelta(days=1)
+
+    # Sync Suite Inventory Master room prices
+    rooms_q = await db.execute(select(Room))
+    for rm in rooms_q.scalars().all():
+        if rt_id == 1 and ("deluxe" in rm.room_type.lower() or "executive" in rm.room_type.lower()):
+            rm.price_per_night = new_rate
+        elif rt_id == 2 and ("super" in rm.room_type.lower() or "heritage" in rm.room_type.lower()):
+            rm.price_per_night = new_rate
+        elif rt_id == 3 and ("andaman" in rm.room_type.lower() or "royal" in rm.room_type.lower() or "penthouse" in rm.room_type.lower()):
+            rm.price_per_night = new_rate
+        elif rt_id == 0 or not rt_id:
+            rm.price_per_night = new_rate
 
     await db.commit()
     await log_audit(db, "BULK_RATE_UPDATE", "RateCalendar", f"{rt_id}_{rp_id}", None, {"new_rate": new_rate, "days": updated_count}, current_user.username)
