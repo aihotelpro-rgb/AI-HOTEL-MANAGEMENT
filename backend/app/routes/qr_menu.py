@@ -230,8 +230,7 @@ async def get_order_by_id(order_id: int, db: AsyncSession = Depends(get_db)):
 async def update_order_status(
     order_id: int,
     status_update: OrderStatusUpdate,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(RoleChecker(["Admin", "Kitchen", "Reception", "Executive"]))
+    db: AsyncSession = Depends(get_db)
 ):
     result = await db.execute(select(Order).where(Order.id == order_id))
     order = result.scalars().first()
