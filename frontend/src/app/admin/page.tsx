@@ -366,6 +366,7 @@ export default function AdminControlPage() {
   const [bulkStartDate, setBulkStartDate] = useState(new Date().toISOString().split('T')[0]);
   const [bulkEndDate, setBulkEndDate] = useState(new Date(Date.now() + 864000000).toISOString().split('T')[0]);
   const [bulkRateVal, setBulkRateVal] = useState(5500);
+  const [bulkRoomTypeId, setBulkRoomTypeId] = useState(0);
 
   // Load All Admin Data
   const loadAdminData = async () => {
@@ -1989,14 +1990,14 @@ export default function AdminControlPage() {
                             await apiRequest('/api/v1/channel/rates/bulk-update', {
                               method: 'POST',
                               body: JSON.stringify({
-                                room_type_id: 1,
-                                rate_plan_id: 1,
+                                room_type_id: 0,
+                                rate_plan_id: 0,
                                 start_date: bulkStartDate,
                                 end_date: bulkEndDate,
                                 rate: 7200
                               })
                             });
-                            showToast("✨ Applied AI Recommended Tariff (+18% Surge Optimization) across connected OTAs!");
+                            showToast("✨ Applied AI Recommended Tariff (₹7,200/night +18% Surge Optimization) across all 24 Property Suites & connected OTAs!");
                             loadAdminData();
                           } catch (err: any) {
                             alert(`Failed: ${err.message}`);
@@ -2044,7 +2045,7 @@ export default function AdminControlPage() {
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-neutral-800 pb-3">
                       <div>
                         <h4 className="text-sm font-extrabold text-white">⚡ Date-Range Bulk Rate Editor</h4>
-                        <p className="text-xs text-neutral-400">Update rates across multiple dates in one action and push to connected OTAs.</p>
+                        <p className="text-xs text-neutral-400">Update rates across multiple dates in one action and push to connected OTAs & property suites.</p>
                       </div>
 
                       <button
@@ -2053,14 +2054,14 @@ export default function AdminControlPage() {
                             await apiRequest('/api/v1/channel/rates/bulk-update', {
                               method: 'POST',
                               body: JSON.stringify({
-                                room_type_id: 1,
+                                room_type_id: bulkRoomTypeId,
                                 rate_plan_id: 1,
                                 start_date: bulkStartDate,
                                 end_date: bulkEndDate,
                                 rate: Number(bulkRateVal)
                               })
                             });
-                            showToast(`Bulk rates updated to ₹${bulkRateVal.toLocaleString('en-IN')}!`);
+                            showToast(`Bulk rates updated to ₹${bulkRateVal.toLocaleString('en-IN')} across property suites & connected OTAs!`);
                             loadAdminData();
                           } catch (err: any) {
                             alert(`Bulk update failed: ${err.message}`);
@@ -2072,7 +2073,20 @@ export default function AdminControlPage() {
                       </button>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                    <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 text-xs">
+                      <div>
+                        <label className="block text-[10px] uppercase font-extrabold text-neutral-400 mb-1">Target Suite Category</label>
+                        <select
+                          value={bulkRoomTypeId}
+                          onChange={(e) => setBulkRoomTypeId(Number(e.target.value))}
+                          className="w-full text-xs rounded-xl border border-neutral-700 bg-neutral-800 p-2 text-neutral-100 font-bold focus:outline-none focus:border-amber-500"
+                        >
+                          <option value={0}>🏨 All 24 Property Suites (Full Inventory)</option>
+                          <option value={1}>👑 Deluxe Heritage & Island Rooms</option>
+                          <option value={2}>🏰 Royal Heritage & Sea Breeze Suites</option>
+                          <option value={3}>👑 Maharaja Penthouse Suites</option>
+                        </select>
+                      </div>
                       <div>
                         <label className="block text-[10px] uppercase font-extrabold text-neutral-400 mb-1">Start Date</label>
                         <input
