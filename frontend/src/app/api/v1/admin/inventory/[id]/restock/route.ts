@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { INVENTORY_ITEMS } from '../../route';
+import { INVENTORY_ITEMS } from '@/lib/inventoryStore';
 
 export const dynamic = 'force-dynamic';
 
