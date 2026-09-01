@@ -42,6 +42,8 @@ export async function POST(req: NextRequest) {
     const newOrder = {
       id: KITCHEN_ORDERS_DATA.length + 101,
       booking_id: Number(body.booking_id || 1),
+      room_number: body.room_number || `${body.booking_id || 101}`,
+      guest_name: body.guest_name || "Resident Guest",
       items: body.items || [],
       total_price: Number(body.total_price || 0),
       status: "Pending",

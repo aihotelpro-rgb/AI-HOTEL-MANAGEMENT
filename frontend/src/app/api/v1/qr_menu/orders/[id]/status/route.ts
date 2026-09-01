@@ -27,6 +27,8 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
       const fallbackOrder = {
         id: orderId,
         booking_id: 1,
+        room_number: "101",
+        guest_name: "Pooja Sharma",
         items: [{ name: "Gourmet Culinary Order", quantity: 1, price: 450 }],
         total_price: 450.00,
         status: status || "Preparing",

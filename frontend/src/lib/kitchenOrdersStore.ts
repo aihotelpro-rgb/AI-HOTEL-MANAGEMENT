@@ -8,6 +8,8 @@ export interface KitchenOrderItem {
 export interface KitchenOrder {
   id: number;
   booking_id: number;
+  room_number: string;
+  guest_name: string;
   items: KitchenOrderItem[];
   total_price: number;
   status: string; // "Pending" | "Preparing" | "Ready" | "OutForDelivery" | "Delivered" | "Cancelled"
@@ -22,6 +24,8 @@ export let KITCHEN_ORDERS_DATA: KitchenOrder[] = [
   {
     id: 101,
     booking_id: 1,
+    room_number: "101",
+    guest_name: "Pooja Sharma",
     items: [
       { name: "Royal Butter Chicken (Murgh Makhani)", quantity: 2, price: 560.00, category: "Indian Mains" },
       { name: "Tandoori Garlic & Butter Naan Basket", quantity: 3, price: 140.00, category: "Breads" },
@@ -37,6 +41,8 @@ export let KITCHEN_ORDERS_DATA: KitchenOrder[] = [
   {
     id: 102,
     booking_id: 4,
+    room_number: "204",
+    guest_name: "Maharaja Raghavendra Singh",
     items: [
       { name: "Awadhi Dum Gosht Biryani", quantity: 1, price: 640.00, category: "Biryani & Rice" },
       { name: "Murgh Malai Tikka & Mint Chutney", quantity: 1, price: 480.00, category: "Starters" }
@@ -51,6 +57,8 @@ export let KITCHEN_ORDERS_DATA: KitchenOrder[] = [
   {
     id: 103,
     booking_id: 8,
+    room_number: "302",
+    guest_name: "Captain Vikram Rathore",
     items: [
       { name: "Paneer Tikka Shashlik", quantity: 2, price: 420.00, category: "Starters" },
       { name: "Gulab Jamun with Kesar Pista Rabdi", quantity: 2, price: 240.00, category: "Desserts" },
@@ -62,6 +70,23 @@ export let KITCHEN_ORDERS_DATA: KitchenOrder[] = [
     estimated_minutes: 5,
     special_instructions: "Serve chai piping hot with extra saffron.",
     created_at: new Date(Date.now() - 22 * 60000).toISOString()
+  },
+  {
+    id: 104,
+    booking_id: 5,
+    room_number: "105",
+    guest_name: "Dr. Ananya Roy",
+    items: [
+      { name: "Dal Makhani Grand Palace", quantity: 1, price: 380.00, category: "Indian Mains" },
+      { name: "Tandoori Garlic & Butter Naan Basket", quantity: 2, price: 140.00, category: "Breads" },
+      { name: "Gulab Jamun with Kesar Pista Rabdi", quantity: 1, price: 240.00, category: "Desserts" }
+    ],
+    total_price: 900.00,
+    status: "OutForDelivery",
+    runner_name: "Runner Priya",
+    estimated_minutes: 8,
+    special_instructions: "Deliver to poolside cabana table.",
+    created_at: new Date(Date.now() - 30 * 60000).toISOString()
   }
 ];
 
