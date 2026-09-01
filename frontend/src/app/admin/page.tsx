@@ -1791,29 +1791,16 @@ export default function AdminControlPage() {
 
                       <button
                         onClick={() => {
-                          const channelName = prompt("Enter OTA Channel Code to configure API Credentials (e.g. MMT, BDC, AGD, EXP, AIR, YTR):", "MMT");
-                          if (channelName) {
-                            const target = otaChannels.find(c => c.code === channelName.toUpperCase());
-                            const key = prompt(`Enter API Key / Secret Token for ${target ? target.name : channelName}:`, "live_key_vault_2026");
-                            if (key) {
-                              apiRequest('/api/v1/channel/credentials/save', {
-                                method: 'POST',
-                                body: JSON.stringify({
-                                  ota_id: target ? target.id : 1,
-                                  api_key: key,
-                                  api_secret: 'sec_vault_encrypted',
-                                  hotel_id_on_ota: target ? target.hotel_id_on_ota : `HOTEL-${channelName.toUpperCase()}-88192`,
-                                  connection_mode: 'LIVE'
-                                })
-                              }).then(() => {
-                                showToast(`API credentials encrypted and saved to vault!`);
-                                loadAdminData();
-                              }).catch(err => alert(`Failed: ${err.message}`));
-                            }
-                          }
+                          const target = otaChannels[0] || { id: 1, name: 'MakeMyTrip (India)', code: 'MMT', hotel_id_on_ota: 'HOTEL-MMT-88192', connection_mode: 'LIVE' };
+                          setEditingCredModalChannel(target);
+                          setEditHotelId(target.hotel_id_on_ota || `HOTEL-${target.code}-88192`);
+                          setEditApiKey(`live_key_${target.code.toLowerCase()}_2026`);
+                          setEditApiSecret(`sec_vault_${target.code.toLowerCase()}_encrypted`);
+                          setEditMode(target.connection_mode || 'LIVE');
                         }}
                         className="px-3.5 py-2 bg-neutral-800 hover:bg-neutral-700 text-amber-400 border border-neutral-700 font-extrabold text-xs rounded-xl transition flex items-center gap-1.5"
                       >
+                        <Key className="h-4 w-4" />
                         <span>🔑 Add API Credentials</span>
                       </button>
                     </div>
@@ -3665,6 +3652,30 @@ export default function AdminControlPage() {
               }}
               className="space-y-3.5 text-xs"
             >
+              <div>
+                <label className="block text-[10px] uppercase font-extrabold text-neutral-400 mb-1 font-mono">Target OTA Channel</label>
+                <select
+                  value={editingCredModalChannel?.id}
+                  onChange={(e) => {
+                    const selected = otaChannels.find(c => c.id === Number(e.target.value));
+                    if (selected) {
+                      setEditingCredModalChannel(selected);
+                      setEditHotelId(selected.hotel_id_on_ota || `HOTEL-${selected.code}-88192`);
+                      setEditApiKey(`live_key_${selected.code.toLowerCase()}_2026`);
+                      setEditApiSecret(`sec_vault_${selected.code.toLowerCase()}_encrypted`);
+                      setEditMode(selected.connection_mode || 'LIVE');
+                    }
+                  }}
+                  className="w-full text-xs rounded-xl border border-neutral-700 bg-neutral-800 p-2.5 text-neutral-100 font-bold focus:outline-none focus:border-amber-500"
+                >
+                  {otaChannels.map((ch: any) => (
+                    <option key={ch.id} value={ch.id}>
+                      🏨 {ch.name} ({ch.code}) — {ch.channel_type}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-[10px] uppercase font-extrabold text-neutral-400 mb-1">OTA Hotel / Property ID</label>
