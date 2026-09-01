@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { 
   Building, 
   ChefHat, 
+  Bike,
   Sparkles, 
   LayoutDashboard, 
   Settings, 
@@ -94,6 +95,14 @@ export default function Sidebar({ hotelName }: SidebarProps) {
       allowedRoles: ['Kitchen', 'Admin', 'Executive'],
       badge: 'Live Queue',
       badgeColor: 'bg-amber-950 text-amber-400 border-amber-800'
+    },
+    {
+      label: 'Food Runner Mobile',
+      href: '/runner',
+      icon: Bike,
+      allowedRoles: ['Runner', 'Kitchen', 'Reception', 'Executive', 'Admin', 'Butler'],
+      badge: 'Delivery',
+      badgeColor: 'bg-purple-950 text-purple-400 border-purple-800'
     },
     {
       label: 'Housekeeping Hub',
