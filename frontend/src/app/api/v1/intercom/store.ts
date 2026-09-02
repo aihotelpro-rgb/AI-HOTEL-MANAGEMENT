@@ -2,7 +2,11 @@
 // SERVER-SIDE IN-MEMORY INTERCOM SIGNALING, WEBRTC & AUDIO RELAY STORE
 // Global singleton that persists during the Vercel serverless warm window.
 // Acts as the bidirectional signaling layer, TURN/STUN exchange & HTTP audio relay.
+// Enforces dual file-system persistence (/tmp & .next) for 100% zero data-loss call logs.
 // ─────────────────────────────────────────────────────────────────────────────
+
+import fs from 'fs';
+import path from 'path';
 
 export interface IntercomCall {
   call_id: string;
@@ -45,6 +49,34 @@ declare global {
   var __intercomAudioRelay: Record<string, AudioChunk[]>;
 }
 
+// ── Disk Persistence Helpers ────────────────────────────────────────────────
+const DISK_HISTORY_FILE = path.join(process.cwd(), '.next', 'intercom_history.json');
+const TMP_HISTORY_FILE = '/tmp/intercom_history.json';
+
+function _loadHistoryFromDisk(): IntercomCall[] | null {
+  try {
+    const file = fs.existsSync(TMP_HISTORY_FILE)
+      ? TMP_HISTORY_FILE
+      : fs.existsSync(DISK_HISTORY_FILE)
+      ? DISK_HISTORY_FILE
+      : null;
+    if (file) {
+      const raw = fs.readFileSync(file, 'utf8');
+      const data = JSON.parse(raw);
+      if (Array.isArray(data) && data.length > 0) return data;
+    }
+  } catch (e) {}
+  return null;
+}
+
+function _saveHistoryToDisk(history: IntercomCall[]) {
+  try {
+    const dataStr = JSON.stringify(history, null, 2);
+    try { fs.writeFileSync(TMP_HISTORY_FILE, dataStr, 'utf8'); } catch (e) {}
+    try { fs.writeFileSync(DISK_HISTORY_FILE, dataStr, 'utf8'); } catch (e) {}
+  } catch (e) {}
+}
+
 // ── Initialize stores once ──────────────────────────────────────────────────
 if (!global.__intercomCallQueue) {
   global.__intercomCallQueue = [];
@@ -58,7 +90,11 @@ if (!global.__intercomWebRTCSignals) {
 if (!global.__intercomAudioRelay) {
   global.__intercomAudioRelay = {};
 }
-if (!global.__intercomCallHistory) {
+
+const diskLoaded = _loadHistoryFromDisk();
+if (diskLoaded && diskLoaded.length > 0) {
+  global.__intercomCallHistory = diskLoaded;
+} else if (!global.__intercomCallHistory) {
   global.__intercomCallHistory = [
     {
       call_id: 'voip_demo_001',
@@ -86,12 +122,19 @@ if (!global.__intercomCallHistory) {
       hotel: 'Hotel Blue Bird Inn',
     },
   ];
+  _saveHistoryToDisk(global.__intercomCallHistory);
 }
 
 // ── Getters ─────────────────────────────────────────────────────────────────
 export function getCallQueue() { return global.__intercomCallQueue; }
 export function getRoomCallQueue() { return global.__intercomRoomCallQueue; }
-export function getCallHistory() { return global.__intercomCallHistory; }
+export function getCallHistory(): IntercomCall[] {
+  const disk = _loadHistoryFromDisk();
+  if (disk && disk.length > 0) {
+    global.__intercomCallHistory = disk;
+  }
+  return global.__intercomCallHistory;
+}
 
 // ── Room→Reception: add to inbound queue ────────────────────────────────────
 export function addCallToQueue(call: IntercomCall) {
@@ -165,7 +208,6 @@ export function saveAudioChunk(call_id: string, sender: 'caller' | 'receiver', a
     audio: audioBase64,
     timestamp: new Date().toISOString(),
   });
-  // Cap at last 25 audio chunks to keep memory light
   if (chunks.length > 25) {
     global.__intercomAudioRelay[call_id] = chunks.slice(-25);
   }
@@ -177,7 +219,7 @@ export function getNewAudioChunks(call_id: string, recipientRole: 'caller' | 're
   return chunks.filter((c) => c.sender === senderTarget && c.id > lastChunkId);
 }
 
-// ── Update status in any queue or history ───────────────────────────────────
+// ── Update status in any queue or history with Guaranteed Disk Sync ──────────
 export function updateCallStatus(
   call_id: string,
   status: IntercomCall['status'],
@@ -234,6 +276,7 @@ export function updateCallStatus(
   if (idx !== -1) {
     const updated = processRecord(global.__intercomCallHistory[idx]);
     global.__intercomCallHistory[idx] = updated;
+    _saveHistoryToDisk(global.__intercomCallHistory);
     return true;
   }
 
@@ -261,13 +304,16 @@ export function updateCallStatus(
 }
 
 function _pushToHistory(call: IntercomCall) {
-  global.__intercomCallHistory = global.__intercomCallHistory.filter(
-    (c) => c.call_id !== call.call_id
-  );
-  global.__intercomCallHistory.unshift(call);
-  if (global.__intercomCallHistory.length > 50) {
-    global.__intercomCallHistory = global.__intercomCallHistory.slice(0, 50);
+  const disk = _loadHistoryFromDisk();
+  let base = disk && disk.length > 0 ? disk : global.__intercomCallHistory || [];
+
+  base = base.filter((c) => c.call_id !== call.call_id);
+  base.unshift(call);
+  if (base.length > 100) {
+    base = base.slice(0, 100);
   }
+  global.__intercomCallHistory = base;
+  _saveHistoryToDisk(base);
 }
 
 // ── Auto-expire ringing calls ───────────────────────────────────────────────

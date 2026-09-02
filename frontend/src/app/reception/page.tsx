@@ -100,8 +100,32 @@ export default function ReceptionPMSPage() {
 
   const loadIntercomHistory = async () => {
     try {
-      const logs = await apiRequest('/api/v1/intercom/history');
-      setIntercomCallLogs(Array.isArray(logs) ? logs : []);
+      const serverLogs = await apiRequest('/api/v1/intercom/history');
+      let combinedLogs: any[] = Array.isArray(serverLogs) ? serverLogs : [];
+
+      if (typeof window !== 'undefined') {
+        try {
+          const cachedRaw = localStorage.getItem('intercom_call_logs_v2');
+          if (cachedRaw) {
+            const cached: any[] = JSON.parse(cachedRaw);
+            const map = new Map<string, any>();
+            cached.forEach(c => {
+              const id = c.call_id || c.id;
+              if (id) map.set(id, c);
+            });
+            combinedLogs.forEach(c => {
+              const id = c.call_id || c.id;
+              if (id) map.set(id, c);
+            });
+            combinedLogs = Array.from(map.values()).sort((a, b) => 
+              new Date(b.started_at || b.timestamp || 0).getTime() - new Date(a.started_at || a.timestamp || 0).getTime()
+            );
+          }
+          localStorage.setItem('intercom_call_logs_v2', JSON.stringify(combinedLogs.slice(0, 100)));
+        } catch (e) {}
+      }
+
+      setIntercomCallLogs(combinedLogs);
     } catch (err) {
       console.error('Failed to load intercom logs', err);
     }
