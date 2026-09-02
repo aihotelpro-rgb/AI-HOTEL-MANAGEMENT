@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiRequest, getAuthToken, clearAuthToken, API_BASE } from '@/lib/api';
-import { IntercomAudioSession } from '@/lib/webrtc';
+import { IntercomAudioSession, unlockIntercomAudioContext } from '@/lib/webrtc';
 import Sidebar from '@/components/Sidebar';
 import ThemeDatePicker from '@/components/ThemeDatePicker';
 import { 
@@ -165,6 +165,7 @@ export default function ReceptionPMSPage() {
   };
 
   const answerIncomingCall = async (call: any) => {
+    unlockIntercomAudioContext();
     try {
       await apiRequest('/api/v1/intercom/answer', {
         method: 'POST',
@@ -233,6 +234,7 @@ export default function ReceptionPMSPage() {
   };
 
   const executeReceptionCall = async (targetRoom: string) => {
+    unlockIntercomAudioContext();
     playReceptionRingbackChime();
     const now = new Date().toISOString();
     setIntercomCallActive(true);

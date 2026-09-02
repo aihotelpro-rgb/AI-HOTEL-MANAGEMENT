@@ -14,12 +14,33 @@ const ICE_CONFIG: RTCConfiguration = {
   ],
 };
 
+let globalAudioCtx: AudioContext | null = null;
+
+export function unlockIntercomAudioContext(): AudioContext | null {
+  try {
+    if (typeof window === 'undefined') return null;
+    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioCtx) return null;
+    if (!globalAudioCtx || globalAudioCtx.state === 'closed') {
+      globalAudioCtx = new AudioCtx();
+    }
+    if (globalAudioCtx.state === 'suspended') {
+      globalAudioCtx.resume().catch(() => {});
+    }
+    return globalAudioCtx;
+  } catch (err) {
+    console.warn('AudioContext unlock error:', err);
+    return null;
+  }
+}
+
 export class IntercomAudioSession {
   private callId: string;
   private role: 'caller' | 'receiver';
   private pc: RTCPeerConnection | null = null;
   private localStream: MediaStream | null = null;
   private remoteAudio: HTMLAudioElement | null = null;
+  private audioSourceNode: MediaStreamAudioSourceNode | null = null;
   private signalInterval: any = null;
   private relayInterval: any = null;
   private mediaRecorder: MediaRecorder | null = null;
@@ -39,19 +60,47 @@ export class IntercomAudioSession {
       if (typeof window === 'undefined') return;
       this.isStopped = false;
 
+      // Unlock device AudioContext during call initiation
+      unlockIntercomAudioContext();
+
       // 1. Create WebRTC PeerConnection
       this.pc = new RTCPeerConnection(ICE_CONFIG);
 
-      // 2. Setup remote audio element
-      this.remoteAudio = new Audio();
-      this.remoteAudio.autoplay = true;
-      (this.remoteAudio as any).playsInline = true;
+      // 2. Setup remote audio element attached directly to DOM!
+      let audioEl = document.getElementById('intercom-remote-audio') as HTMLAudioElement;
+      if (!audioEl) {
+        audioEl = document.createElement('audio');
+        audioEl.id = 'intercom-remote-audio';
+        audioEl.autoplay = true;
+        (audioEl as any).playsInline = true;
+        audioEl.style.display = 'none';
+        document.body.appendChild(audioEl);
+      }
+      this.remoteAudio = audioEl;
 
       // 3. Handle WebRTC remote track stream
       this.pc.ontrack = (event) => {
-        if (event.streams && event.streams[0] && this.remoteAudio) {
-          this.remoteAudio.srcObject = event.streams[0];
-          this.remoteAudio.play().catch((e) => console.warn('Remote audio play warning:', e));
+        if (event.streams && event.streams[0]) {
+          const stream = event.streams[0];
+          
+          if (this.remoteAudio) {
+            this.remoteAudio.srcObject = stream;
+            this.remoteAudio.play().catch((e) => console.warn('Remote audio tag play warning:', e));
+          }
+
+          // Dual-Engine: Route stream directly to Web Audio API destination for guaranteed speaker output
+          try {
+            const ctx = unlockIntercomAudioContext();
+            if (ctx) {
+              if (this.audioSourceNode) {
+                try { this.audioSourceNode.disconnect(); } catch (e) {}
+              }
+              this.audioSourceNode = ctx.createMediaStreamSource(stream);
+              this.audioSourceNode.connect(ctx.destination);
+            }
+          } catch (e) {
+            console.warn('Web Audio destination routing warning:', e);
+          }
         }
       };
 
@@ -209,10 +258,16 @@ export class IntercomAudioSession {
   private playAudioChunk(base64Audio: string) {
     if (this.isStopped || !base64Audio) return;
     try {
+      unlockIntercomAudioContext();
       const audio = new Audio(base64Audio);
       audio.autoplay = true;
       (audio as any).playsInline = true;
-      audio.play().catch((e) => console.warn('Audio chunk playback warning:', e));
+      document.body.appendChild(audio);
+      audio.play()
+        .then(() => {
+          setTimeout(() => { try { document.body.removeChild(audio); } catch(e){} }, 4000);
+        })
+        .catch((e) => console.warn('Audio chunk playback warning:', e));
     } catch (err) {}
   }
 
@@ -281,6 +336,11 @@ export class IntercomAudioSession {
       this.recorderTimer = null;
     }
 
+    if (this.audioSourceNode) {
+      try { this.audioSourceNode.disconnect(); } catch (e) {}
+      this.audioSourceNode = null;
+    }
+
     if (this.localStream) {
       this.localStream.getTracks().forEach((track) => track.stop());
       this.localStream = null;
@@ -291,7 +351,6 @@ export class IntercomAudioSession {
         this.remoteAudio.pause();
         this.remoteAudio.srcObject = null;
       } catch (e) {}
-      this.remoteAudio = null;
     }
 
     if (this.pc) {

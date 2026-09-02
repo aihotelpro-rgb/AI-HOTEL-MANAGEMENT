@@ -6,7 +6,7 @@ import { useSearchParams } from 'next/navigation';
 export const dynamic = 'force-dynamic';
 import { cacheMenu, getCachedMenu, queueOfflineRequest, getQueuedRequests } from '@/lib/db';
 import { isOnline, apiRequest } from '@/lib/api';
-import { IntercomAudioSession } from '@/lib/webrtc';
+import { IntercomAudioSession, unlockIntercomAudioContext } from '@/lib/webrtc';
 import { 
   Utensils, 
   Sparkles, 
@@ -426,6 +426,7 @@ function GuestRoomQRContent() {
   };
 
   const startIntercomCall = async () => {
+    unlockIntercomAudioContext();
     playRingbackChime();
     setIsCallActive(true);
     setCallStatus('ringing');
@@ -566,6 +567,7 @@ function GuestRoomQRContent() {
   };
 
   const answerReceptionCall = async (call: any) => {
+    unlockIntercomAudioContext();
     try {
       await apiRequest('/api/v1/intercom/room-incoming', {
         method: 'POST',
