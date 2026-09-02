@@ -42,6 +42,7 @@ interface ActiveStay {
   check_out: string;
   room_rate: number;
   vip_status: boolean;
+  status?: string;
 }
 
 interface WhatsAppLog {
@@ -550,7 +551,23 @@ export default function ReceptionPMSPage() {
         apiRequest('/api/v1/reception/whatsapp-feed')
       ]);
       setRooms(roomsData);
-      setActiveStays(staysData);
+
+      let combinedStays: ActiveStay[] = Array.isArray(staysData) ? staysData : [];
+      if (typeof window !== 'undefined') {
+        try {
+          const cachedRaw = localStorage.getItem('pms_active_stays_v2');
+          if (cachedRaw) {
+            const cached: ActiveStay[] = JSON.parse(cachedRaw);
+            const map = new Map<number, ActiveStay>();
+            cached.forEach(s => { if (s.booking_id && s.status === 'CheckedIn') map.set(s.booking_id, s); });
+            combinedStays.forEach(s => { if (s.booking_id && s.status === 'CheckedIn') map.set(s.booking_id, s); });
+            combinedStays = Array.from(map.values());
+          }
+          localStorage.setItem('pms_active_stays_v2', JSON.stringify(combinedStays));
+        } catch (e) {}
+      }
+
+      setActiveStays(combinedStays);
       setWhatsappLogs(logsData);
       await fetchDailyBookings();
     } catch (err: any) {

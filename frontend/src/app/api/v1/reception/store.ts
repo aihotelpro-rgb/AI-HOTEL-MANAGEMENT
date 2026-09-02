@@ -1,8 +1,11 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// CENTRALIZED IN-MEMORY PMS RECEPTION & BOOKINGS STORE
-// Global singleton that tracks active stays, checked-in guests, and rooms.
-// Ensures Front Desk PMS and Customer Room QR pages stay perfectly in sync.
+// CENTRALIZED IN-MEMORY & DISK PERSISTED PMS RECEPTION STORE
+// Global singleton that tracks active stays, checked-in guests, and room assignments.
+// Enforces dual file-system persistence (/tmp & .next) for 100% stable in-house stays data.
 // ─────────────────────────────────────────────────────────────────────────────
+
+import fs from 'fs';
+import path from 'path';
 
 export interface ActiveStayRecord {
   booking_id: number;
@@ -28,6 +31,33 @@ export interface ActiveStayRecord {
 declare global {
   // eslint-disable-next-line no-var
   var __pmsActiveStays: ActiveStayRecord[];
+}
+
+const DISK_STAYS_FILE = path.join(process.cwd(), '.next', 'pms_active_stays.json');
+const TMP_STAYS_FILE = '/tmp/pms_active_stays.json';
+
+function _loadStaysFromDisk(): ActiveStayRecord[] | null {
+  try {
+    const file = fs.existsSync(TMP_STAYS_FILE)
+      ? TMP_STAYS_FILE
+      : fs.existsSync(DISK_STAYS_FILE)
+      ? DISK_STAYS_FILE
+      : null;
+    if (file) {
+      const raw = fs.readFileSync(file, 'utf8');
+      const data = JSON.parse(raw);
+      if (Array.isArray(data) && data.length > 0) return data;
+    }
+  } catch (e) {}
+  return null;
+}
+
+function _saveStaysToDisk(stays: ActiveStayRecord[]) {
+  try {
+    const dataStr = JSON.stringify(stays, null, 2);
+    try { fs.writeFileSync(TMP_STAYS_FILE, dataStr, 'utf8'); } catch (e) {}
+    try { fs.writeFileSync(DISK_STAYS_FILE, dataStr, 'utf8'); } catch (e) {}
+  } catch (e) {}
 }
 
 // Default initial active stays if store is empty
@@ -68,37 +98,54 @@ const INITIAL_STAYS: ActiveStayRecord[] = [
   },
 ];
 
-if (!global.__pmsActiveStays) {
+const diskStays = _loadStaysFromDisk();
+if (diskStays && diskStays.length > 0) {
+  global.__pmsActiveStays = diskStays;
+} else if (!global.__pmsActiveStays) {
   global.__pmsActiveStays = [...INITIAL_STAYS];
+  _saveStaysToDisk(global.__pmsActiveStays);
 }
 
 export function getActiveStays(): ActiveStayRecord[] {
+  const disk = _loadStaysFromDisk();
+  if (disk && disk.length > 0) {
+    global.__pmsActiveStays = disk;
+  }
   return global.__pmsActiveStays;
 }
 
 export function getActiveStayByRoom(roomNumber: string): ActiveStayRecord | undefined {
   const cleanRoom = (roomNumber || '').trim();
-  return global.__pmsActiveStays.find(
+  const currentStays = getActiveStays();
+  return currentStays.find(
     (s) => s.room_number.trim() === cleanRoom && s.status === 'CheckedIn'
   );
 }
 
 export function addOrUpdateCheckIn(stay: ActiveStayRecord): ActiveStayRecord {
   const cleanRoom = stay.room_number.trim();
-  // Remove existing active stay for this room if any
-  global.__pmsActiveStays = global.__pmsActiveStays.filter(
+  const currentStays = getActiveStays();
+  
+  const updatedStays = currentStays.filter(
     (s) => !(s.room_number.trim() === cleanRoom && s.status === 'CheckedIn')
   );
+  
   const newRecord = { ...stay, room_number: cleanRoom, status: 'CheckedIn' as const };
-  global.__pmsActiveStays.unshift(newRecord);
+  updatedStays.unshift(newRecord);
+  
+  global.__pmsActiveStays = updatedStays;
+  _saveStaysToDisk(updatedStays);
   return newRecord;
 }
 
 export function checkOutBooking(bookingId: number): ActiveStayRecord | undefined {
-  const idx = global.__pmsActiveStays.findIndex((s) => s.booking_id === bookingId);
+  const currentStays = getActiveStays();
+  const idx = currentStays.findIndex((s) => s.booking_id === bookingId);
   if (idx !== -1) {
-    global.__pmsActiveStays[idx].status = 'CheckedOut';
-    return global.__pmsActiveStays[idx];
+    currentStays[idx].status = 'CheckedOut';
+    global.__pmsActiveStays = currentStays;
+    _saveStaysToDisk(currentStays);
+    return currentStays[idx];
   }
   return undefined;
 }
