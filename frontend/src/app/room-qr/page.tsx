@@ -537,36 +537,67 @@ function GuestRoomQRContent() {
   const [incomingReceptionVisible, setIncomingReceptionVisible] = useState(false);
   const [incomingCallAnswered, setIncomingCallAnswered] = useState(false);
 
-  const playIncomingRingTone = () => {
+  const ringtoneTimerRef = useRef<any>(null);
+  const ringtoneCtxRef = useRef<AudioContext | null>(null);
+
+  const stopContinuousRingtone = () => {
+    if (ringtoneTimerRef.current) {
+      clearInterval(ringtoneTimerRef.current);
+      ringtoneTimerRef.current = null;
+    }
+    if (ringtoneCtxRef.current) {
+      try { ringtoneCtxRef.current.close(); } catch (e) {}
+      ringtoneCtxRef.current = null;
+    }
+  };
+
+  const startContinuousRingtone = () => {
+    stopContinuousRingtone();
     try {
       if (typeof window === 'undefined') return;
       const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
       if (!AudioCtx) return;
-      const ctx = new AudioCtx();
-      const beep = (startAt: number, freq: number, dur: number) => {
-        const osc = ctx.createOscillator();
-        const g = ctx.createGain();
-        osc.frequency.setValueAtTime(freq, ctx.currentTime + startAt);
-        g.gain.setValueAtTime(0, ctx.currentTime + startAt);
-        g.gain.linearRampToValueAtTime(0.25, ctx.currentTime + startAt + 0.02);
-        g.gain.linearRampToValueAtTime(0, ctx.currentTime + startAt + dur);
-        osc.connect(g);
-        g.connect(ctx.destination);
-        osc.start(ctx.currentTime + startAt);
-        osc.stop(ctx.currentTime + startAt + dur + 0.05);
+
+      const playRingCycle = () => {
+        try {
+          if (!ringtoneCtxRef.current || ringtoneCtxRef.current.state === 'closed') {
+            ringtoneCtxRef.current = new AudioCtx();
+          }
+          if (ringtoneCtxRef.current.state === 'suspended') {
+            ringtoneCtxRef.current.resume().catch(() => {});
+          }
+          const ctx = ringtoneCtxRef.current;
+
+          const beep = (startAt: number, freq: number, dur: number) => {
+            const osc = ctx.createOscillator();
+            const g = ctx.createGain();
+            osc.frequency.setValueAtTime(freq, ctx.currentTime + startAt);
+            g.gain.setValueAtTime(0, ctx.currentTime + startAt);
+            g.gain.linearRampToValueAtTime(0.28, ctx.currentTime + startAt + 0.03);
+            g.gain.linearRampToValueAtTime(0, ctx.currentTime + startAt + dur);
+            osc.connect(g);
+            g.connect(ctx.destination);
+            osc.start(ctx.currentTime + startAt);
+            osc.stop(ctx.currentTime + startAt + dur + 0.05);
+          };
+
+          // Continuous telephone dual-tone ringer: Ring... Ring...
+          beep(0, 800, 0.35);
+          beep(0.40, 600, 0.35);
+          beep(0.95, 800, 0.35);
+          beep(1.35, 600, 0.35);
+        } catch (e) {}
       };
-      // Distinctive incoming ring: high-low-high pattern
-      beep(0, 800, 0.2);
-      beep(0.3, 600, 0.2);
-      beep(0.6, 800, 0.2);
-      beep(0.9, 600, 0.2);
-      setTimeout(() => { try { ctx.close(); } catch (e) {} }, 1500);
+
+      playRingCycle();
+      ringtoneTimerRef.current = setInterval(playRingCycle, 2600);
     } catch (err) {
       console.warn('Incoming ring tone skipped', err);
     }
   };
 
   const answerReceptionCall = async (call: any) => {
+    stopContinuousRingtone();
     unlockIntercomAudioContext();
     try {
       await apiRequest('/api/v1/intercom/room-incoming', {
@@ -590,6 +621,7 @@ function GuestRoomQRContent() {
   };
 
   const declineReceptionCall = async (call: any) => {
+    stopContinuousRingtone();
     try {
       await apiRequest('/api/v1/intercom/room-incoming', {
         method: 'POST',
@@ -611,7 +643,7 @@ function GuestRoomQRContent() {
         if (ringing && incomingReceptionCall?.call_id !== ringing.call_id) {
           setIncomingReceptionCall(ringing);
           setIncomingReceptionVisible(true);
-          playIncomingRingTone();
+          startContinuousRingtone();
 
           // Native system notification for backgrounded browser tabs / lock screen
           if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
@@ -634,6 +666,7 @@ function GuestRoomQRContent() {
           }
         }
         if (!ringing && incomingReceptionCall) {
+          stopContinuousRingtone();
           setIncomingReceptionCall(null);
           setIncomingReceptionVisible(false);
         }
@@ -674,7 +707,7 @@ function GuestRoomQRContent() {
               if (ringing) {
                 setIncomingReceptionCall(ringing);
                 setIncomingReceptionVisible(true);
-                playIncomingRingTone();
+                startContinuousRingtone();
               }
             })
             .catch(() => {});
