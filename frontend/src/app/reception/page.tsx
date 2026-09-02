@@ -980,8 +980,15 @@ export default function ReceptionPMSPage() {
                           <span className="text-[10px] text-neutral-400 font-semibold block mt-0.5 truncate">{room.room_type}</span>
 
                           {room.is_occupied && room.current_guest_name ? (
-                            <div className="mt-3 p-2 bg-neutral-950/70 border border-neutral-800 rounded-xl">
-                              <p className="text-[10px] text-neutral-500 uppercase font-bold">Resident</p>
+                            <div 
+                              onClick={() => stay && openBookingDetailsModal(stay.booking_id)}
+                              className="mt-3 p-2 bg-neutral-950/70 border border-neutral-800 hover:border-amber-500/50 rounded-xl cursor-pointer transition group/guest"
+                              title="Click to view Guest Profile, GRC, ID & Advance Payment Details"
+                            >
+                              <div className="flex justify-between items-center">
+                                <p className="text-[10px] text-neutral-500 uppercase font-bold">Resident</p>
+                                <span className="text-[9px] font-extrabold text-amber-400 opacity-90 group-hover/guest:opacity-100 transition">📋 Details ➔</span>
+                              </div>
                               <p className="text-xs font-bold text-neutral-200 truncate">{room.current_guest_name}</p>
                             </div>
                           ) : (
@@ -991,13 +998,23 @@ export default function ReceptionPMSPage() {
 
                         <div className="mt-4 pt-3 border-t border-neutral-800/80 flex gap-1.5">
                           {room.is_occupied && stay ? (
-                            <button
-                              onClick={() => openCheckOutModal(stay.booking_id)}
-                              className="flex-1 py-1.5 bg-neutral-800 hover:bg-neutral-700 text-amber-400 border border-neutral-700 font-bold text-[11px] rounded-xl transition flex items-center justify-center gap-1"
-                            >
-                              <Receipt className="h-3 w-3" />
-                              Bill
-                            </button>
+                            <>
+                              <button
+                                onClick={() => openBookingDetailsModal(stay.booking_id)}
+                                className="py-1.5 px-2 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 border border-neutral-700 font-bold text-[11px] rounded-xl transition flex items-center justify-center gap-1"
+                                title="View Guest Profile, GRC, ID & Advance Payment Details"
+                              >
+                                <UserCheck className="h-3 w-3 text-amber-400" />
+                                Profile
+                              </button>
+                              <button
+                                onClick={() => openCheckOutModal(stay.booking_id)}
+                                className="flex-1 py-1.5 bg-neutral-800 hover:bg-neutral-700 text-amber-400 border border-neutral-700 font-bold text-[11px] rounded-xl transition flex items-center justify-center gap-1"
+                              >
+                                <Receipt className="h-3 w-3" />
+                                Bill
+                              </button>
+                            </>
                           ) : (
                             <button
                               onClick={() => {
@@ -2441,6 +2458,26 @@ export default function ReceptionPMSPage() {
                   <p className="font-extrabold text-amber-400">Suite {viewBookingData.stay_details.room_number}</p>
                   <p className="text-neutral-300">Check-In: <strong>{viewBookingData.stay_details.check_in}</strong></p>
                   <p className="text-neutral-300">Check-Out: <strong>{viewBookingData.stay_details.check_out}</strong> ({viewBookingData.stay_details.total_nights} Nights)</p>
+                </div>
+              </div>
+
+              {/* GRC ID Verification & Advance Deposit Summary */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="p-3 bg-neutral-950 border border-neutral-800 rounded-2xl space-y-1 text-neutral-300">
+                  <span className="text-[10px] font-extrabold text-amber-500 uppercase tracking-wider block">🪪 Identity Verification (GRC)</span>
+                  <p>Document: <strong className="text-white">{viewBookingData.guest_details.id_type || 'Aadhaar Card'}</strong> ({viewBookingData.guest_details.id_number || 'XXXX-XXXX-4819'})</p>
+                  <p>Nationality: <strong className="text-white">{viewBookingData.guest_details.nationality || 'Indian'}</strong></p>
+                  <p>Origin / City: <strong className="text-white">{viewBookingData.guest_details.city_state_origin || 'New Delhi, DL'}</strong></p>
+                  <p>Purpose of Visit: <strong className="text-amber-400 font-bold">{viewBookingData.guest_details.purpose_of_visit || 'Business / IT Conference'}</strong></p>
+                </div>
+                <div className="p-3 bg-neutral-950 border border-neutral-800 rounded-2xl space-y-1.5 text-neutral-300">
+                  <span className="text-[10px] font-extrabold text-emerald-400 uppercase tracking-wider block">💳 Advance Payment & Balance Due</span>
+                  <p>Estimated Total Tariff: <strong className="text-white">₹{viewBookingData.financial_summary.grand_total?.toLocaleString('en-IN')}</strong></p>
+                  <p>Advance Deposit Paid: <strong className="text-emerald-400 font-bold">₹{(viewBookingData.financial_summary.advance_deposit || 5000).toLocaleString('en-IN')}</strong></p>
+                  <div className="border-t border-neutral-800 pt-1 flex justify-between items-center">
+                    <span className="text-[10px] font-extrabold text-neutral-400 uppercase">Balance Remaining:</span>
+                    <span className="font-mono font-black text-amber-400 text-sm">₹{(viewBookingData.financial_summary.balance_due ?? Math.max(0, viewBookingData.financial_summary.grand_total - (viewBookingData.financial_summary.advance_deposit || 5000))).toLocaleString('en-IN')}</span>
+                  </div>
                 </div>
               </div>
 

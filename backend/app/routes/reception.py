@@ -267,7 +267,8 @@ async def get_booking_invoice_data(
     cgst = round(subtotal * 0.06, 2)
     sgst = round(subtotal * 0.06, 2)
     total_tax = round(cgst + sgst, 2)
-    grand_total = round(subtotal + total_tax, 2)
+    advance_paid = getattr(booking, 'advance_paid', 0.0) or 0.0
+    balance_due = max(0.0, grand_total - advance_paid)
 
     return {
         "invoice_number": f"INV-{datetime.datetime.utcnow().year}-{booking.id:05d}",
@@ -284,7 +285,13 @@ async def get_booking_invoice_data(
             "name": booking.guest.name if booking.guest else "Guest",
             "phone": booking.guest.phone if booking.guest else "N/A",
             "email": (booking.guest.email if booking.guest else None) or "N/A",
-            "vip_status": booking.guest.vip_status if booking.guest else False
+            "vip_status": booking.guest.vip_status if booking.guest else False,
+            "nationality": getattr(booking.guest, 'nationality', 'Indian') or 'Indian',
+            "id_type": getattr(booking.guest, 'id_type', 'Aadhaar Card') or 'Aadhaar Card',
+            "id_number": getattr(booking.guest, 'id_number', 'N/A') or 'N/A',
+            "city_state_origin": getattr(booking.guest, 'city_state_origin', 'N/A') or 'N/A',
+            "purpose_of_visit": getattr(booking.guest, 'purpose_of_visit', 'Tourism & Leisure') or 'Tourism & Leisure',
+            "gstin": getattr(booking.guest, 'gstin', None)
         },
         "stay_details": {
             "booking_id": booking.id,
@@ -312,9 +319,11 @@ async def get_booking_invoice_data(
             "total_gst": total_tax,
             "tax_rate_percent": 12.0,
             "grand_total": grand_total,
+            "advance_deposit": advance_paid,
+            "balance_due": balance_due,
             "currency_symbol": "₹",
             "currency_code": "INR",
-            "payment_status": "PAID & SETTLED" if not booking.is_active else "PENDING SETTLEMENT"
+            "payment_status": "PAID & SETTLED" if not booking.is_active else ("ADVANCE PARTIAL" if advance_paid > 0 else "PENDING SETTLEMENT")
         }
     }
 
