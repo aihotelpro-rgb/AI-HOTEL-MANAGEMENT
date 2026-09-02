@@ -164,28 +164,30 @@ export default function ReceptionPMSPage() {
     }
   };
 
-  const answerIncomingCall = async (call: any) => {
+  const answerIncomingCall = (call: any) => {
     unlockIntercomAudioContext();
-    try {
-      await apiRequest('/api/v1/intercom/answer', {
-        method: 'POST',
-        body: JSON.stringify({ call_id: call.call_id, action: 'answer' })
-      });
-      setActiveIntercomRoom(call.from_room);
-      setActiveCallId(call.call_id);
-      setIntercomCallActive(true);
-      setIntercomCallModalOpen(true);
-      setIntercomTab('console');
-      setIncomingCallVisible(false);
-      setIncomingCall(null);
+    const targetCallId = call.call_id;
+    const roomNum = call.from_room;
 
-      // Start WebRTC audio session as receiver
-      if (activeWebRtcRef.current) activeWebRtcRef.current.stop();
-      activeWebRtcRef.current = new IntercomAudioSession(call.call_id, 'receiver');
-      activeWebRtcRef.current.start();
-    } catch (err) {
-      console.warn('Answer call failed', err);
-    }
+    // 0ms Optimistic UI Transition
+    setActiveIntercomRoom(roomNum);
+    setActiveCallId(targetCallId);
+    setIntercomCallActive(true);
+    setIntercomCallModalOpen(true);
+    setIntercomTab('console');
+    setIncomingCallVisible(false);
+    setIncomingCall(null);
+
+    // Background API state update
+    apiRequest('/api/v1/intercom/answer', {
+      method: 'POST',
+      body: JSON.stringify({ call_id: targetCallId, action: 'answer' })
+    }).catch(err => console.warn('Answer call API error', err));
+
+    // Start WebRTC audio session as receiver
+    if (activeWebRtcRef.current) activeWebRtcRef.current.stop();
+    activeWebRtcRef.current = new IntercomAudioSession(targetCallId, 'receiver');
+    activeWebRtcRef.current.start();
   };
 
   const declineIncomingCall = async (call: any) => {
@@ -246,6 +248,7 @@ export default function ReceptionPMSPage() {
       });
       if (result?.call_id) {
         setOutboundCallId(result.call_id);
+        setActiveCallId(result.call_id);
         // Start WebRTC audio session as caller
         if (activeWebRtcRef.current) activeWebRtcRef.current.stop();
         activeWebRtcRef.current = new IntercomAudioSession(result.call_id, 'caller');
@@ -264,7 +267,7 @@ export default function ReceptionPMSPage() {
     }
     const targetCallId = activeCallId || outboundCallId;
     if (targetCallId) {
-      const durSecs = intercomCallSeconds;
+      const durSecs = intercomCallSeconds || 1;
       try {
         await apiRequest('/api/v1/intercom/answer', {
           method: 'POST',

@@ -63,7 +63,7 @@ if (!global.__intercomCallHistory) {
     {
       call_id: 'voip_demo_001',
       from_room: '204',
-      caller_name: 'Room 204 Guest',
+      caller_name: 'Room 204 Guest (Maharaja Raghavendra)',
       from_extension: '204',
       target_extension: '100',
       status: 'completed',
@@ -76,7 +76,7 @@ if (!global.__intercomCallHistory) {
     {
       call_id: 'voip_demo_002',
       from_room: '101',
-      caller_name: 'Room 101 Guest',
+      caller_name: 'Room 101 Guest (Pooja Sharma)',
       from_extension: '101',
       target_extension: '100',
       status: 'missed',
@@ -182,7 +182,7 @@ export function updateCallStatus(
   call_id: string,
   status: IntercomCall['status'],
   extra?: Partial<IntercomCall>
-) {
+): boolean {
   const now = new Date().toISOString();
 
   const processRecord = (item: IntercomCall): IntercomCall => {
@@ -234,6 +234,26 @@ export function updateCallStatus(
   if (idx !== -1) {
     const updated = processRecord(global.__intercomCallHistory[idx]);
     global.__intercomCallHistory[idx] = updated;
+    return true;
+  }
+
+  // 4. Fallback: If not found in active queues, push completed/declined/missed record directly to history
+  if (['completed', 'missed', 'declined'].includes(status)) {
+    const fallbackCall: IntercomCall = {
+      call_id,
+      from_room: extra?.from_room || '101',
+      caller_name: extra?.caller_name || 'Room Guest',
+      from_extension: extra?.from_extension || '101',
+      target_extension: extra?.target_extension || '100',
+      status,
+      started_at: extra?.started_at || new Date(Date.now() - (extra?.duration_seconds || 10) * 1000).toISOString(),
+      answered_at: extra?.answered_at || new Date().toISOString(),
+      ended_at: now,
+      duration_seconds: extra?.duration_seconds || 10,
+      hotel: 'Hotel Blue Bird Inn - Garacharma, Sri Vijayapuram',
+      ...extra
+    };
+    _pushToHistory(fallbackCall);
     return true;
   }
 
