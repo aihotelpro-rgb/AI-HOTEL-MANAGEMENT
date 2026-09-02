@@ -23,6 +23,7 @@ export class IntercomAudioSession {
   private signalInterval: any = null;
   private relayInterval: any = null;
   private mediaRecorder: MediaRecorder | null = null;
+  private recorderTimer: any = null;
   private processedCandidates = new Set<string>();
   private remoteDescSet = false;
   private lastChunkId = 0;
@@ -69,12 +70,18 @@ export class IntercomAudioSession {
         }
       };
 
-      // 5. Request microphone access
+      // 5. Request microphone access FIRST so audio track is attached BEFORE offer/answer creation!
       try {
         if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-          this.localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          this.localStream = await navigator.mediaDevices.getUserMedia({
+            audio: {
+              echoCancellation: true,
+              noiseSuppression: true,
+              autoGainControl: true
+            }
+          });
           
-          // Attach track to WebRTC PeerConnection (Engine 1)
+          // Attach tracks to WebRTC PeerConnection (Engine 1)
           this.localStream.getTracks().forEach((track) => {
             if (this.pc && this.localStream) {
               this.pc.addTrack(track, this.localStream);
@@ -88,9 +95,11 @@ export class IntercomAudioSession {
         console.warn('Microphone permission warning:', err);
       }
 
-      // 6. Role specific SDP offer/answer creation
+      // 6. Role specific SDP offer/answer creation (AFTER microphone tracks are added!)
       if (this.role === 'caller') {
-        const offer = await this.pc.createOffer({ offerToReceiveAudio: true });
+        const offer = await this.pc.createOffer({
+          offerToReceiveAudio: true
+        });
         await this.pc.setLocalDescription(offer);
         await apiRequest('/api/v1/intercom/signal', {
           method: 'POST',
@@ -111,7 +120,7 @@ export class IntercomAudioSession {
     }
   }
 
-  // Engine 2 (Sender): Record microphone in 600ms chunks and post to audio-relay endpoint
+  // Engine 2 (Sender): Record microphone in self-contained 1.2s chunks with valid WebM headers
   private startMediaRecorderRelay(stream: MediaStream) {
     try {
       const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
@@ -120,35 +129,62 @@ export class IntercomAudioSession {
         ? 'audio/mp4'
         : 'audio/webm';
 
-      this.mediaRecorder = new MediaRecorder(stream, { mimeType });
-      this.mediaRecorder.ondataavailable = async (e) => {
-        if (e.data && e.data.size > 0 && !this.isStopped) {
-          try {
-            const reader = new FileReader();
-            reader.onloadend = async () => {
-              const base64Data = reader.result as string;
-              if (base64Data && !this.isStopped) {
-                await apiRequest('/api/v1/intercom/audio-relay', {
-                  method: 'POST',
-                  body: JSON.stringify({
-                    call_id: this.callId,
-                    sender: this.role,
-                    audio: base64Data,
-                  }),
-                }).catch(() => {});
-              }
-            };
-            reader.readAsDataURL(e.data);
-          } catch (err) {}
+      const recordSlice = () => {
+        if (this.isStopped || !this.localStream) return;
+        try {
+          const recorder = new MediaRecorder(stream, { mimeType });
+          const chunks: Blob[] = [];
+
+          recorder.ondataavailable = (e) => {
+            if (e.data && e.data.size > 0) {
+              chunks.push(e.data);
+            }
+          };
+
+          recorder.onstop = () => {
+            if (chunks.length > 0 && !this.isStopped) {
+              const fullBlob = new Blob(chunks, { type: mimeType });
+              const reader = new FileReader();
+              reader.onloadend = async () => {
+                const base64Data = reader.result as string;
+                if (base64Data && !this.isStopped) {
+                  await apiRequest('/api/v1/intercom/audio-relay', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                      call_id: this.callId,
+                      sender: this.role,
+                      audio: base64Data,
+                    }),
+                  }).catch(() => {});
+                }
+              };
+              reader.readAsDataURL(fullBlob);
+            }
+
+            // Schedule next slice if session active
+            if (!this.isStopped) {
+              this.recorderTimer = setTimeout(recordSlice, 150);
+            }
+          };
+
+          recorder.start();
+          setTimeout(() => {
+            if (recorder.state === 'recording') {
+              recorder.stop();
+            }
+          }, 1200);
+        } catch (e) {
+          console.warn('Recorder slice error', e);
         }
       };
-      this.mediaRecorder.start(600); // 600ms slice interval
+
+      recordSlice();
     } catch (err) {
       console.warn('MediaRecorder relay start skipped:', err);
     }
   }
 
-  // Engine 2 (Receiver): Poll new audio chunks from opposite peer and play them
+  // Engine 2 (Receiver): Poll new self-contained audio chunks from opposite peer and play them
   private startAudioRelayPolling() {
     this.relayInterval = setInterval(async () => {
       if (this.isStopped) return;
@@ -167,7 +203,7 @@ export class IntercomAudioSession {
       } catch (err) {
         // ignore polling glitches
       }
-    }, 500);
+    }, 600);
   }
 
   private playAudioChunk(base64Audio: string) {
@@ -175,7 +211,8 @@ export class IntercomAudioSession {
     try {
       const audio = new Audio(base64Audio);
       audio.autoplay = true;
-      audio.play().catch(() => {});
+      (audio as any).playsInline = true;
+      audio.play().catch((e) => console.warn('Audio chunk playback warning:', e));
     } catch (err) {}
   }
 
@@ -190,7 +227,7 @@ export class IntercomAudioSession {
         if (this.role === 'receiver' && signals.offer && !this.remoteDescSet) {
           this.remoteDescSet = true;
           await this.pc.setRemoteDescription(new RTCSessionDescription(signals.offer));
-          const answer = await this.pc.createAnswer();
+          const answer = await this.pc.createAnswer({ offerToReceiveAudio: true });
           await this.pc.setLocalDescription(answer);
           await apiRequest('/api/v1/intercom/signal', {
             method: 'POST',
@@ -223,7 +260,7 @@ export class IntercomAudioSession {
           }
         }
       } catch (err) {}
-    }, 1200);
+    }, 1000);
   }
 
   public stop() {
@@ -239,13 +276,9 @@ export class IntercomAudioSession {
       this.relayInterval = null;
     }
 
-    if (this.mediaRecorder) {
-      try {
-        if (this.mediaRecorder.state !== 'inactive') {
-          this.mediaRecorder.stop();
-        }
-      } catch (e) {}
-      this.mediaRecorder = null;
+    if (this.recorderTimer) {
+      clearTimeout(this.recorderTimer);
+      this.recorderTimer = null;
     }
 
     if (this.localStream) {
