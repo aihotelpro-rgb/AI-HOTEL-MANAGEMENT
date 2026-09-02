@@ -37,6 +37,19 @@ export async function POST(req: NextRequest) {
   // Add to room-facing incoming queue (room browser polls /room-incoming?room=XX)
   addRoomIncomingCall(outboundCall);
 
+  // Trigger high-priority WhatsApp/SMS alert to guest phone
+  try {
+    const notifyText = `📲 INCOMING CALL: Front Desk Reception (Ext 100) is calling your Suite ${targetRoom}. Tap to answer now: https://www.hotelbluebirdnest.com/room-qr?room=${targetRoom}`;
+    fetch(`${req.nextUrl.origin}/api/v1/whatsapp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        from_phone: `Room-${targetRoom}`,
+        message_text: notifyText
+      })
+    }).catch(() => {});
+  } catch (e) {}
+
   return NextResponse.json(
     {
       status: 'ringing',

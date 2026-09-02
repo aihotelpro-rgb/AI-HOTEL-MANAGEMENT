@@ -612,6 +612,26 @@ function GuestRoomQRContent() {
           setIncomingReceptionCall(ringing);
           setIncomingReceptionVisible(true);
           playIncomingRingTone();
+
+          // Native system notification for backgrounded browser tabs / lock screen
+          if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+            try {
+              const notif = new Notification('📲 Incoming Call: Front Desk Reception', {
+                body: `Ext 100 is calling Suite ${roomNumber}. Tap to answer!`,
+                icon: '/favicon.ico',
+                badge: '/favicon.ico',
+                vibrate: [300, 100, 300, 100, 300],
+                requireInteraction: true,
+                tag: 'intercom-incoming-call'
+              } as any);
+              notif.onclick = () => {
+                window.focus();
+                notif.close();
+              };
+            } catch (e) {
+              console.warn('Native notification failed:', e);
+            }
+          }
         }
         if (!ringing && incomingReceptionCall) {
           setIncomingReceptionCall(null);
@@ -625,14 +645,17 @@ function GuestRoomQRContent() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomNumber]);
 
-  // 1. Initial Load & PWA Service Worker Registration
+  // 1. Initial Load, Visibility Handler & PWA Service Worker Registration
   useEffect(() => {
     if (typeof window !== 'undefined') {
       setOnlineStatus(navigator.onLine);
       
-      // Register PWA Service Worker
+      // Register PWA Service Worker & Request Notification Permission
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('/sw.js').catch(err => console.log('PWA ServiceWorker error:', err));
+      }
+      if ('Notification' in window && Notification.permission === 'default') {
+        Notification.requestPermission().catch(() => {});
       }
       
       const handleOnline = () => {
@@ -641,15 +664,34 @@ function GuestRoomQRContent() {
       };
       const handleOffline = () => setOnlineStatus(false);
       
+      // Instant background tab wake-up listener
+      const handleVisibilityChange = () => {
+        if (document.visibilityState === 'visible' && roomNumber) {
+          apiRequest(`/api/v1/intercom/room-incoming?room=${roomNumber}`)
+            .then((calls: any) => {
+              if (!Array.isArray(calls)) return;
+              const ringing = calls.find((c: any) => c.status === 'ringing');
+              if (ringing) {
+                setIncomingReceptionCall(ringing);
+                setIncomingReceptionVisible(true);
+                playIncomingRingTone();
+              }
+            })
+            .catch(() => {});
+        }
+      };
+
       window.addEventListener('online', handleOnline);
       window.addEventListener('offline', handleOffline);
+      document.addEventListener('visibilitychange', handleVisibilityChange);
       
       return () => {
         window.removeEventListener('online', handleOnline);
         window.removeEventListener('offline', handleOffline);
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
       };
     }
-  }, []);
+  }, [roomNumber]);
 
   // 2. Fetch booking, menu, orders, settings, and folio
   const loadGuestData = async () => {
