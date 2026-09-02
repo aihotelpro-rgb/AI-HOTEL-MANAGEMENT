@@ -923,7 +923,7 @@ export default function ReceptionPMSPage() {
                               className="flex-1 py-1.5 bg-neutral-800 hover:bg-neutral-700 text-amber-400 border border-neutral-700 font-bold text-[11px] rounded-xl transition flex items-center justify-center gap-1"
                             >
                               <Receipt className="h-3 w-3" />
-                              Folio
+                              Bill
                             </button>
                           ) : (
                             <button
@@ -1008,7 +1008,7 @@ export default function ReceptionPMSPage() {
                                     onClick={() => openCheckOutModal(stay.booking_id)}
                                     className="px-3.5 py-1.5 bg-neutral-800 hover:bg-neutral-700 text-amber-300 border border-neutral-700 hover:border-amber-500/40 font-bold text-[11px] rounded-xl transition-all shadow hover:scale-[1.02] active:scale-[0.98]"
                                   >
-                                    Guest Folio
+                                    Guest Bill
                                   </button>
                                 ) : (
                                   <button
@@ -1101,7 +1101,7 @@ export default function ReceptionPMSPage() {
                                 onClick={() => openCheckOutModal(stay.booking_id)}
                                 className="px-3.5 py-1.5 bg-neutral-800 hover:bg-neutral-750 text-neutral-200 border border-neutral-700 hover:border-amber-500/40 rounded-xl text-xs font-bold transition-all shadow hover:scale-[1.02] active:scale-[0.98]"
                               >
-                                Manage Folio
+                                Manage Bill
                               </button>
                             </div>
                           </td>
@@ -1210,7 +1210,7 @@ export default function ReceptionPMSPage() {
                       📜
                     </span>
                   </div>
-                  <span className="text-[10px] text-neutral-400 mt-2 block font-medium">Completed & checked-out guest folios</span>
+                  <span className="text-[10px] text-neutral-400 mt-2 block font-medium">Completed & checked-out guest bills</span>
                 </div>
               </div>
 
@@ -1222,7 +1222,7 @@ export default function ReceptionPMSPage() {
                       <Sparkles className="h-4 w-4 text-amber-400 animate-pulse" />
                       Advance 360° Stayview Calendar & Booking Engine
                     </h2>
-                    <p className="text-neutral-400 text-xs mt-0.5 font-medium">Interactive timeline stayview matrix connecting past guest folios, live check-ins, and OTA reservations.</p>
+                    <p className="text-neutral-400 text-xs mt-0.5 font-medium">Interactive timeline stayview matrix connecting past guest bills, live check-ins, and OTA reservations.</p>
                   </div>
 
                   {/* Preset Quick Date Jump Pills */}
@@ -1843,7 +1843,7 @@ export default function ReceptionPMSPage() {
                 />
               </div>
               <p className="text-[10px] text-neutral-400 leading-tight pt-1">
-                Scan with Phone Camera for Gourmet Dining, Bill Folio, Intercom & 24/7 AI Concierge
+                Scan with Phone Camera for Gourmet Dining, Guest Bill, Intercom & 24/7 AI Concierge
               </p>
               <div className="flex gap-1 text-[9px] font-bold text-neutral-500">
                 <span>EN</span> • <span>HI</span> • <span>GU</span> • <span>FR</span>
@@ -1880,7 +1880,7 @@ export default function ReceptionPMSPage() {
                             <h2 style="font-size: 14px; text-transform: uppercase; color: #d97706;">Hotel Blue Bird Inn</h2>
                             <h1>ROOM ${selectedQrRoom}</h1>
                             <img src="https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(`https://www.hotelbluebirdnest.com/room-qr?room=${selectedQrRoom}`)}" />
-                            <p>Scan with Phone Camera for Gourmet Dining, Folio, Intercom & AI Concierge</p>
+                            <p>Scan with Phone Camera for Gourmet Dining, Guest Bill, Intercom & AI Concierge</p>
                           </div>
                           <script>window.print();</script>
                         </body>

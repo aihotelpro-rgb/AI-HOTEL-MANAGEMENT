@@ -96,7 +96,7 @@ export default function Home() {
               </div>
               <div>
                 <h4 className="text-xs font-bold text-neutral-100 group-hover:text-amber-400">Front Desk PMS & Intercom</h4>
-                <p className="text-[10px] text-neutral-400 mt-0.5">24-room matrix, 1-click check-in/out, Call History & GST folio.</p>
+                <p className="text-[10px] text-neutral-400 mt-0.5">24-room matrix, 1-click check-in/out, Call History & GST bill.</p>
               </div>
             </Link>
 
