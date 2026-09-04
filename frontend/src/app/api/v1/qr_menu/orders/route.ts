@@ -41,8 +41,32 @@ export async function GET(req: NextRequest) {
       });
       clearTimeout(timeoutId);
       if (res.ok) {
-        const data = await res.json();
-        return NextResponse.json(data, { headers: CORS_HEADERS });
+        const remoteData = await res.json();
+        if (Array.isArray(remoteData)) {
+          const localOrders = getOrders();
+          const localMap = new Map(localOrders.map((o) => [o.id, o]));
+          const STATUS_RANKS: Record<string, number> = {
+            Pending: 1, Cooking: 2, Preparing: 2, Ready: 3, OutForDelivery: 4, Delivered: 5, Cancelled: 6
+          };
+          const merged = remoteData.map((ro: any) => {
+            const lo = localMap.get(ro.id);
+            if (!lo) return ro;
+            const roRank = STATUS_RANKS[ro.status] || 0;
+            const loRank = STATUS_RANKS[lo.status] || 0;
+            if (loRank > roRank) {
+              return {
+                ...ro,
+                status: lo.status,
+                runner_name: lo.runner_name || ro.runner_name,
+                delivered_at: lo.delivered_at || ro.delivered_at,
+                estimated_minutes: lo.estimated_minutes ?? ro.estimated_minutes,
+              };
+            }
+            return ro;
+          });
+          return NextResponse.json(merged, { headers: CORS_HEADERS });
+        }
+        return NextResponse.json(remoteData, { headers: CORS_HEADERS });
       }
     } catch {}
   }

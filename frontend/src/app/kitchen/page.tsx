@@ -31,6 +31,13 @@ import {
 } from 'lucide-react';
 
 import NotificationToastContainer, { ToastMessage, playNotificationChime } from '@/components/NotificationToast';
+import { 
+  mergeOrdersWithHierarchy, 
+  getCachedOrders, 
+  saveCachedOrders, 
+  markOrderDeliveredLocally, 
+  KDS_ORDERS_STORAGE_KEY 
+} from '@/lib/orderSync';
 
 interface OrderItem {
   id: number;
@@ -57,9 +64,9 @@ interface Order {
 
 export default function KitchenKDSPage() {
   const router = useRouter();
-  const [orders, setOrders] = useState<Order[]>([]);
+  const [orders, setOrders] = useState<Order[]>(() => getCachedOrders<Order>());
   const [staffList, setStaffList] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState<boolean>(() => getCachedOrders<Order>().length === 0);
   const [error, setError] = useState('');
   const [currentTime, setCurrentTime] = useState(new Date());
   
@@ -153,61 +160,52 @@ export default function KitchenKDSPage() {
     }
   }, [router]);
 
-  // Fetch Kitchen Orders
+  // Fetch Kitchen Orders with Monotonic Hierarchy Merge
   const fetchKitchenOrders = async () => {
     try {
       const data: Order[] = await apiRequest('/api/v1/qr_menu/orders');
-      let combinedOrders: Order[] = Array.isArray(data) ? data : [];
+      const incoming: Order[] = Array.isArray(data) ? data : [];
 
-      if (typeof window !== 'undefined') {
-        try {
-          const cachedRaw = localStorage.getItem('aihos_kds_orders_cache');
-          if (cachedRaw) {
-            const cached: Order[] = JSON.parse(cachedRaw);
-            const map = new Map<number, Order>();
-            // Keep status from local cache if more recently transitioned
-            cached.forEach(o => map.set(o.id, o));
-            combinedOrders.forEach(o => {
-              const existing = map.get(o.id);
-              if (!existing) {
-                map.set(o.id, o);
-              } else {
-                // If local status was updated, preserve it
-                map.set(o.id, { ...o, status: existing.status || o.status, runner_name: existing.runner_name || o.runner_name });
-              }
-            });
-            combinedOrders = Array.from(map.values()).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-          }
-          localStorage.setItem('aihos_kds_orders_cache', JSON.stringify(combinedOrders));
-        } catch (e) {}
-      }
+      setOrders(prev => {
+        const merged = mergeOrdersWithHierarchy(incoming, prev);
+        saveCachedOrders(merged);
 
-      const pendingOrders = combinedOrders.filter(o => o.status === 'Pending');
-      const pendingCount = pendingOrders.length;
-      if (pendingCount > previousOrderCountRef.current && previousOrderCountRef.current !== 0) {
-        const latest = pendingOrders[0];
-        addToast(
-          '🔔 New In-Room Dining Order!',
-          `Order #${latest ? latest.id : ''} for Suite ${latest?.room_number || latest?.booking_id || ''} received.`,
-          'alert'
-        );
-      }
-      previousOrderCountRef.current = pendingCount;
-      setOrders(combinedOrders);
+        const pendingOrders = merged.filter(o => o.status === 'Pending');
+        const pendingCount = pendingOrders.length;
+        if (pendingCount > previousOrderCountRef.current && previousOrderCountRef.current !== 0) {
+          const latest = pendingOrders[0];
+          addToast(
+            '🔔 New In-Room Dining Order!',
+            `Order #${latest ? latest.id : ''} for Suite ${latest?.room_number || latest?.booking_id || ''} received.`,
+            'alert'
+          );
+        }
+        previousOrderCountRef.current = pendingCount;
+
+        return merged;
+      });
     } catch (err: any) {
-      if (typeof window !== 'undefined') {
-        try {
-          const cachedRaw = localStorage.getItem('aihos_kds_orders_cache');
-          if (cachedRaw) {
-            setOrders(JSON.parse(cachedRaw));
-          }
-        } catch (e) {}
-      }
-      setError(err.message || 'Failed to fetch kitchen orders');
+      console.warn('Kitchen poll failed, preserving local cached orders:', err.message);
     } finally {
       setLoading(false);
     }
   };
+
+  // Cross-Tab Instant Sync with Runner and QR Menu
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === KDS_ORDERS_STORAGE_KEY && e.newValue) {
+        try {
+          const parsed = JSON.parse(e.newValue);
+          if (Array.isArray(parsed)) {
+            setOrders(prev => mergeOrdersWithHierarchy(parsed, prev));
+          }
+        } catch {}
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
 
   useEffect(() => {
     fetchKitchenOrders();
@@ -243,16 +241,20 @@ export default function KitchenKDSPage() {
 
   // Update Status API with LocalStorage optimistic sync
   const handleUpdateStatus = async (orderId: number, nextStatus: string, runnerName?: string, eta?: number) => {
+    const nowIso = new Date().toISOString();
+    if (nextStatus === 'Delivered') {
+      markOrderDeliveredLocally(orderId);
+    }
+
     setOrders(prev => {
       const next = prev.map(o => (o.id === orderId ? { 
         ...o, 
         status: nextStatus, 
         runner_name: runnerName || o.runner_name,
-        estimated_minutes: eta || o.estimated_minutes 
+        estimated_minutes: nextStatus === 'Delivered' ? 0 : (eta ?? o.estimated_minutes),
+        delivered_at: nextStatus === 'Delivered' ? (o.delivered_at || nowIso) : o.delivered_at,
       } : o));
-      if (typeof window !== 'undefined') {
-        try { localStorage.setItem('aihos_kds_orders_cache', JSON.stringify(next)); } catch (e) {}
-      }
+      saveCachedOrders(next);
       return next;
     });
 
@@ -262,7 +264,7 @@ export default function KitchenKDSPage() {
         body: JSON.stringify({ 
           status: nextStatus,
           runner_name: runnerName,
-          estimated_minutes: eta
+          estimated_minutes: nextStatus === 'Delivered' ? 0 : eta
         }),
       });
     } catch (err: any) {

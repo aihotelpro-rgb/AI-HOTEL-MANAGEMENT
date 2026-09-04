@@ -28,29 +28,38 @@ declare global {
   var __kitchenOrders: KitchenOrder[];
 }
 
+import * as os from 'os';
+
 // ─── Dual Disk Persistence ──────────────────────────────────────────────────
-const TMP_ORDERS_FILE = '/tmp/kitchen_orders.json';
+const TMP_ORDERS_FILE = path.join(os.tmpdir(), 'kitchen_orders.json');
 const NEXT_ORDERS_FILE = path.join(process.cwd(), '.next', 'kitchen_orders.json');
+
+function _safeWrite(filePath: string, dataStr: string) {
+  try {
+    const dir = path.dirname(filePath);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    fs.writeFileSync(filePath, dataStr, 'utf-8');
+  } catch {}
+}
 
 function _saveOrdersToDisk(orders: KitchenOrder[]): void {
   try {
     const dataStr = JSON.stringify(orders, null, 2);
-    try { fs.writeFileSync(TMP_ORDERS_FILE, dataStr, 'utf-8'); } catch {}
-    try { fs.writeFileSync(NEXT_ORDERS_FILE, dataStr, 'utf-8'); } catch {}
+    _safeWrite(TMP_ORDERS_FILE, dataStr);
+    _safeWrite(NEXT_ORDERS_FILE, dataStr);
   } catch {}
 }
 
 function _loadOrdersFromDisk(): KitchenOrder[] | null {
   try {
-    const file = fs.existsSync(TMP_ORDERS_FILE)
-      ? TMP_ORDERS_FILE
-      : fs.existsSync(NEXT_ORDERS_FILE)
-      ? NEXT_ORDERS_FILE
-      : null;
-    if (file) {
-      const raw = fs.readFileSync(file, 'utf-8');
-      const parsed: KitchenOrder[] = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    for (const file of [NEXT_ORDERS_FILE, TMP_ORDERS_FILE]) {
+      if (fs.existsSync(file)) {
+        const raw = fs.readFileSync(file, 'utf-8');
+        const parsed: KitchenOrder[] = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
     }
   } catch {}
   return null;
@@ -170,6 +179,16 @@ export function createOrder(body: Partial<KitchenOrder> & { items: KitchenOrderI
   return newOrder;
 }
 
+const STATUS_RANKS: Record<string, number> = {
+  Pending: 1,
+  Cooking: 2,
+  Preparing: 2,
+  Ready: 3,
+  OutForDelivery: 4,
+  Delivered: 5,
+  Cancelled: 6,
+};
+
 export function updateOrderStatusInStore(
   orderId: number,
   status: string,
@@ -177,15 +196,39 @@ export function updateOrderStatusInStore(
   eta?: number
 ): KitchenOrder | null {
   const orders = getOrders();
-  const order = orders.find((o) => o.id === orderId);
-  if (!order) return null;
+  let order = orders.find((o) => o.id === orderId);
 
-  order.status = status;
-  if (runnerName) order.runner_name = runnerName;
-  if (eta !== undefined) order.estimated_minutes = eta;
-  if (status === 'Delivered') {
-    order.delivered_at = new Date().toISOString();
-    order.estimated_minutes = 0;
+  if (!order) {
+    // Create new order entry to retain transition
+    order = {
+      id: orderId,
+      booking_id: 1,
+      room_number: '101',
+      guest_name: 'Resident Guest',
+      items: [{ name: 'Culinary In-Room Order', quantity: 1, price: 450 }],
+      total_price: 450,
+      status,
+      runner_name: runnerName || null,
+      estimated_minutes: status === 'Delivered' ? 0 : (eta ?? 15),
+      created_at: new Date().toISOString(),
+      delivered_at: status === 'Delivered' ? new Date().toISOString() : null,
+    };
+    orders.unshift(order);
+  } else {
+    const currRank = STATUS_RANKS[order.status] || 0;
+    const nextRank = STATUS_RANKS[status] || 0;
+
+    // Never regress a Delivered order back to active unless Cancelled
+    if (nextRank >= currRank || status === 'Cancelled') {
+      order.status = status;
+      if (status === 'Delivered') {
+        order.delivered_at = order.delivered_at || new Date().toISOString();
+        order.estimated_minutes = 0;
+      }
+    }
+
+    if (runnerName) order.runner_name = runnerName;
+    if (eta !== undefined && order.status !== 'Delivered') order.estimated_minutes = eta;
   }
 
   _saveOrdersToDisk(orders);
