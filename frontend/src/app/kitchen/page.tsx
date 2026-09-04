@@ -27,7 +27,9 @@ import {
   UserCheck,
   Crown,
   LayoutGrid,
-  List
+  List,
+  XCircle,
+  Ban
 } from 'lucide-react';
 
 import NotificationToastContainer, { ToastMessage, playNotificationChime } from '@/components/NotificationToast';
@@ -60,7 +62,68 @@ interface Order {
   special_instructions?: string;
   created_at: string;
   delivered_at?: string;
+  cancellation_reason?: string | null;
+  cancelled_at?: string | null;
 }
+
+export const PREFILLED_CANCELLATION_REASONS = [
+  {
+    id: '86_item',
+    label: "Item 86'd / Out of Stock",
+    icon: '🚫',
+    badge: 'Inventory / 86',
+    defaultText: "Key ingredients depleted; station 86'd this dish for tonight's dinner service.",
+  },
+  {
+    id: 'guest_request',
+    label: 'Guest Requested Cancellation',
+    icon: '🛎️',
+    badge: 'Guest Request',
+    defaultText: 'Resident phoned room service / front desk requesting to cancel the order.',
+  },
+  {
+    id: 'allergy_conflict',
+    label: 'Unfulfillable Dietary / Allergy',
+    icon: '⚠️',
+    badge: 'Health & Safety',
+    defaultText: 'Kitchen brigade cannot safely prepare the requested dish without allergen cross-contamination risk.',
+  },
+  {
+    id: 'duplicate_order',
+    label: 'Duplicate Ticket Placed',
+    icon: '👥',
+    badge: 'System Duplicate',
+    defaultText: 'Duplicate order submitted accidentally for this suite. Voiding redundant KOT.',
+  },
+  {
+    id: 'kitchen_cutoff',
+    label: 'Past Dining Service Cutoff',
+    icon: '⏰',
+    badge: 'Service Hours',
+    defaultText: 'Order submitted after kitchen closing hours / last-order curfew.',
+  },
+  {
+    id: 'equipment_failure',
+    label: 'Kitchen Station Breakdown',
+    icon: '🔥',
+    badge: 'Maintenance',
+    defaultText: 'Station equipment (oven / tandoor bhatti / fryer) temporarily non-operational.',
+  },
+  {
+    id: 'suite_vacant',
+    label: 'Suite Vacant / Checked Out',
+    icon: '🚪',
+    badge: 'Front Desk Sync',
+    defaultText: 'Suite is unoccupied or guest has already settled account and checked out.',
+  },
+  {
+    id: 'custom',
+    label: 'Other / Custom Chef Remark',
+    icon: '✍️',
+    badge: 'Custom Note',
+    defaultText: '',
+  },
+];
 
 export default function KitchenKDSPage() {
   const router = useRouter();
@@ -93,10 +156,80 @@ export default function KitchenKDSPage() {
   };
   
   // Filtering states
-  const [activeStatusFilter, setActiveStatusFilter] = useState<'All' | 'Pending' | 'Preparing' | 'Ready' | 'OutForDelivery' | 'Delivered'>('All');
+  const [activeStatusFilter, setActiveStatusFilter] = useState<'All' | 'Pending' | 'Preparing' | 'Ready' | 'OutForDelivery' | 'Delivered' | 'Cancelled'>('All');
   const [activeStation, setActiveStation] = useState<string>('All Stations');
   const [searchQuery, setSearchQuery] = useState('');
   const [kdsViewMode, setKdsViewMode] = useState<'grid' | 'list'>('grid');
+
+  // Order Cancellation Modal State
+  const [cancelModalOpen, setCancelModalOpen] = useState(false);
+  const [orderToCancel, setOrderToCancel] = useState<Order | null>(null);
+  const [selectedReasonId, setSelectedReasonId] = useState<string>('86_item');
+  const [cancellationReasonText, setCancellationReasonText] = useState<string>(
+    "Key ingredients depleted; station 86'd this dish for tonight's dinner service."
+  );
+  const [voidChargesOnFolio, setVoidChargesOnFolio] = useState(true);
+
+  const openCancelModal = (order: Order) => {
+    setOrderToCancel(order);
+    setSelectedReasonId('86_item');
+    setCancellationReasonText("Key ingredients depleted; station 86'd this dish for tonight's dinner service.");
+    setVoidChargesOnFolio(true);
+    setCancelModalOpen(true);
+  };
+
+  const handleSelectReason = (reasonId: string) => {
+    setSelectedReasonId(reasonId);
+    const found = PREFILLED_CANCELLATION_REASONS.find(r => r.id === reasonId);
+    if (found && reasonId !== 'custom') {
+      setCancellationReasonText(found.defaultText);
+    } else if (reasonId === 'custom') {
+      setCancellationReasonText('');
+    }
+  };
+
+  const handleConfirmCancelOrder = async () => {
+    if (!orderToCancel) return;
+    const orderId = orderToCancel.id;
+    const finalReason = cancellationReasonText.trim() || 'Cancelled by Kitchen Chef';
+    const nowIso = new Date().toISOString();
+
+    // 1. Instant Optimistic Local State & Cache Update
+    setOrders(prev => {
+      const next = prev.map(o => (o.id === orderId ? {
+        ...o,
+        status: 'Cancelled',
+        cancellation_reason: finalReason,
+        cancelled_at: nowIso,
+        estimated_minutes: 0,
+      } : o));
+      saveCachedOrders(next);
+      return next;
+    });
+
+    playNotificationChime('alert');
+    addToast(
+      `🚫 Order #${orderId} Voided & Cancelled`,
+      `Reason: ${finalReason} • Room Folio void applied.`,
+      'alert'
+    );
+
+    // 2. Persist to API
+    try {
+      await apiRequest(`/api/v1/qr_menu/orders/${orderId}/status`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          status: 'Cancelled',
+          cancellation_reason: finalReason,
+        }),
+      });
+    } catch (err: any) {
+      console.warn('Backend sync delayed; cancellation saved locally:', err.message);
+    }
+
+    setCancelModalOpen(false);
+    setOrderToCancel(null);
+  };
   
   // Audio & Alerts
   const [soundEnabled, setSoundEnabled] = useState<boolean>(() => {
@@ -330,7 +463,7 @@ export default function KitchenKDSPage() {
   const filteredOrders = orders.filter(o => {
     // Status Filter
     const matchesStatus = activeStatusFilter === 'All' 
-      ? o.status !== 'Delivered' 
+      ? (o.status !== 'Delivered' && o.status !== 'Cancelled')
       : o.status === activeStatusFilter;
 
     // Station Filter
@@ -342,7 +475,8 @@ export default function KitchenKDSPage() {
       `Order #${o.id}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
       `Booking #${o.booking_id}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
       o.items.some(i => i.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (o.special_instructions && o.special_instructions.toLowerCase().includes(searchQuery.toLowerCase()));
+      (o.special_instructions && o.special_instructions.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (o.cancellation_reason && o.cancellation_reason.toLowerCase().includes(searchQuery.toLowerCase()));
 
     return matchesStatus && matchesStation && matchesSearch;
   });
@@ -353,7 +487,9 @@ export default function KitchenKDSPage() {
   const readyCount = orders.filter(o => o.status === 'Ready').length;
   const outCount = orders.filter(o => o.status === 'OutForDelivery').length;
   const deliveredCount = orders.filter(o => o.status === 'Delivered').length;
-  const totalValueCooked = orders.reduce((sum, o) => sum + o.total_price, 0);
+  const cancelledCount = orders.filter(o => o.status === 'Cancelled').length;
+  const activePipelineCount = orders.filter(o => o.status !== 'Delivered' && o.status !== 'Cancelled').length;
+  const totalValueCooked = orders.filter(o => o.status !== 'Cancelled').reduce((sum, o) => sum + o.total_price, 0);
 
   if (loading) {
     return (
@@ -540,12 +676,13 @@ export default function KitchenKDSPage() {
         {/* Pipeline Stage Selector Tabs */}
         <div className="px-6 py-2.5 bg-neutral-900/40 border-b border-neutral-800 flex items-center gap-2 overflow-x-auto shrink-0">
           {[
-            { key: 'All', label: 'All Active Pipeline', count: orders.filter(o => o.status !== 'Delivered').length, color: 'text-neutral-200' },
+            { key: 'All', label: 'All Active Pipeline', count: activePipelineCount, color: 'text-neutral-200' },
             { key: 'Pending', label: '1. New / Pending', count: pendingCount, color: 'text-red-400' },
             { key: 'Preparing', label: '2. Cooking on Fire', count: preparingCount, color: 'text-yellow-400' },
             { key: 'Ready', label: '3. Plated & Ready', count: readyCount, color: 'text-blue-400' },
             { key: 'OutForDelivery', label: '4. Out for Delivery', count: outCount, color: 'text-purple-400' },
-            { key: 'Delivered', label: '5. Delivered (History)', count: deliveredCount, color: 'text-green-400' }
+            { key: 'Delivered', label: '5. Delivered (History)', count: deliveredCount, color: 'text-green-400' },
+            { key: 'Cancelled', label: '6. Cancelled / 86 Void', count: cancelledCount, color: 'text-rose-400' }
           ].map(tab => (
             <button
               key={tab.key}
@@ -585,6 +722,7 @@ export default function KitchenKDSPage() {
               {filteredOrders.map(order => {
                 const elapsedSecs = getElapsedSeconds(order.created_at);
                 const timerColor = 
+                  order.status === 'Cancelled' ? 'text-rose-400 bg-rose-950/60 border-rose-700' :
                   order.status === 'Delivered' ? 'text-green-500' :
                   elapsedSecs > 1200 ? 'text-red-400 bg-red-950/60 border-red-700 animate-pulse' :
                   elapsedSecs > 600 ? 'text-yellow-400 bg-yellow-950/60 border-yellow-700' :
@@ -601,6 +739,7 @@ export default function KitchenKDSPage() {
                       order.status === 'Preparing' ? 'border-yellow-600/80' :
                       order.status === 'Ready' ? 'border-blue-600/80' :
                       order.status === 'OutForDelivery' ? 'border-purple-600/80' :
+                      order.status === 'Cancelled' ? 'border-rose-700/80 bg-rose-950/20' :
                       'border-neutral-800 opacity-70'
                     }`}
                   >
@@ -643,6 +782,26 @@ export default function KitchenKDSPage() {
                         </button>
                       </div>
                     </div>
+
+                    {/* CANCELLED ORDER VOID BANNER */}
+                    {order.status === 'Cancelled' && (
+                      <div className="p-3 bg-rose-950/80 border-b border-rose-800/80 space-y-1">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-black uppercase tracking-wider text-rose-300 flex items-center gap-1.5">
+                            <Ban className="h-3.5 w-3.5 text-rose-400 shrink-0" />
+                            <span>Order Voided & Cancelled</span>
+                          </span>
+                          {order.cancelled_at && (
+                            <span className="text-[10px] text-rose-400 font-mono">
+                              {new Date(order.cancelled_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-rose-200 font-medium italic">
+                          "{order.cancellation_reason || 'Cancelled by Kitchen Chef'}"
+                        </p>
+                      </div>
+                    )}
 
                     {/* HIGH-VISIBILITY DIETARY & ALLERGEN WARNING BADGES */}
                     {dietaryBadges.length > 0 && (
@@ -734,10 +893,22 @@ export default function KitchenKDSPage() {
 
                     {/* Lifecycle Action Buttons */}
                     <div className="p-3.5 bg-neutral-850/60 border-t border-neutral-800 flex gap-2">
+                      {order.status !== 'Delivered' && order.status !== 'Cancelled' && (
+                        <button
+                          type="button"
+                          onClick={() => openCancelModal(order)}
+                          className="py-2.5 px-3 bg-rose-950/50 hover:bg-rose-900/80 border border-rose-800/80 text-rose-300 font-bold text-xs rounded-xl transition flex items-center justify-center gap-1 shrink-0 shadow-sm"
+                          title="Cancel Order / 86 Item"
+                        >
+                          <Ban className="h-4 w-4 text-rose-400" />
+                          <span className="hidden sm:inline">Cancel</span>
+                        </button>
+                      )}
+
                       {order.status === 'Pending' && (
                         <button
                           onClick={() => handleUpdateStatus(order.id, 'Preparing')}
-                          className="w-full py-2.5 bg-red-600 hover:bg-red-500 text-white font-extrabold text-xs rounded-xl transition shadow-lg flex items-center justify-center gap-1.5"
+                          className="flex-1 py-2.5 bg-red-600 hover:bg-red-500 text-white font-extrabold text-xs rounded-xl transition shadow-lg flex items-center justify-center gap-1.5"
                         >
                           <Flame className="h-4 w-4" />
                           Accept & Start Cooking
@@ -747,7 +918,7 @@ export default function KitchenKDSPage() {
                       {order.status === 'Preparing' && (
                         <button
                           onClick={() => handleUpdateStatus(order.id, 'Ready')}
-                          className="w-full py-2.5 bg-yellow-500 hover:bg-yellow-400 text-neutral-950 font-extrabold text-xs rounded-xl transition shadow-lg flex items-center justify-center gap-1.5"
+                          className="flex-1 py-2.5 bg-yellow-500 hover:bg-yellow-400 text-neutral-950 font-extrabold text-xs rounded-xl transition shadow-lg flex items-center justify-center gap-1.5"
                         >
                           <CheckCircle className="h-4 w-4" />
                           Plated • Ready for Runner
@@ -760,7 +931,7 @@ export default function KitchenKDSPage() {
                             setOrderForRunner(order);
                             setRunnerModalOpen(true);
                           }}
-                          className="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-extrabold text-xs rounded-xl transition shadow-lg flex items-center justify-center gap-1.5"
+                          className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-extrabold text-xs rounded-xl transition shadow-lg flex items-center justify-center gap-1.5"
                         >
                           <Bike className="h-4 w-4" />
                           Assign Runner & Dispatch
@@ -770,7 +941,7 @@ export default function KitchenKDSPage() {
                       {order.status === 'OutForDelivery' && (
                         <button
                           onClick={() => handleUpdateStatus(order.id, 'Delivered')}
-                          className="w-full py-2.5 bg-green-600 hover:bg-green-500 text-white font-extrabold text-xs rounded-xl transition shadow-lg flex items-center justify-center gap-1.5"
+                          className="flex-1 py-2.5 bg-green-600 hover:bg-green-500 text-white font-extrabold text-xs rounded-xl transition shadow-lg flex items-center justify-center gap-1.5"
                         >
                           <CheckCircle2 className="h-4 w-4" />
                           Confirm Room Delivered
@@ -781,6 +952,13 @@ export default function KitchenKDSPage() {
                         <div className="w-full py-2 text-center text-xs font-bold text-green-400 flex items-center justify-center gap-1">
                           <CheckCircle2 className="h-4 w-4" />
                           Delivered & Billed to Folio
+                        </div>
+                      )}
+
+                      {order.status === 'Cancelled' && (
+                        <div className="w-full py-2.5 text-center text-xs font-bold text-rose-400 flex items-center justify-center gap-1.5 bg-rose-950/40 border border-rose-900/60 rounded-xl">
+                          <Ban className="h-4 w-4 text-rose-400" />
+                          <span>Order Cancelled & Charges Voided</span>
                         </div>
                       )}
                     </div>
@@ -850,41 +1028,61 @@ export default function KitchenKDSPage() {
                           </span>
                         </td>
                         <td className="p-3.5 pr-4 text-right whitespace-nowrap">
-                          {order.status === 'Pending' && (
-                            <button
-                              onClick={() => handleUpdateStatus(order.id, 'Preparing')}
-                              className="px-3.5 py-1.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-neutral-950 font-black text-xs rounded-xl shadow-md shadow-amber-500/20 hover:scale-[1.02] active:scale-[0.98] transition-all"
-                            >
-                              🔥 Fire Order
-                            </button>
-                          )}
-                          {order.status === 'Preparing' && (
-                            <button
-                              onClick={() => handleUpdateStatus(order.id, 'Ready')}
-                              className="px-3.5 py-1.5 bg-gradient-to-r from-sky-500 to-sky-600 hover:from-sky-400 hover:to-sky-500 text-neutral-950 font-black text-xs rounded-xl shadow-md shadow-sky-500/20 hover:scale-[1.02] active:scale-[0.98] transition-all"
-                            >
-                              🔔 Mark Ready
-                            </button>
-                          )}
-                          {order.status === 'Ready' && (
-                            <button
-                              onClick={() => {
-                                setOrderForRunner(order);
-                                setRunnerModalOpen(true);
-                              }}
-                              className="px-3.5 py-1.5 bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-400 hover:to-purple-500 text-white font-black text-xs rounded-xl shadow-md shadow-purple-500/20 hover:scale-[1.02] active:scale-[0.98] transition-all"
-                            >
-                              🚲 Dispatch Runner
-                            </button>
-                          )}
-                          {order.status === 'OutForDelivery' && (
-                            <button
-                              onClick={() => handleUpdateStatus(order.id, 'Delivered')}
-                              className="px-3.5 py-1.5 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-neutral-950 font-black text-xs rounded-xl shadow-md shadow-emerald-500/20 hover:scale-[1.02] active:scale-[0.98] transition-all"
-                            >
-                              ✅ Mark Delivered
-                            </button>
-                          )}
+                          <div className="flex items-center justify-end gap-1.5">
+                            {order.status !== 'Delivered' && order.status !== 'Cancelled' && (
+                              <button
+                                type="button"
+                                onClick={() => openCancelModal(order)}
+                                className="px-2.5 py-1.5 bg-rose-950/60 hover:bg-rose-900 border border-rose-800 text-rose-300 font-bold text-xs rounded-xl transition flex items-center gap-1 shadow-sm"
+                                title="Cancel / Void Order"
+                              >
+                                <Ban className="h-3.5 w-3.5 text-rose-400" />
+                                <span>Cancel</span>
+                              </button>
+                            )}
+
+                            {order.status === 'Pending' && (
+                              <button
+                                onClick={() => handleUpdateStatus(order.id, 'Preparing')}
+                                className="px-3.5 py-1.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-neutral-950 font-black text-xs rounded-xl shadow-md shadow-amber-500/20 hover:scale-[1.02] active:scale-[0.98] transition-all"
+                              >
+                                🔥 Fire Order
+                              </button>
+                            )}
+                            {order.status === 'Preparing' && (
+                              <button
+                                onClick={() => handleUpdateStatus(order.id, 'Ready')}
+                                className="px-3.5 py-1.5 bg-gradient-to-r from-sky-500 to-sky-600 hover:from-sky-400 hover:to-sky-500 text-neutral-950 font-black text-xs rounded-xl shadow-md shadow-sky-500/20 hover:scale-[1.02] active:scale-[0.98] transition-all"
+                              >
+                                🔔 Mark Ready
+                              </button>
+                            )}
+                            {order.status === 'Ready' && (
+                              <button
+                                onClick={() => {
+                                  setOrderForRunner(order);
+                                  setRunnerModalOpen(true);
+                                }}
+                                className="px-3.5 py-1.5 bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-400 hover:to-purple-500 text-white font-black text-xs rounded-xl shadow-md shadow-purple-500/20 hover:scale-[1.02] active:scale-[0.98] transition-all"
+                              >
+                                🚲 Dispatch Runner
+                              </button>
+                            )}
+                            {order.status === 'OutForDelivery' && (
+                              <button
+                                onClick={() => handleUpdateStatus(order.id, 'Delivered')}
+                                className="px-3.5 py-1.5 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-neutral-950 font-black text-xs rounded-xl shadow-md shadow-emerald-500/20 hover:scale-[1.02] active:scale-[0.98] transition-all"
+                              >
+                                ✅ Mark Delivered
+                              </button>
+                            )}
+                            {order.status === 'Cancelled' && (
+                              <span className="px-2.5 py-1 bg-rose-950 text-rose-300 border border-rose-800 rounded-xl text-[11px] font-bold inline-flex items-center gap-1">
+                                <Ban className="h-3.5 w-3.5 text-rose-400" />
+                                <span>Voided</span>
+                              </span>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -980,6 +1178,158 @@ export default function KitchenKDSPage() {
                   Dispatch Order
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: ORDER CANCELLATION & 86 VOID */}
+      {cancelModalOpen && orderToCancel && (
+        <div className="fixed inset-0 bg-neutral-950/85 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-in fade-in">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-5 text-neutral-100 max-h-[90vh] overflow-y-auto">
+            {/* Header */}
+            <div className="flex justify-between items-start pb-3 border-b border-neutral-800">
+              <div className="flex items-center gap-2.5">
+                <div className="h-9 w-9 rounded-2xl bg-rose-950 border border-rose-800 flex items-center justify-center text-rose-400 shrink-0">
+                  <Ban className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-rose-400">Order Cancellation</span>
+                    <span className="text-xs font-mono font-bold text-amber-400 bg-amber-950/40 border border-amber-500/30 px-2 py-0.5 rounded-md">
+                      #{orderToCancel.id}
+                    </span>
+                  </div>
+                  <h3 className="text-base font-extrabold text-white mt-0.5">
+                    Cancel & Void Kitchen Ticket
+                  </h3>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setCancelModalOpen(false);
+                  setOrderToCancel(null);
+                }}
+                className="text-neutral-500 hover:text-white p-1 rounded-lg hover:bg-neutral-800 transition"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Target Order Summary */}
+            <div className="p-3.5 bg-neutral-950 rounded-2xl border border-neutral-800 text-xs space-y-2">
+              <div className="flex justify-between items-center">
+                <span className="text-neutral-400 font-medium">Suite Destination:</span>
+                <span className="font-extrabold text-amber-300 bg-amber-950/60 border border-amber-500/40 px-2.5 py-0.5 rounded-lg">
+                  Suite {orderToCancel.room_number || (orderToCancel.booking_id === 1 ? '101' : orderToCancel.booking_id === 4 ? '204' : orderToCancel.booking_id === 8 ? '302' : `${orderToCancel.booking_id + 100}`)}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-neutral-400 font-medium">Resident:</span>
+                <span className="font-bold text-neutral-200">
+                  {orderToCancel.guest_name || 'Resident Guest'}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-neutral-400 font-medium">Order Value:</span>
+                <span className="font-mono font-bold text-emerald-400">
+                  ₹{orderToCancel.total_price.toFixed(2)}
+                </span>
+              </div>
+              <div className="pt-1.5 border-t border-neutral-850 text-[11px] text-neutral-400 line-clamp-2">
+                <span className="font-semibold text-neutral-300">Dishes: </span>
+                {orderToCancel.items.map(i => `${i.quantity}x ${i.name}`).join(', ')}
+              </div>
+            </div>
+
+            {/* Pre-filled Selectable Reasons */}
+            <div className="space-y-2">
+              <label className="block text-[11px] uppercase font-black text-neutral-300 tracking-wider">
+                Select Pre-Filled Cancellation Reason:
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {PREFILLED_CANCELLATION_REASONS.map(reason => {
+                  const isSelected = selectedReasonId === reason.id;
+                  return (
+                    <button
+                      key={reason.id}
+                      type="button"
+                      onClick={() => handleSelectReason(reason.id)}
+                      className={`p-2.5 rounded-xl border text-left transition flex items-start gap-2.5 ${
+                        isSelected
+                          ? 'bg-rose-950/70 border-rose-600 text-rose-100 ring-1 ring-rose-500/50 shadow-md'
+                          : 'bg-neutral-850/60 border-neutral-800 text-neutral-300 hover:border-neutral-700 hover:bg-neutral-800'
+                      }`}
+                    >
+                      <span className="text-base shrink-0 mt-0.5">{reason.icon}</span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between gap-1">
+                          <span className="text-xs font-bold truncate block">{reason.label}</span>
+                        </div>
+                        <span className="text-[10px] text-neutral-400 font-semibold block mt-0.5 truncate">
+                          {reason.badge}
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Editable Reason Details Textarea */}
+            <div className="space-y-1.5">
+              <div className="flex justify-between items-center">
+                <label className="text-[11px] uppercase font-black text-neutral-300 tracking-wider">
+                  Chef Remark & Guest Notice:
+                </label>
+                <span className="text-[10px] text-neutral-500 font-semibold">Editable by Chef</span>
+              </div>
+              <textarea
+                rows={3}
+                value={cancellationReasonText}
+                onChange={(e) => setCancellationReasonText(e.target.value)}
+                placeholder="Enter specific details for cancellation, e.g. which ingredients ran out or alternate dishes offered..."
+                className="w-full text-xs rounded-xl border border-neutral-700 bg-neutral-950 p-3 text-neutral-100 focus:outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-500 font-medium leading-relaxed"
+              />
+            </div>
+
+            {/* Room Folio Void Option */}
+            <div className="p-3 bg-neutral-950 rounded-2xl border border-neutral-800 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-base">💳</span>
+                <div>
+                  <span className="text-xs font-bold text-neutral-200 block">Void Room Folio Charges</span>
+                  <span className="text-[10px] text-neutral-400 block">Automatically reverses ₹{orderToCancel.total_price.toFixed(2)} from guest folio</span>
+                </div>
+              </div>
+              <input
+                type="checkbox"
+                checked={voidChargesOnFolio}
+                onChange={(e) => setVoidChargesOnFolio(e.target.checked)}
+                className="h-4 w-4 rounded bg-neutral-800 border-neutral-700 text-rose-600 focus:ring-rose-500"
+              />
+            </div>
+
+            {/* Modal Actions */}
+            <div className="flex gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setCancelModalOpen(false);
+                  setOrderToCancel(null);
+                }}
+                className="flex-1 py-2.5 bg-neutral-800 hover:bg-neutral-750 text-neutral-300 font-bold rounded-xl text-xs transition"
+              >
+                Keep Order (Back)
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmCancelOrder}
+                className="flex-1 py-2.5 bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white font-extrabold rounded-xl text-xs shadow-lg shadow-rose-900/30 transition flex items-center justify-center gap-1.5"
+              >
+                <Ban className="h-4 w-4" />
+                Confirm Void & Cancel Order
+              </button>
             </div>
           </div>
         </div>

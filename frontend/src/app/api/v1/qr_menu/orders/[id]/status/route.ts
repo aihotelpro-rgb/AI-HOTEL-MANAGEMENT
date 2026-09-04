@@ -33,7 +33,7 @@ export async function PUT(
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400, headers: CORS_HEADERS });
   }
 
-  const { status, runner_name, estimated_minutes } = body;
+  const { status, runner_name, estimated_minutes, cancellation_reason } = body;
   const backend = getBackendUrl();
 
   // Try updating remote backend if configured
@@ -52,14 +52,14 @@ export async function PUT(
       if (res.ok) {
         const data = await res.json();
         // Also sync to local store
-        updateOrderStatusInStore(orderId, status, runner_name, estimated_minutes);
+        updateOrderStatusInStore(orderId, status, runner_name, estimated_minutes, cancellation_reason);
         return NextResponse.json(data, { headers: CORS_HEADERS });
       }
     } catch {}
   }
 
   // Update in resilient local store
-  let updated = updateOrderStatusInStore(orderId, status, runner_name, estimated_minutes);
+  let updated = updateOrderStatusInStore(orderId, status, runner_name, estimated_minutes, cancellation_reason);
 
   // If not found, look through memory or create fallback
   if (!updated) {

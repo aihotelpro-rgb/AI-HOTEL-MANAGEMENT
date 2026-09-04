@@ -60,6 +60,8 @@ interface Order {
   special_instructions?: string;
   created_at: string;
   delivered_at?: string;
+  cancellation_reason?: string | null;
+  cancelled_at?: string | null;
 }
 
 interface FolioData {
@@ -1311,52 +1313,69 @@ function GuestRoomQRContent() {
                       <span className="text-sm font-extrabold text-amber-400">₹{order.total_price.toFixed(2)}</span>
                     </div>
 
-                    {/* 5-Stage Live Delivery Progression */}
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between text-[11px] font-extrabold">
-                        <span className="text-neutral-400">Preparation & Delivery Progress</span>
-                        <span className={`px-2 py-0.5 rounded-full ${
-                          order.status === 'Delivered' ? 'bg-green-950 text-green-400 border border-green-700/60' : 'bg-amber-950 text-amber-400 border border-amber-600/40 animate-pulse'
-                        }`}>
-                          {order.status === 'Pending' ? '1/5 Received' :
-                           order.status === 'Preparing' ? '2/5 Cooking' :
-                           order.status === 'Ready' ? '3/5 Plated' :
-                           order.status === 'OutForDelivery' ? '4/5 Runner En Route' : '5/5 Delivered'}
-                        </span>
+                    {/* Live Delivery Progression or Cancellation Notice */}
+                    {order.status === 'Cancelled' ? (
+                      <div className="p-3.5 rounded-2xl bg-rose-950/60 border border-rose-800/80 space-y-1.5 animate-in fade-in">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-black text-rose-300 uppercase tracking-wider flex items-center gap-1.5">
+                            <span className="text-sm">🚫</span>
+                            Order Voided by Kitchen
+                          </span>
+                          <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-rose-900/80 text-rose-200 border border-rose-700">
+                            CHARGES VOIDED
+                          </span>
+                        </div>
+                        <p className="text-xs text-rose-200/90 leading-relaxed font-medium">
+                          {order.cancellation_reason || 'This order was cancelled by the kitchen chef. Any room folio billing has been automatically reversed.'}
+                        </p>
                       </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between text-[11px] font-extrabold">
+                          <span className="text-neutral-400">Preparation & Delivery Progress</span>
+                          <span className={`px-2 py-0.5 rounded-full ${
+                            order.status === 'Delivered' ? 'bg-green-950 text-green-400 border border-green-700/60' : 'bg-amber-950 text-amber-400 border border-amber-600/40 animate-pulse'
+                          }`}>
+                            {order.status === 'Pending' ? '1/5 Received' :
+                             order.status === 'Preparing' ? '2/5 Cooking' :
+                             order.status === 'Ready' ? '3/5 Plated' :
+                             order.status === 'OutForDelivery' ? '4/5 Runner En Route' : '5/5 Delivered'}
+                          </span>
+                        </div>
 
-                      {/* Progression Bar */}
-                      <div className="grid grid-cols-5 gap-1.5 pt-1">
-                        {[
-                          { label: 'Received', statusKey: 'Pending' },
-                          { label: 'Cooking', statusKey: 'Preparing' },
-                          { label: 'Plated', statusKey: 'Ready' },
-                          { label: 'En Route', statusKey: 'OutForDelivery' },
-                          { label: 'Delivered', statusKey: 'Delivered' }
-                        ].map((stage, idx) => {
-                          const orderStageIdx = 
-                            order.status === 'Pending' ? 0 :
-                            order.status === 'Preparing' ? 1 :
-                            order.status === 'Ready' ? 2 :
-                            order.status === 'OutForDelivery' ? 3 : 4;
-                          const isCompleted = idx <= orderStageIdx;
-                          const isCurrent = idx === orderStageIdx;
+                        {/* Progression Bar */}
+                        <div className="grid grid-cols-5 gap-1.5 pt-1">
+                          {[
+                            { label: 'Received', statusKey: 'Pending' },
+                            { label: 'Cooking', statusKey: 'Preparing' },
+                            { label: 'Plated', statusKey: 'Ready' },
+                            { label: 'En Route', statusKey: 'OutForDelivery' },
+                            { label: 'Delivered', statusKey: 'Delivered' }
+                          ].map((stage, idx) => {
+                            const orderStageIdx = 
+                              order.status === 'Pending' ? 0 :
+                              order.status === 'Preparing' ? 1 :
+                              order.status === 'Ready' ? 2 :
+                              order.status === 'OutForDelivery' ? 3 : 4;
+                            const isCompleted = idx <= orderStageIdx;
+                            const isCurrent = idx === orderStageIdx;
 
-                          return (
-                            <div key={idx} className="space-y-1 text-center">
-                              <div className={`h-1.5 rounded-full transition-all duration-500 ${
-                                isCompleted ? 'bg-amber-500 shadow-sm' : 'bg-neutral-800'
-                              } ${isCurrent && order.status !== 'Delivered' ? 'animate-pulse ring-2 ring-amber-500/50' : ''}`} />
-                              <span className={`text-[9px] font-bold block truncate ${
-                                isCompleted ? 'text-amber-400' : 'text-neutral-600'
-                              }`}>
-                                {stage.label}
-                              </span>
-                            </div>
-                          );
-                        })}
+                            return (
+                              <div key={idx} className="space-y-1 text-center">
+                                <div className={`h-1.5 rounded-full transition-all duration-500 ${
+                                  isCompleted ? 'bg-amber-500 shadow-sm' : 'bg-neutral-800'
+                                } ${isCurrent && order.status !== 'Delivered' ? 'animate-pulse ring-2 ring-amber-500/50' : ''}`} />
+                                <span className={`text-[9px] font-bold block truncate ${
+                                  isCompleted ? 'text-amber-400' : 'text-neutral-600'
+                                }`}>
+                                  {stage.label}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
-                    </div>
+                    )}
 
                     {/* Runner Callout if OutForDelivery */}
                     {order.status === 'OutForDelivery' && (

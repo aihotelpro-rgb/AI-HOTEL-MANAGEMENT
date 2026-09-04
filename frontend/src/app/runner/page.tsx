@@ -51,6 +51,8 @@ interface DeliveryOrder {
   special_instructions?: string | null;
   created_at: string;
   delivered_at?: string | null;
+  cancellation_reason?: string | null;
+  cancelled_at?: string | null;
 }
 
 export default function RunnerDashboardPage() {
@@ -218,14 +220,14 @@ export default function RunnerDashboardPage() {
 
   // Filter Pipeline for Active Runner
   const myDeliveries = orders.filter(o => 
-    o.status !== 'Delivered' && (
+    o.status !== 'Delivered' && o.status !== 'Cancelled' && (
       !o.runner_name || 
       o.runner_name === activeRunner || 
       o.runner_name.toLowerCase().includes(activeRunner.toLowerCase())
     )
   );
 
-  const allActivePipeline = orders.filter(o => o.status !== 'Delivered');
+  const allActivePipeline = orders.filter(o => o.status !== 'Delivered' && o.status !== 'Cancelled');
   const completedHistory = orders.filter(o => o.status === 'Delivered');
 
   const activeDisplayList = 

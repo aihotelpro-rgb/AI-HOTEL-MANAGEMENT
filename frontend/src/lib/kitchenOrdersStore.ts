@@ -21,6 +21,8 @@ export interface KitchenOrder {
   special_instructions?: string | null;
   created_at: string;
   delivered_at?: string | null;
+  cancellation_reason?: string | null;
+  cancelled_at?: string | null;
 }
 
 declare global {
@@ -193,7 +195,8 @@ export function updateOrderStatusInStore(
   orderId: number,
   status: string,
   runnerName?: string,
-  eta?: number
+  eta?: number,
+  cancellationReason?: string
 ): KitchenOrder | null {
   const orders = getOrders();
   let order = orders.find((o) => o.id === orderId);
@@ -209,9 +212,11 @@ export function updateOrderStatusInStore(
       total_price: 450,
       status,
       runner_name: runnerName || null,
-      estimated_minutes: status === 'Delivered' ? 0 : (eta ?? 15),
+      estimated_minutes: status === 'Delivered' || status === 'Cancelled' ? 0 : (eta ?? 15),
       created_at: new Date().toISOString(),
       delivered_at: status === 'Delivered' ? new Date().toISOString() : null,
+      cancellation_reason: status === 'Cancelled' ? (cancellationReason || 'Cancelled by Kitchen Chef') : null,
+      cancelled_at: status === 'Cancelled' ? new Date().toISOString() : null,
     };
     orders.unshift(order);
   } else {
@@ -224,11 +229,17 @@ export function updateOrderStatusInStore(
       if (status === 'Delivered') {
         order.delivered_at = order.delivered_at || new Date().toISOString();
         order.estimated_minutes = 0;
+      } else if (status === 'Cancelled') {
+        order.cancellation_reason = cancellationReason || order.cancellation_reason || 'Cancelled by Kitchen Chef';
+        order.cancelled_at = new Date().toISOString();
+        order.estimated_minutes = 0;
       }
     }
 
     if (runnerName) order.runner_name = runnerName;
-    if (eta !== undefined && order.status !== 'Delivered') order.estimated_minutes = eta;
+    if (eta !== undefined && order.status !== 'Delivered' && order.status !== 'Cancelled') {
+      order.estimated_minutes = eta;
+    }
   }
 
   _saveOrdersToDisk(orders);

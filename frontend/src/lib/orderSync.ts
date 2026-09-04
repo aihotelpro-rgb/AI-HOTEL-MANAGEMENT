@@ -11,6 +11,8 @@ export interface SyncOrder {
   special_instructions?: string | null;
   created_at: string;
   delivered_at?: string | null;
+  cancellation_reason?: string | null;
+  cancelled_at?: string | null;
 }
 
 export const ORDER_STATUS_HIERARCHY: Record<string, number> = {
@@ -109,10 +111,13 @@ export function mergeOrdersWithHierarchy<T extends SyncOrder>(
     } else {
       const existingRank = getStatusRank(existing.status);
       const incomingRank = getStatusRank(inc.status);
-      const isDelivered = deliveredSet.has(inc.id) || existing.status === 'Delivered' || inc.status === 'Delivered';
+      const isCancelled = existing.status === 'Cancelled' || inc.status === 'Cancelled';
+      const isDelivered = !isCancelled && (deliveredSet.has(inc.id) || existing.status === 'Delivered' || inc.status === 'Delivered');
 
       let winnerStatus: string;
-      if (isDelivered) {
+      if (isCancelled) {
+        winnerStatus = 'Cancelled';
+      } else if (isDelivered) {
         winnerStatus = 'Delivered';
       } else if (existingRank >= incomingRank) {
         winnerStatus = existing.status;
@@ -130,6 +135,16 @@ export function mergeOrdersWithHierarchy<T extends SyncOrder>(
           ? (existing.delivered_at || inc.delivered_at || new Date().toISOString())
           : (inc.delivered_at || existing.delivered_at);
 
+      const winnerCancellationReason =
+        isCancelled
+          ? (existing.cancellation_reason || inc.cancellation_reason || 'Cancelled by Kitchen Chef')
+          : null;
+
+      const winnerCancelledAt =
+        isCancelled
+          ? (existing.cancelled_at || inc.cancelled_at || new Date().toISOString())
+          : null;
+
       const merged: T = {
         ...inc,
         ...existing,
@@ -142,7 +157,9 @@ export function mergeOrdersWithHierarchy<T extends SyncOrder>(
         status: winnerStatus,
         runner_name: winnerRunner,
         delivered_at: winnerDeliveredAt,
-        estimated_minutes: winnerStatus === 'Delivered' ? 0 : (inc.estimated_minutes ?? existing.estimated_minutes ?? 10),
+        cancellation_reason: winnerCancellationReason,
+        cancelled_at: winnerCancelledAt,
+        estimated_minutes: winnerStatus === 'Delivered' || winnerStatus === 'Cancelled' ? 0 : (inc.estimated_minutes ?? existing.estimated_minutes ?? 10),
       };
 
       map.set(inc.id, merged);
