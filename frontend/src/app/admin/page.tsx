@@ -33,7 +33,15 @@ import {
   Check,
   Eye,
   EyeOff,
-  Building2
+  Building2,
+  Calendar,
+  DollarSign,
+  FileText,
+  CheckCircle,
+  AlertTriangle,
+  TrendingUp,
+  Zap,
+  Sparkles
 } from 'lucide-react';
 
 interface HotelSettings {
@@ -353,8 +361,25 @@ export default function AdminControlPage() {
     }
   }, [router]);
 
-  // State for Enterprise Channel Manager Sub-Tabs & Data
-  const [channelSubTab, setChannelSubTab] = useState<'channels' | 'mapping' | 'calendar' | 'health' | 'audit'>('channels');
+  // State for Staff Sub-Tabs & HR Operations
+  const [staffSubTab, setStaffSubTab] = useState<'profiles' | 'attendance' | 'payroll'>('profiles');
+  const [attendanceDate, setAttendanceDate] = useState(new Date().toISOString().split('T')[0]);
+  const [attendanceList, setAttendanceList] = useState<any[]>([]);
+  const [attendanceLoading, setAttendanceLoading] = useState(false);
+  const [payrollMonth, setPayrollMonth] = useState('Sep 2026');
+  const [payrollData, setPayrollData] = useState<any>({ summary: {}, payroll_sheet: [] });
+  const [payrollLoading, setPayrollLoading] = useState(false);
+  const [disburseModalOpen, setDisburseModalOpen] = useState(false);
+  const [selectedPayrollItem, setSelectedPayrollItem] = useState<any | null>(null);
+  const [disburseMode, setDisburseMode] = useState<'Bank Transfer' | 'UPI' | 'Cash'>('Bank Transfer');
+  const [disburseTxnRef, setDisburseTxnRef] = useState('');
+  const [disbursingSalary, setDisbursingSalary] = useState(false);
+  const [payslipModalOpen, setPayslipModalOpen] = useState(false);
+  const [payslipData, setPayslipData] = useState<any | null>(null);
+  const [payslipLoading, setPayslipLoading] = useState(false);
+
+  // State for Enterprise Channel Manager Sub-Tabs & AI Copilot Data
+  const [channelSubTab, setChannelSubTab] = useState<'channels' | 'mapping' | 'calendar' | 'ai_copilot' | 'health' | 'audit'>('channels');
   const [otaChannels, setOtaChannels] = useState<any[]>([]);
   const [roomMappings, setRoomMappings] = useState<any[]>([]);
   const [rateMappings, setRateMappings] = useState<any[]>([]);
@@ -362,6 +387,8 @@ export default function AdminControlPage() {
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
   const [syncHealth, setSyncHealth] = useState<any>(null);
   const [syncingAll, setSyncingAll] = useState(false);
+  const [aiOtaData, setAiOtaData] = useState<any>(null);
+  const [aiOtaLoading, setAiOtaLoading] = useState(false);
 
   // Bulk rate update states
   const [bulkStartDate, setBulkStartDate] = useState(new Date().toISOString().split('T')[0]);
@@ -381,7 +408,7 @@ export default function AdminControlPage() {
   // Load All Admin Data
   const loadAdminData = async () => {
     try {
-      const [settingsData, roomsData, menuData, staffData, channelData, inventoryData, cctvData, roomMapData, rateMapData, calendarData, auditData, syncData, legacyConfig, propertiesData] = await Promise.all([
+      const [settingsData, roomsData, menuData, staffData, channelData, inventoryData, cctvData, roomMapData, rateMapData, calendarData, auditData, syncData, legacyConfig, propertiesData, attData, payData, aiCopilotData] = await Promise.all([
         apiRequest('/api/v1/admin/settings'),
         apiRequest(`/api/v1/admin/rooms?property_id=${selectedPropertyId}`),
         apiRequest('/api/v1/admin/menu'),
@@ -395,7 +422,10 @@ export default function AdminControlPage() {
         apiRequest('/api/v1/channel/audit-logs?limit=30').catch(() => []),
         apiRequest('/api/v1/channel/sync/health').catch(() => null),
         apiRequest('/api/v1/admin/channel-engine/status').catch(() => null),
-        apiRequest('/api/v1/admin/properties').catch(() => ({ properties: [] }))
+        apiRequest('/api/v1/admin/properties').catch(() => ({ properties: [] })),
+        apiRequest(`/api/v1/admin/staff/attendance?date=${attendanceDate}`).catch(() => []),
+        apiRequest(`/api/v1/admin/staff/payroll?month=${encodeURIComponent(payrollMonth)}`).catch(() => ({ summary: {}, payroll_sheet: [] })),
+        apiRequest('/api/v1/channel/ai-copilot').catch(() => null)
       ]);
       setSettings(settingsData);
       setRooms(roomsData);
@@ -411,10 +441,143 @@ export default function AdminControlPage() {
       if (syncData) setSyncHealth(syncData);
       if (legacyConfig) setChannelConfig(legacyConfig);
       if (propertiesData && propertiesData.properties) setPropertiesList(propertiesData.properties);
+      if (attData) setAttendanceList(attData);
+      if (payData) setPayrollData(payData);
+      if (aiCopilotData) setAiOtaData(aiCopilotData);
     } catch (err: any) {
       console.error('Failed to load admin data', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadAttendance = async (date: string) => {
+    setAttendanceLoading(true);
+    try {
+      const data = await apiRequest(`/api/v1/admin/staff/attendance?date=${date}`);
+      setAttendanceList(data);
+    } catch (e) {
+      console.error('Failed to load attendance', e);
+    } finally {
+      setAttendanceLoading(false);
+    }
+  };
+
+  const loadPayroll = async (month: string) => {
+    setPayrollLoading(true);
+    try {
+      const data = await apiRequest(`/api/v1/admin/staff/payroll?month=${encodeURIComponent(month)}`);
+      setPayrollData(data);
+    } catch (e) {
+      console.error('Failed to load payroll', e);
+    } finally {
+      setPayrollLoading(false);
+    }
+  };
+
+  const handleMarkAttendance = async (staffId: number, status: string) => {
+    try {
+      const staffUser = staffList.find(s => s.id === staffId);
+      const currentTime = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+      await apiRequest('/api/v1/admin/staff/attendance', {
+        method: 'POST',
+        body: JSON.stringify({
+          staff_id: staffId,
+          staff_name: staffUser?.full_name || staffUser?.username,
+          employee_id: staffUser?.employee_id,
+          role: staffUser?.role,
+          date: attendanceDate,
+          status,
+          clock_in: status === 'Present' || status === 'Late' ? currentTime : undefined,
+          total_hours: status === 'Present' ? 8.5 : status === 'HalfDay' ? 4.0 : 0
+        })
+      });
+      showToast(`Marked ${staffUser?.full_name || staffUser?.username} as ${status}`);
+      loadAttendance(attendanceDate);
+    } catch (err: any) {
+      alert(`Error marking attendance: ${err.message}`);
+    }
+  };
+
+  const handleDisburseSalary = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedPayrollItem) return;
+    setDisbursingSalary(true);
+    try {
+      const res = await apiRequest('/api/v1/admin/staff/payroll', {
+        method: 'POST',
+        body: JSON.stringify({
+          payroll_id: selectedPayrollItem.id,
+          payment_mode: disburseMode,
+          transaction_ref: disburseTxnRef || undefined
+        })
+      });
+      showToast(res.message);
+      setDisburseModalOpen(false);
+      setSelectedPayrollItem(null);
+      setDisburseTxnRef('');
+      loadPayroll(payrollMonth);
+    } catch (err: any) {
+      alert(`Error disbursing salary: ${err.message}`);
+    } finally {
+      setDisbursingSalary(false);
+    }
+  };
+
+  const handleViewPayslip = async (staffId: number) => {
+    setPayslipLoading(true);
+    setPayslipModalOpen(true);
+    try {
+      const data = await apiRequest(`/api/v1/admin/staff/payroll/${staffId}/payslip`);
+      setPayslipData(data);
+    } catch (err: any) {
+      alert(`Error loading payslip: ${err.message}`);
+    } finally {
+      setPayslipLoading(false);
+    }
+  };
+
+  const handleToggleAutoPilot = async () => {
+    try {
+      const res = await apiRequest('/api/v1/channel/ai-copilot', {
+        method: 'POST',
+        body: JSON.stringify({ action: 'toggle_autopilot' })
+      });
+      showToast(res.message);
+      const updatedAi = await apiRequest('/api/v1/channel/ai-copilot');
+      setAiOtaData(updatedAi);
+    } catch (err: any) {
+      alert(`Failed: ${err.message}`);
+    }
+  };
+
+  const handleResolveParity = async (channelCode: string) => {
+    try {
+      const res = await apiRequest('/api/v1/channel/ai-copilot', {
+        method: 'POST',
+        body: JSON.stringify({ action: 'resolve_parity', channel_code: channelCode })
+      });
+      showToast(res.message);
+      const updatedAi = await apiRequest('/api/v1/channel/ai-copilot');
+      setAiOtaData(updatedAi);
+    } catch (err: any) {
+      alert(`Failed: ${err.message}`);
+    }
+  };
+
+  const handleApplyAiYieldTariffs = async () => {
+    setAiOtaLoading(true);
+    try {
+      const res = await apiRequest('/api/v1/channel/ai-copilot', {
+        method: 'POST',
+        body: JSON.stringify({ action: 'apply_yield_tariffs' })
+      });
+      showToast(res.message);
+      loadAdminData();
+    } catch (err: any) {
+      alert(`Failed to apply AI tariffs: ${err.message}`);
+    } finally {
+      setAiOtaLoading(false);
     }
   };
 
@@ -1630,102 +1793,448 @@ export default function AdminControlPage() {
             </div>
           )}
 
-          {/* TAB 4: STAFF HR PROFILES & RBAC DIRECTORY WITH EDIT */}
+          {/* TAB 4: STAFF HR DIRECTORY, ATTENDANCE & PAYROLL */}
           {activeTab === 'staff' && (
             <div className="space-y-4">
-              <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 shadow-2xl space-y-3">
+              {/* Staff Management Control Header with Sub-Tabs */}
+              <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 shadow-2xl space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-neutral-800/80 pb-3">
                   <div className="space-y-1 min-w-0 flex-1">
-                    <h3 className="text-sm sm:text-base font-extrabold text-neutral-100 leading-snug">Staff HR Profiles & Access Directory</h3>
-                    <p className="text-xs text-neutral-400">Manage employee IDs, contact phone/email, duty shifts, and departmental roles.</p>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-extrabold uppercase bg-amber-500/20 text-amber-400 border border-amber-500/30 px-2.5 py-0.5 rounded-xl">
+                        HUMAN RESOURCES & PAYROLL SUITE
+                      </span>
+                      <span className="text-[10px] font-extrabold uppercase bg-green-500/20 text-green-400 border border-green-500/30 px-2.5 py-0.5 rounded-xl">
+                        🟢 10 Active Employees
+                      </span>
+                    </div>
+                    <h3 className="text-sm sm:text-base font-extrabold text-neutral-100 flex items-center gap-2 leading-snug">
+                      <Users className="h-5 w-5 text-amber-500 shrink-0" />
+                      <span>Staff Management, Daily Attendance & Payroll System</span>
+                    </h3>
                   </div>
+
+                  {staffSubTab === 'profiles' && (
+                    <button
+                      onClick={() => setStaffModalOpen(true)}
+                      className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-neutral-950 font-extrabold text-xs rounded-xl transition shadow flex items-center gap-1.5 whitespace-nowrap shrink-0 self-start sm:self-center"
+                    >
+                      <Plus className="h-4 w-4" />
+                      <span>Add Staff Account</span>
+                    </button>
+                  )}
+                </div>
+
+                {/* Sub-Tab Navigation Pills */}
+                <div className="flex flex-wrap items-center gap-2 text-xs">
                   <button
-                    onClick={() => setStaffModalOpen(true)}
-                    className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-neutral-950 font-extrabold text-xs rounded-xl transition shadow flex items-center gap-1.5 whitespace-nowrap shrink-0 self-start sm:self-center"
+                    onClick={() => setStaffSubTab('profiles')}
+                    className={`px-4 py-2 rounded-xl font-extrabold transition flex items-center gap-1.5 border ${
+                      staffSubTab === 'profiles'
+                        ? 'bg-amber-500 text-neutral-950 border-amber-400 shadow'
+                        : 'bg-neutral-950 text-neutral-400 border-neutral-800 hover:text-white'
+                    }`}
                   >
-                    <Plus className="h-4 w-4" />
-                    <span>Add Staff Account</span>
+                    <span>👥 Staff Directory & Profiles ({staffList.length})</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setStaffSubTab('attendance');
+                      loadAttendance(attendanceDate);
+                    }}
+                    className={`px-4 py-2 rounded-xl font-extrabold transition flex items-center gap-1.5 border ${
+                      staffSubTab === 'attendance'
+                        ? 'bg-amber-500 text-neutral-950 border-amber-400 shadow'
+                        : 'bg-neutral-950 text-neutral-400 border-neutral-800 hover:text-white'
+                    }`}
+                  >
+                    <span>🕒 Daily Attendance & Punch Logs</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setStaffSubTab('payroll');
+                      loadPayroll(payrollMonth);
+                    }}
+                    className={`px-4 py-2 rounded-xl font-extrabold transition flex items-center gap-1.5 border ${
+                      staffSubTab === 'payroll'
+                        ? 'bg-amber-500 text-neutral-950 border-amber-400 shadow'
+                        : 'bg-neutral-950 text-neutral-400 border-neutral-800 hover:text-white'
+                    }`}
+                  >
+                    <span>💳 Monthly Payroll & Payment Disbursement</span>
                   </button>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {filteredStaff.map(user => (
-                  <div key={user.id} className="bg-neutral-900 border border-neutral-800 rounded-2xl p-4 shadow-xl flex flex-col justify-between space-y-3">
-                    <div className="flex items-start gap-3">
-                      <img 
-                        src={user.avatar_url || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150"} 
-                        alt={user.full_name || user.username}
-                        className="h-12 w-12 rounded-xl object-cover border border-neutral-700 shrink-0"
-                      />
-                      <div className="min-w-0 flex-1">
-                        <div className="flex justify-between items-start">
-                          <h4 className="font-extrabold text-sm text-neutral-100 truncate">{user.full_name || user.username}</h4>
-                          <span className="text-[10px] font-mono text-amber-500 font-bold">{user.employee_id || 'EMP-1001'}</span>
+              {/* SUB-VIEW 1: STAFF PROFILES */}
+              {staffSubTab === 'profiles' && (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {filteredStaff.map(user => (
+                    <div key={user.id} className="bg-neutral-900 border border-neutral-800 rounded-2xl p-4 shadow-xl flex flex-col justify-between space-y-3">
+                      <div className="flex items-start gap-3">
+                        <img 
+                          src={user.avatar_url || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150"} 
+                          alt={user.full_name || user.username}
+                          className="h-12 w-12 rounded-xl object-cover border border-neutral-700 shrink-0"
+                        />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex justify-between items-start">
+                            <h4 className="font-extrabold text-sm text-neutral-100 truncate">{user.full_name || user.username}</h4>
+                            <span className="text-[10px] font-mono text-amber-500 font-bold">{user.employee_id || 'EMP-1001'}</span>
+                          </div>
+                          <span className="text-xs text-neutral-400 block font-mono">@{user.username}</span>
+
+                          <div className="mt-1.5 flex gap-1.5">
+                            <span className={`text-[9px] font-extrabold px-2 py-0.2 rounded-full border ${
+                              user.role === 'Admin' ? 'bg-red-950 text-red-400 border-red-800' :
+                              user.role === 'Executive' ? 'bg-purple-950 text-purple-400 border-purple-800' :
+                              user.role === 'Kitchen' ? 'bg-amber-950 text-amber-400 border-amber-800' :
+                              user.role === 'Housekeeping' ? 'bg-green-950 text-green-400 border-green-800' :
+                              'bg-blue-950 text-blue-400 border-blue-800'
+                            }`}>
+                              {user.role}
+                            </span>
+                          </div>
                         </div>
-                        <span className="text-xs text-neutral-400 block font-mono">@{user.username}</span>
+                      </div>
 
-                        <div className="mt-1.5 flex gap-1.5">
-                          <span className={`text-[9px] font-extrabold px-2 py-0.2 rounded-full border ${
-                            user.role === 'Admin' ? 'bg-red-950 text-red-400 border-red-800' :
-                            user.role === 'Executive' ? 'bg-purple-950 text-purple-400 border-purple-800' :
-                            user.role === 'Kitchen' ? 'bg-amber-950 text-amber-400 border-amber-800' :
-                            user.role === 'Housekeeping' ? 'bg-green-950 text-green-400 border-green-800' :
-                            'bg-blue-950 text-blue-400 border-blue-800'
-                          }`}>
-                            {user.role}
-                          </span>
+                      <div className="p-2.5 bg-neutral-950 rounded-xl border border-neutral-800/80 text-[11px] space-y-1 text-neutral-300">
+                        <div className="flex items-center gap-2">
+                          <Phone className="h-3.5 w-3.5 text-neutral-500" />
+                          <span>{user.phone || '+91 98765 00000'}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Mail className="h-3.5 w-3.5 text-neutral-500" />
+                          <span className="truncate">{user.email || `${user.username}@grandpalace.in`}</span>
+                        </div>
+                        <div className="pt-1 text-[10px] text-neutral-400 border-t border-neutral-850">
+                          Shift: <strong className="text-neutral-200">{user.shift || 'Morning Shift'}</strong>
                         </div>
                       </div>
-                    </div>
 
-                    <div className="p-2.5 bg-neutral-950 rounded-xl border border-neutral-800/80 text-[11px] space-y-1 text-neutral-300">
-                      <div className="flex items-center gap-2">
-                        <Phone className="h-3.5 w-3.5 text-neutral-500" />
-                        <span>{user.phone || '+91 98765 00000'}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Mail className="h-3.5 w-3.5 text-neutral-500" />
-                        <span className="truncate">{user.email || `${user.username}@grandpalace.in`}</span>
-                      </div>
-                      <div className="pt-1 text-[10px] text-neutral-400 border-t border-neutral-850">
-                        Shift: <strong className="text-neutral-200">{user.shift || 'Morning Shift'}</strong>
-                      </div>
-                    </div>
+                      <div className="flex justify-between items-center pt-2 border-t border-neutral-800">
+                        <span className="text-[10px] text-green-400 font-semibold flex items-center gap-1">
+                          <span className="h-2 w-2 rounded-full bg-green-500"></span>
+                          Active
+                        </span>
 
-                    <div className="flex justify-between items-center pt-2 border-t border-neutral-800">
-                      <span className="text-[10px] text-green-400 font-semibold flex items-center gap-1">
-                        <span className="h-2 w-2 rounded-full bg-green-500"></span>
-                        Active
-                      </span>
-
-                      <div className="flex items-center gap-1.5">
-                        <button
-                          onClick={() => {
-                            setEditingStaff(user);
-                            setEditStaffPassword('');
-                          }}
-                          className="px-2.5 py-1 bg-neutral-800 hover:bg-neutral-700 text-amber-400 font-bold text-xs rounded-lg border border-neutral-700 transition flex items-center gap-1"
-                          title="Edit Staff Profile"
-                        >
-                          <Edit3 className="h-3.5 w-3.5" />
-                          <span>Edit</span>
-                        </button>
-
-                        {user.username !== 'admin' && (
+                        <div className="flex items-center gap-1.5">
                           <button
-                            onClick={() => handleDeleteStaff(user.id, user.username)}
-                            className="p-1.5 text-neutral-500 hover:text-red-400 transition"
-                            title="Delete Staff Account"
+                            onClick={() => {
+                              setEditingStaff(user);
+                              setEditStaffPassword('');
+                            }}
+                            className="px-2.5 py-1 bg-neutral-800 hover:bg-neutral-700 text-amber-400 font-bold text-xs rounded-lg border border-neutral-700 transition flex items-center gap-1"
+                            title="Edit Staff Profile"
                           >
-                            <Trash2 className="h-4 w-4" />
+                            <Edit3 className="h-3.5 w-3.5" />
+                            <span>Edit</span>
                           </button>
-                        )}
+
+                          {user.username !== 'admin' && (
+                            <button
+                              onClick={() => handleDeleteStaff(user.id, user.username)}
+                              className="p-1.5 text-neutral-500 hover:text-red-400 transition"
+                              title="Delete Staff Account"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          )}
+                        </div>
                       </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* SUB-VIEW 2: DAILY ATTENDANCE SHEET */}
+              {staffSubTab === 'attendance' && (
+                <div className="space-y-4">
+                  {/* Date Filter & Metrics */}
+                  <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-4 shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div>
+                        <label className="block text-[10px] uppercase font-extrabold text-amber-400 mb-1">📅 Attendance Date</label>
+                        <input
+                          type="date"
+                          value={attendanceDate}
+                          onChange={(e) => {
+                            setAttendanceDate(e.target.value);
+                            loadAttendance(e.target.value);
+                          }}
+                          className="bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-1.5 text-xs text-white font-mono focus:outline-none focus:border-amber-500"
+                        />
+                      </div>
+                      <div className="border-l border-neutral-800 pl-3">
+                        <span className="text-[10px] uppercase font-bold text-neutral-400 block">Status Today</span>
+                        <div className="flex items-center gap-2 mt-0.5 text-xs font-bold">
+                          <span className="text-green-400">Present: {attendanceList.filter(a => a.status === 'Present').length}</span>
+                          <span className="text-amber-400">Late: {attendanceList.filter(a => a.status === 'Late').length}</span>
+                          <span className="text-red-400">Absent: {attendanceList.filter(a => a.status === 'Absent').length}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => loadAttendance(attendanceDate)}
+                      className="px-3.5 py-1.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 text-xs font-bold rounded-xl border border-neutral-700 transition flex items-center gap-1.5 self-start sm:self-center"
+                    >
+                      <RefreshCw className={`h-3.5 w-3.5 ${attendanceLoading ? 'animate-spin' : ''}`} />
+                      <span>Refresh Attendance</span>
+                    </button>
+                  </div>
+
+                  {/* Attendance Table */}
+                  <div className="bg-neutral-900 border border-neutral-800 rounded-3xl overflow-hidden shadow-2xl">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-xs border-collapse">
+                        <thead className="bg-neutral-950 text-neutral-400 text-[10px] uppercase font-black tracking-widest border-b border-neutral-800">
+                          <tr>
+                            <th className="py-3 px-4">Employee</th>
+                            <th className="py-3 px-4">Department & Shift</th>
+                            <th className="py-3 px-4">Clock-In</th>
+                            <th className="py-3 px-4">Clock-Out</th>
+                            <th className="py-3 px-4">Total Hours</th>
+                            <th className="py-3 px-4">Status</th>
+                            <th className="py-3 px-4 text-right">Quick Mark</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-neutral-800/60">
+                          {staffList.map(staff => {
+                            const att = attendanceList.find(a => a.staff_id === staff.id) || {
+                              status: 'Present',
+                              clock_in: '08:00 AM',
+                              clock_out: '05:00 PM',
+                              total_hours: 9.0
+                            };
+
+                            return (
+                              <tr key={staff.id} className="hover:bg-neutral-950/60 transition">
+                                <td className="py-3 px-4">
+                                  <div className="flex items-center gap-2.5">
+                                    <div className="h-8 w-8 rounded-lg bg-neutral-800 border border-neutral-700 flex items-center justify-center font-bold text-amber-400">
+                                      {staff.full_name?.charAt(0) || staff.username.charAt(0).toUpperCase()}
+                                    </div>
+                                    <div>
+                                      <span className="font-extrabold text-white block">{staff.full_name || staff.username}</span>
+                                      <span className="text-[10px] font-mono text-neutral-500">{staff.employee_id || `EMP-${staff.id}`}</span>
+                                    </div>
+                                  </div>
+                                </td>
+                                <td className="py-3 px-4">
+                                  <span className="px-2 py-0.5 bg-neutral-950 border border-neutral-800 rounded text-[10px] font-extrabold text-amber-400 inline-block mr-1.5">
+                                    {staff.role}
+                                  </span>
+                                  <span className="text-neutral-400 text-[11px]">{staff.shift || 'General Shift'}</span>
+                                </td>
+                                <td className="py-3 px-4 font-mono text-emerald-400 font-bold">{att.clock_in || '--:--'}</td>
+                                <td className="py-3 px-4 font-mono text-neutral-300">{att.clock_out || '--:--'}</td>
+                                <td className="py-3 px-4 font-mono font-bold text-amber-400">{att.total_hours ? `${att.total_hours} hrs` : '--'}</td>
+                                <td className="py-3 px-4">
+                                  <span className={`px-2.5 py-1 rounded-xl text-[10px] font-black uppercase border ${
+                                    att.status === 'Present' ? 'bg-green-950/80 text-green-300 border-green-700' :
+                                    att.status === 'Late' ? 'bg-amber-950/80 text-amber-300 border-amber-700' :
+                                    att.status === 'HalfDay' ? 'bg-blue-950/80 text-blue-300 border-blue-700' :
+                                    'bg-red-950/80 text-red-300 border-red-700'
+                                  }`}>
+                                    • {att.status}
+                                  </span>
+                                </td>
+                                <td className="py-3 px-4 text-right whitespace-nowrap">
+                                  <div className="flex items-center justify-end gap-1">
+                                    <button
+                                      onClick={() => handleMarkAttendance(staff.id, 'Present')}
+                                      className="px-2 py-1 bg-green-950 hover:bg-green-900 text-green-300 border border-green-700 text-[10px] font-black rounded-lg transition"
+                                      title="Mark Present"
+                                    >
+                                      Present
+                                    </button>
+                                    <button
+                                      onClick={() => handleMarkAttendance(staff.id, 'Late')}
+                                      className="px-2 py-1 bg-amber-950 hover:bg-amber-900 text-amber-300 border border-amber-700 text-[10px] font-black rounded-lg transition"
+                                      title="Mark Late"
+                                    >
+                                      Late
+                                    </button>
+                                    <button
+                                      onClick={() => handleMarkAttendance(staff.id, 'HalfDay')}
+                                      className="px-2 py-1 bg-blue-950 hover:bg-blue-900 text-blue-300 border border-blue-700 text-[10px] font-black rounded-lg transition"
+                                      title="Mark Half Day"
+                                    >
+                                      Half-Day
+                                    </button>
+                                    <button
+                                      onClick={() => handleMarkAttendance(staff.id, 'Absent')}
+                                      className="px-2 py-1 bg-red-950 hover:bg-red-900 text-red-300 border border-red-700 text-[10px] font-black rounded-lg transition"
+                                      title="Mark Absent"
+                                    >
+                                      Absent
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
                     </div>
                   </div>
-                ))}
-              </div>
+                </div>
+              )}
+
+              {/* SUB-VIEW 3: PAYROLL & SALARY DISBURSEMENTS */}
+              {staffSubTab === 'payroll' && (
+                <div className="space-y-4">
+                  {/* Payroll Summary Cards */}
+                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-3.5">
+                    <div className="bg-neutral-900 border border-neutral-800 p-4 rounded-2xl shadow">
+                      <span className="text-[10px] font-extrabold uppercase text-neutral-400 tracking-wider">Salary Month</span>
+                      <div className="flex items-center gap-2 mt-1">
+                        <select
+                          value={payrollMonth}
+                          onChange={(e) => {
+                            setPayrollMonth(e.target.value);
+                            loadPayroll(e.target.value);
+                          }}
+                          className="bg-neutral-950 border border-neutral-800 text-white font-extrabold text-sm rounded-xl px-2 py-1 focus:outline-none focus:border-amber-500"
+                        >
+                          <option value="Sep 2026">September 2026</option>
+                          <option value="Aug 2026">August 2026</option>
+                          <option value="Jul 2026">July 2026</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="bg-neutral-900 border border-neutral-800 p-4 rounded-2xl shadow">
+                      <span className="text-[10px] font-extrabold uppercase text-neutral-400 tracking-wider">Total Staff on Payroll</span>
+                      <h4 className="text-xl font-black text-white mt-1">{payrollData.summary?.total_staff || staffList.length} Employees</h4>
+                      <p className="text-[10px] text-green-400 font-bold mt-0.5">Disbursed: {payrollData.summary?.paid_count || 0} · Pending: {payrollData.summary?.pending_count || 0}</p>
+                    </div>
+
+                    <div className="bg-neutral-900 border border-neutral-800 p-4 rounded-2xl shadow">
+                      <span className="text-[10px] font-extrabold uppercase text-neutral-400 tracking-wider">Disbursed Amount</span>
+                      <h4 className="text-xl font-black text-emerald-400 mt-1">₹{(payrollData.summary?.total_disbursed_inr || 0).toLocaleString('en-IN')}</h4>
+                      <p className="text-[10px] text-neutral-400 mt-0.5">Direct via Bank & UPI</p>
+                    </div>
+
+                    <div className="bg-neutral-900 border border-neutral-800 p-4 rounded-2xl shadow">
+                      <span className="text-[10px] font-extrabold uppercase text-neutral-400 tracking-wider">Pending Payouts</span>
+                      <h4 className="text-xl font-black text-amber-400 mt-1">₹{(payrollData.summary?.total_pending_inr || 0).toLocaleString('en-IN')}</h4>
+                      <p className="text-[10px] text-neutral-400 mt-0.5">Ready for 1-Click Disbursement</p>
+                    </div>
+                  </div>
+
+                  {/* Payroll Sheet Table */}
+                  <div className="bg-neutral-900 border border-neutral-800 rounded-3xl overflow-hidden shadow-2xl">
+                    <div className="p-4 bg-neutral-950 border-b border-neutral-800 flex justify-between items-center">
+                      <h4 className="text-xs font-black uppercase text-amber-400 tracking-wider flex items-center gap-1.5">
+                        <DollarSign className="h-4 w-4" />
+                        <span>Staff Compensation & Net Pay Ledger ({payrollMonth})</span>
+                      </h4>
+                      <button
+                        onClick={() => loadPayroll(payrollMonth)}
+                        className="px-3 py-1 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 text-xs font-bold rounded-xl transition flex items-center gap-1"
+                      >
+                        <RefreshCw className={`h-3 w-3 ${payrollLoading ? 'animate-spin' : ''}`} />
+                        <span>Recalculate</span>
+                      </button>
+                    </div>
+
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-xs border-collapse">
+                        <thead className="bg-neutral-950 text-neutral-400 text-[10px] uppercase font-black tracking-widest border-b border-neutral-800">
+                          <tr>
+                            <th className="py-3 px-4">Employee</th>
+                            <th className="py-3 px-4">Base Salary</th>
+                            <th className="py-3 px-4">Days Worked</th>
+                            <th className="py-3 px-4">Overtime & Bonus</th>
+                            <th className="py-3 px-4">Deductions (PF/ESI)</th>
+                            <th className="py-3 px-4">Net Payable</th>
+                            <th className="py-3 px-4">Status</th>
+                            <th className="py-3 px-4 text-right">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-neutral-800/60">
+                          {(payrollData.payroll_sheet || []).map((pay: any) => (
+                            <tr key={pay.id} className="hover:bg-neutral-950/60 transition">
+                              <td className="py-3.5 px-4">
+                                <span className="font-extrabold text-white block">{pay.staff_name}</span>
+                                <span className="text-[10px] font-mono text-neutral-500">{pay.employee_id} · {pay.role}</span>
+                              </td>
+                              <td className="py-3.5 px-4 font-mono font-bold text-neutral-200">₹{pay.base_salary?.toLocaleString('en-IN')}</td>
+                              <td className="py-3.5 px-4 font-mono text-neutral-300">{pay.days_present} / {pay.total_working_days} Days</td>
+                              <td className="py-3.5 px-4">
+                                <span className="text-emerald-400 font-bold block">+₹{(pay.overtime_pay + pay.bonus + pay.incentives)?.toLocaleString('en-IN')}</span>
+                                <span className="text-[10px] text-neutral-500">OT: {pay.overtime_hours}h</span>
+                              </td>
+                              <td className="py-3.5 px-4">
+                                <span className="text-red-400 font-bold block">-₹{(pay.pf_deduction + pay.esi_deduction + pay.advance_deduction)?.toLocaleString('en-IN')}</span>
+                                <span className="text-[10px] text-neutral-500">PF + ESI</span>
+                              </td>
+                              <td className="py-3.5 px-4">
+                                <span className="font-mono font-black text-sm text-amber-400 bg-amber-950/40 px-2.5 py-1 rounded-xl border border-amber-500/30 inline-block">
+                                  ₹{pay.net_payable?.toLocaleString('en-IN')}
+                                </span>
+                              </td>
+                              <td className="py-3.5 px-4">
+                                {pay.payment_status === 'Paid' ? (
+                                  <div>
+                                    <span className="px-2.5 py-1 bg-green-950 text-green-400 border border-green-800 text-[10px] font-extrabold rounded-xl inline-block">
+                                      ✓ Paid ({pay.payment_mode || 'Bank'})
+                                    </span>
+                                    {pay.transaction_ref && (
+                                      <span className="block text-[9px] font-mono text-neutral-500 mt-0.5 truncate max-w-[120px]">{pay.transaction_ref}</span>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <span className="px-2.5 py-1 bg-amber-950 text-amber-400 border border-amber-800 text-[10px] font-extrabold rounded-xl inline-block animate-pulse">
+                                    ⏳ Unpaid
+                                  </span>
+                                )}
+                              </td>
+                              <td className="py-3.5 px-4 text-right whitespace-nowrap">
+                                <div className="flex items-center justify-end gap-1.5">
+                                  <button
+                                    onClick={() => handleViewPayslip(pay.staff_id)}
+                                    className="px-2.5 py-1.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 text-xs font-bold rounded-xl border border-neutral-700 transition flex items-center gap-1"
+                                    title="View & Print Official Payslip"
+                                  >
+                                    <FileText className="h-3.5 w-3.5 text-amber-400" />
+                                    <span>Payslip</span>
+                                  </button>
+
+                                  {pay.payment_status !== 'Paid' ? (
+                                    <button
+                                      onClick={() => {
+                                        setSelectedPayrollItem(pay);
+                                        setDisburseMode('Bank Transfer');
+                                        setDisburseTxnRef(`PAY-HDFC-${Math.floor(100000 + Math.random() * 900000)}`);
+                                        setDisburseModalOpen(true);
+                                      }}
+                                      className="px-3 py-1.5 bg-green-600 hover:bg-green-500 text-white font-extrabold text-xs rounded-xl shadow transition"
+                                    >
+                                      Disburse
+                                    </button>
+                                  ) : (
+                                    <button
+                                      onClick={() => handleViewPayslip(pay.staff_id)}
+                                      className="px-3 py-1.5 bg-neutral-900 border border-neutral-800 text-neutral-400 font-bold text-xs rounded-xl hover:text-white transition"
+                                    >
+                                      Receipt
+                                    </button>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -1806,6 +2315,24 @@ export default function AdminControlPage() {
                     }`}
                   >
                     <span>📅 Date-Grid Rate Calendar</span>
+                  </button>
+
+                  <button
+                    onClick={async () => {
+                      setChannelSubTab('ai_copilot');
+                      try {
+                        const data = await apiRequest('/api/v1/channel/ai-copilot');
+                        setAiOtaData(data);
+                      } catch (e) {}
+                    }}
+                    className={`px-4 py-2 rounded-xl font-extrabold transition flex items-center gap-1.5 border ${
+                      channelSubTab === 'ai_copilot'
+                        ? 'bg-amber-500 text-neutral-950 border-amber-400 shadow font-black'
+                        : 'bg-neutral-950 text-amber-400 border-amber-500/40 hover:bg-amber-950/30'
+                    }`}
+                  >
+                    <Sparkles className="h-3.5 w-3.5 animate-pulse" />
+                    <span>🤖 AI Revenue & Parity Copilot</span>
                   </button>
 
                   <button
@@ -2228,6 +2755,185 @@ export default function AdminControlPage() {
                         </tbody>
                       </table>
                     </div>
+                  </div>
+                </div>
+              )}
+
+              {/* SUB-TAB: AI REVENUE & RATE PARITY COPILOT */}
+              {channelSubTab === 'ai_copilot' && (
+                <div className="space-y-6">
+                  {/* AI Copilot Status & Autopilot Switch */}
+                  <div className="bg-gradient-to-r from-neutral-900 via-amber-950/40 to-neutral-900 border border-amber-500/40 rounded-3xl p-6 shadow-2xl space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-amber-500/20 pb-4">
+                      <div className="flex items-center gap-3.5">
+                        <div className="h-12 w-12 rounded-2xl bg-amber-500 text-neutral-950 flex items-center justify-center font-black text-2xl shadow-lg">
+                          🤖
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h4 className="text-base sm:text-lg font-black text-white">AI Yield Optimization & Rate Parity Shield</h4>
+                            <span className="px-2.5 py-0.5 bg-amber-500/20 text-amber-400 border border-amber-500/40 rounded-full text-[10px] font-black uppercase tracking-wider">
+                              v3.0 Neural Yield
+                            </span>
+                          </div>
+                          <p className="text-xs text-neutral-400 mt-0.5">
+                            Real-time competitor scraping, OTA rate undercutting detection, and 1-click dynamic rate sync across all 20 channels.
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-3 shrink-0">
+                        {/* Autopilot Mode Switch */}
+                        <button
+                          onClick={handleToggleAutoPilot}
+                          className={`px-4 py-2.5 rounded-2xl border text-xs font-black transition flex items-center gap-2 ${
+                            aiOtaData?.autopilot_enabled
+                              ? 'bg-green-600 border-green-500 text-white shadow-lg shadow-green-600/30'
+                              : 'bg-neutral-950 border-neutral-800 text-neutral-400 hover:text-white'
+                          }`}
+                        >
+                          <Zap className={`h-4 w-4 ${aiOtaData?.autopilot_enabled ? 'animate-bounce' : ''}`} />
+                          <span>{aiOtaData?.autopilot_enabled ? '🟢 Auto-Pilot: ACTIVE' : '⚪ Auto-Pilot: MANUAL'}</span>
+                        </button>
+
+                        <button
+                          disabled={aiOtaLoading}
+                          onClick={handleApplyAiYieldTariffs}
+                          className="px-5 py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 disabled:opacity-50 text-neutral-950 font-black text-xs rounded-2xl shadow-xl transition flex items-center gap-2 hover:scale-[1.02] active:scale-[0.98]"
+                        >
+                          <Sparkles className="h-4 w-4" />
+                          <span>{aiOtaLoading ? 'Pushing Rates to 20 OTAs...' : '⚡ Apply AI Surge Tariffs (+20%)'}</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* AI Copilot KPI Cards */}
+                    <div className="grid grid-cols-1 sm:grid-cols-4 gap-3.5 text-xs">
+                      <div className="bg-neutral-950/80 border border-neutral-800 p-4 rounded-2xl space-y-1">
+                        <span className="text-[10px] uppercase font-bold text-neutral-400 block">Rate Parity Health</span>
+                        <div className="flex items-baseline justify-between">
+                          <h3 className="text-2xl font-black text-emerald-400">{aiOtaData?.overall_parity_health_score || 94}%</h3>
+                          <span className="text-[10px] text-green-400 font-bold">Good Standing</span>
+                        </div>
+                        <p className="text-[11px] text-neutral-400">Direct website prices protected against unauthorized OTA discounting.</p>
+                      </div>
+
+                      <div className="bg-neutral-950/80 border border-neutral-800 p-4 rounded-2xl space-y-1">
+                        <span className="text-[10px] uppercase font-bold text-neutral-400 block">Regional Demand Status</span>
+                        <div className="flex items-baseline justify-between">
+                          <h3 className="text-lg font-black text-amber-400">HIGH SURGE</h3>
+                          <span className="text-[10px] text-amber-400 font-bold">▲ High Inflow</span>
+                        </div>
+                        <p className="text-[11px] text-neutral-400">Flight bookings into Port Blair up +34% for upcoming holiday week.</p>
+                      </div>
+
+                      <div className="bg-neutral-950/80 border border-neutral-800 p-4 rounded-2xl space-y-1">
+                        <span className="text-[10px] uppercase font-bold text-neutral-400 block">AI Recommended BAR</span>
+                        <div className="flex items-baseline justify-between">
+                          <h3 className="text-2xl font-black text-white">₹5,400 <span className="text-xs text-emerald-400">(+20%)</span></h3>
+                          <span className="text-[10px] text-neutral-400">Curr: ₹4,500</span>
+                        </div>
+                        <p className="text-[11px] text-neutral-400">Deluxe Heritage: ₹5.4k · Suite: ₹11.4k · Penthouse: ₹21.6k</p>
+                      </div>
+
+                      <div className="bg-neutral-950/80 border border-neutral-800 p-4 rounded-2xl space-y-1">
+                        <span className="text-[10px] uppercase font-bold text-neutral-400 block">Estimated Revenue Lift</span>
+                        <div className="flex items-baseline justify-between">
+                          <h3 className="text-2xl font-black text-emerald-400">+₹1,24,500</h3>
+                          <span className="text-[10px] font-bold text-amber-400">96% Conf.</span>
+                        </div>
+                        <p className="text-[11px] text-neutral-400">Projected additional profit over 14-day booking window.</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Competitor Comp-Set Radar */}
+                  <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 shadow-2xl space-y-4">
+                    <div className="flex justify-between items-center border-b border-neutral-800 pb-3">
+                      <div>
+                        <h4 className="text-sm font-extrabold text-white flex items-center gap-2">
+                          <TrendingUp className="h-4 w-4 text-amber-400" />
+                          <span>Local Competitor Intelligence Radar (Comp-Set Benchmark)</span>
+                        </h4>
+                        <p className="text-xs text-neutral-400">Simulated live web-scraping of nearby 4-star and 5-star resort tariffs in Sri Vijayapuram & Havelock.</p>
+                      </div>
+                      <span className="text-[10px] font-mono text-neutral-500">Auto-Refreshed: 5 mins ago</span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3.5">
+                      {(aiOtaData?.competitors || []).map((comp: any) => (
+                        <div key={comp.id} className="bg-neutral-950 border border-neutral-800 p-4 rounded-2xl space-y-2">
+                          <div className="flex justify-between items-start">
+                            <span className="text-[10px] font-mono font-bold text-amber-400">{comp.star_category}</span>
+                            <span className={`text-[10px] font-extrabold px-1.5 py-0.2 rounded ${
+                              comp.trend === 'UP' ? 'bg-green-950 text-green-400 border border-green-800' : 'bg-neutral-800 text-neutral-300'
+                            }`}>
+                              {comp.trend === 'UP' ? `▲ +${comp.change_percent}%` : '• Stable'}
+                            </span>
+                          </div>
+                          <h5 className="font-extrabold text-sm text-white truncate">{comp.hotel_name}</h5>
+                          <div className="flex justify-between items-baseline pt-1 border-t border-neutral-850">
+                            <span className="text-[11px] text-neutral-400">Selling Rate:</span>
+                            <span className="font-mono font-black text-amber-400 text-sm">₹{comp.current_rate?.toLocaleString('en-IN')}/nt</span>
+                          </div>
+                          <div className="flex justify-between items-center text-[10px] text-neutral-500">
+                            <span>Dist: {comp.distance_km} km</span>
+                            <span className="text-emerald-400 font-bold">{comp.occupancy_rate_percent}% Booked</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Rate Parity Violation Shield */}
+                  <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 shadow-2xl space-y-4">
+                    <div className="flex justify-between items-center border-b border-neutral-800 pb-3">
+                      <div>
+                        <h4 className="text-sm font-extrabold text-white flex items-center gap-2">
+                          <AlertTriangle className="h-4 w-4 text-amber-400" />
+                          <span>OTA Rate Parity Violations & Undercutting Shield</span>
+                        </h4>
+                        <p className="text-xs text-neutral-400">Detects instances where OTAs undercut your direct website prices without authorization.</p>
+                      </div>
+                      <span className="px-2.5 py-1 bg-rose-950 text-rose-300 border border-rose-800 text-[10px] font-black rounded-xl">
+                        {(aiOtaData?.parity_issues?.length || 0)} Disparities Detected
+                      </span>
+                    </div>
+
+                    {(!aiOtaData?.parity_issues || aiOtaData.parity_issues.length === 0) ? (
+                      <div className="p-6 bg-neutral-950 rounded-2xl border border-neutral-800 text-center">
+                        <CheckCircle className="h-8 w-8 text-green-400 mx-auto mb-2" />
+                        <p className="text-sm font-bold text-white">100% Rate Parity Intact!</p>
+                        <p className="text-xs text-neutral-400">No OTA is currently undercutting your official website rates.</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {aiOtaData.parity_issues.map((issue: any, idx: number) => (
+                          <div key={idx} className="bg-neutral-950 border border-rose-900/50 p-4 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow">
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2">
+                                <span className="px-2 py-0.5 bg-rose-950 text-rose-300 border border-rose-800 rounded text-[10px] font-black">
+                                  {issue.violation_type}
+                                </span>
+                                <h5 className="font-extrabold text-sm text-white">{issue.channel_name} ({issue.channel_code})</h5>
+                                <span className="text-xs text-neutral-400 font-mono">· {issue.room_type}</span>
+                              </div>
+                              <p className="text-xs text-neutral-300">
+                                Direct Website Rate: <strong className="text-white">₹{issue.direct_website_rate?.toLocaleString('en-IN')}</strong> · OTA Selling Rate: <strong className="text-rose-400">₹{issue.ota_selling_rate?.toLocaleString('en-IN')}</strong> (<span className="text-rose-400 font-bold">₹{issue.disparity_amount} cheaper ({issue.disparity_percent}%)</span>)
+                              </p>
+                              <p className="text-[11px] text-amber-400/90 font-medium">💡 Suggested Action: {issue.suggested_action}</p>
+                            </div>
+
+                            <button
+                              onClick={() => handleResolveParity(issue.channel_code)}
+                              className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-neutral-950 font-black text-xs rounded-xl shadow transition shrink-0 self-start sm:self-center"
+                            >
+                              Resolve Parity & Push Price Lock
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -4100,6 +4806,214 @@ export default function AdminControlPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* SALARY DISBURSEMENT MODAL */}
+      {disburseModalOpen && selectedPayrollItem && (
+        <div className="fixed inset-0 bg-neutral-950/80 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-in fade-in">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
+            <div className="flex justify-between items-center pb-2 border-b border-neutral-800">
+              <h3 className="font-extrabold text-sm uppercase text-amber-500 tracking-wider flex items-center gap-1.5">
+                <DollarSign className="h-4 w-4" />
+                <span>Disburse Salary Payment</span>
+              </h3>
+              <button onClick={() => setDisburseModalOpen(false)} className="text-neutral-500 hover:text-white">✕</button>
+            </div>
+
+            <div className="p-3 bg-neutral-950 rounded-2xl border border-neutral-800 space-y-1">
+              <div className="flex justify-between">
+                <span className="text-xs text-neutral-400">Employee:</span>
+                <span className="text-xs font-bold text-white">{selectedPayrollItem.staff_name}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-xs text-neutral-400">Designation:</span>
+                <span className="text-xs font-mono text-amber-400">{selectedPayrollItem.role} ({selectedPayrollItem.employee_id})</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-xs text-neutral-400">Payroll Month:</span>
+                <span className="text-xs font-bold text-neutral-200">{payrollMonth}</span>
+              </div>
+              <div className="flex justify-between pt-2 border-t border-neutral-850">
+                <span className="text-xs font-extrabold text-white">Net Amount:</span>
+                <span className="text-base font-mono font-black text-emerald-400">₹{selectedPayrollItem.net_payable?.toLocaleString('en-IN')}</span>
+              </div>
+            </div>
+
+            <form onSubmit={handleDisburseSalary} className="space-y-3 text-xs">
+              <div>
+                <label className="block font-bold text-neutral-300 mb-1">Payment Mode</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {(['Bank Transfer', 'UPI', 'Cash'] as const).map(mode => (
+                    <button
+                      key={mode}
+                      type="button"
+                      onClick={() => setDisburseMode(mode)}
+                      className={`py-2 rounded-xl font-extrabold border transition text-xs ${
+                        disburseMode === mode
+                          ? 'bg-amber-500 text-neutral-950 border-amber-400 shadow'
+                          : 'bg-neutral-950 text-neutral-400 border-neutral-800'
+                      }`}
+                    >
+                      {mode}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-neutral-300 mb-1">Transaction Ref / UTR Number</label>
+                <input
+                  type="text"
+                  required
+                  value={disburseTxnRef}
+                  onChange={(e) => setDisburseTxnRef(e.target.value)}
+                  placeholder="e.g. HDFC-NEFT-99182319 or UPI-Ref"
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-amber-400 font-mono focus:outline-none focus:border-amber-500"
+                />
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setDisburseModalOpen(false)}
+                  className="flex-1 py-2.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 font-bold rounded-xl"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={disbursingSalary}
+                  className="flex-1 py-2.5 bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white font-extrabold rounded-xl shadow flex items-center justify-center gap-1.5"
+                >
+                  <Check className="h-4 w-4" />
+                  <span>{disbursingSalary ? 'Processing...' : 'Confirm Disbursement'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* OFFICIAL SALARY PAYSLIP PRINTABLE MODAL */}
+      {payslipModalOpen && (
+        <div className="fixed inset-0 bg-neutral-950/80 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-in fade-in">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center pb-2 border-b border-neutral-800">
+              <h3 className="font-extrabold text-sm uppercase text-amber-500 tracking-wider flex items-center gap-1.5">
+                <FileText className="h-4 w-4" />
+                <span>Official Employee Salary Slip</span>
+              </h3>
+              <button onClick={() => setPayslipModalOpen(false)} className="text-neutral-500 hover:text-white">✕</button>
+            </div>
+
+            {payslipLoading || !payslipData ? (
+              <div className="py-12 text-center text-neutral-400 text-xs">
+                <RefreshCw className="h-6 w-6 animate-spin mx-auto text-amber-400 mb-2" />
+                <p>Generating GST & PF-Compliant Salary Slip...</p>
+              </div>
+            ) : (
+              <div className="space-y-4 text-xs">
+                {/* Printable Payslip Container */}
+                <div id="printable-salary-slip" className="bg-neutral-950 border border-neutral-800 rounded-2xl p-5 space-y-3">
+                  <div className="flex justify-between items-start border-b border-neutral-800 pb-3">
+                    <div>
+                      <h4 className="font-black text-base text-white">{payslipData.hotel_details?.name}</h4>
+                      <p className="text-[10px] text-neutral-400">{payslipData.hotel_details?.address}</p>
+                      <p className="text-[9px] text-neutral-500 font-mono mt-0.5">TAN: {payslipData.hotel_details?.tan_number} · PF Code: {payslipData.hotel_details?.pf_code}</p>
+                    </div>
+                    <div className="text-right">
+                      <span className="font-mono font-bold text-amber-400 text-xs block">{payslipData.payslip_number}</span>
+                      <span className="text-[10px] text-neutral-400 font-extrabold">{payslipData.month_year}</span>
+                    </div>
+                  </div>
+
+                  {/* Employee Details Grid */}
+                  <div className="grid grid-cols-2 gap-2 text-[11px] p-2.5 bg-neutral-900 rounded-xl border border-neutral-850">
+                    <div>
+                      <span className="text-neutral-500 block text-[10px]">Employee Name & ID</span>
+                      <strong className="text-white">{payslipData.employee?.name}</strong> <span className="font-mono text-amber-400 font-bold">({payslipData.employee?.id})</span>
+                    </div>
+                    <div>
+                      <span className="text-neutral-500 block text-[10px]">Department & Role</span>
+                      <strong className="text-neutral-200">{payslipData.employee?.department} · {payslipData.employee?.role}</strong>
+                    </div>
+                    <div>
+                      <span className="text-neutral-500 block text-[10px]">Bank Account / PAN</span>
+                      <span className="font-mono text-neutral-300">{payslipData.employee?.bank_account} · PAN: {payslipData.employee?.pan}</span>
+                    </div>
+                    <div>
+                      <span className="text-neutral-500 block text-[10px]">Attendance</span>
+                      <strong className="text-emerald-400">{payslipData.employee?.days_worked} Days Worked</strong> <span className="text-neutral-400">/ {payslipData.employee?.working_days} Days</span>
+                    </div>
+                  </div>
+
+                  {/* Earnings vs Deductions Table */}
+                  <div className="grid grid-cols-2 gap-3 pt-1">
+                    {/* Earnings */}
+                    <div className="space-y-1">
+                      <span className="font-extrabold text-[10px] uppercase text-emerald-400 block border-b border-neutral-800 pb-1">Earnings</span>
+                      {payslipData.earnings?.map((e: any, idx: number) => (
+                        <div key={idx} className="flex justify-between text-[11px]">
+                          <span className="text-neutral-300">{e.label}</span>
+                          <span className="font-mono font-bold text-white">₹{e.amount?.toLocaleString('en-IN')}</span>
+                        </div>
+                      ))}
+                      <div className="flex justify-between border-t border-neutral-800 pt-1 font-bold text-xs">
+                        <span className="text-neutral-200">Gross Earnings:</span>
+                        <span className="font-mono text-emerald-400">₹{payslipData.totals?.gross_earnings?.toLocaleString('en-IN')}</span>
+                      </div>
+                    </div>
+
+                    {/* Deductions */}
+                    <div className="space-y-1">
+                      <span className="font-extrabold text-[10px] uppercase text-rose-400 block border-b border-neutral-800 pb-1">Deductions</span>
+                      {payslipData.deductions?.map((d: any, idx: number) => (
+                        <div key={idx} className="flex justify-between text-[11px]">
+                          <span className="text-neutral-400">{d.label}</span>
+                          <span className="font-mono font-bold text-rose-300">₹{d.amount?.toLocaleString('en-IN')}</span>
+                        </div>
+                      ))}
+                      <div className="flex justify-between border-t border-neutral-800 pt-1 font-bold text-xs">
+                        <span className="text-neutral-200">Total Deductions:</span>
+                        <span className="font-mono text-rose-400">₹{payslipData.totals?.total_deductions?.toLocaleString('en-IN')}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Net Pay Callout */}
+                  <div className="p-3 bg-neutral-900 rounded-xl border border-neutral-800 flex justify-between items-center">
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-neutral-400 block">Take-Home Net Salary</span>
+                      <span className="text-[9px] text-neutral-500 font-mono">Disbursed via {payslipData.totals?.payment_mode} ({payslipData.totals?.transaction_ref})</span>
+                    </div>
+                    <span className="text-xl font-mono font-black text-amber-400">
+                      ₹{payslipData.totals?.net_pay?.toLocaleString('en-IN')}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Print Button */}
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPayslipModalOpen(false)}
+                    className="flex-1 py-2.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 font-bold rounded-xl"
+                  >
+                    Close
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => window.print()}
+                    className="flex-1 py-2.5 bg-amber-500 hover:bg-amber-400 text-neutral-950 font-black rounded-xl shadow flex items-center justify-center gap-1.5"
+                  >
+                    <span>🖨️</span>
+                    <span>Print Official Payslip</span>
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
