@@ -294,6 +294,9 @@ class OrderResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     delivered_at: Optional[datetime] = None
+    # Surface room & guest data so KDS doesn't need a second lookup
+    room_number: Optional[str] = None
+    guest_name: Optional[str] = None
 
     class Config:
         from_attributes = True

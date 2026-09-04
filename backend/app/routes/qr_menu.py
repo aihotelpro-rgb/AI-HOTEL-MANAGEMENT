@@ -208,7 +208,7 @@ async def get_orders(
     status_filter: Optional[str] = None,
     db: AsyncSession = Depends(get_db)
 ):
-    query = select(Order)
+    query = select(Order).options(joinedload(Order.booking).joinedload(Booking.guest))
     if booking_id:
         query = query.where(Order.booking_id == booking_id)
     if status_filter:
@@ -216,15 +216,52 @@ async def get_orders(
     
     query = query.order_by(Order.created_at.desc())
     result = await db.execute(query)
-    return result.scalars().all()
+    orders = result.scalars().all()
+
+    # Enrich with room_number and guest_name from the booking join
+    enriched = []
+    for o in orders:
+        d = {
+            "id": o.id,
+            "booking_id": o.booking_id,
+            "items": o.items,
+            "total_price": o.total_price,
+            "status": o.status,
+            "runner_name": o.runner_name,
+            "estimated_minutes": o.estimated_minutes,
+            "special_instructions": o.special_instructions,
+            "created_at": o.created_at,
+            "updated_at": o.updated_at,
+            "delivered_at": o.delivered_at,
+            "room_number": o.booking.room_number if o.booking else None,
+            "guest_name": o.booking.guest.name if (o.booking and o.booking.guest) else None,
+        }
+        enriched.append(d)
+    return enriched
 
 @router.get("/orders/{order_id}", response_model=OrderResponse)
 async def get_order_by_id(order_id: int, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Order).where(Order.id == order_id))
-    order = result.scalars().first()
-    if not order:
+    result = await db.execute(
+        select(Order).options(joinedload(Order.booking).joinedload(Booking.guest)).where(Order.id == order_id)
+    )
+    o = result.scalars().first()
+    if not o:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found")
-    return order
+    return {
+        "id": o.id,
+        "booking_id": o.booking_id,
+        "items": o.items,
+        "total_price": o.total_price,
+        "status": o.status,
+        "runner_name": o.runner_name,
+        "estimated_minutes": o.estimated_minutes,
+        "special_instructions": o.special_instructions,
+        "created_at": o.created_at,
+        "updated_at": o.updated_at,
+        "delivered_at": o.delivered_at,
+        "room_number": o.booking.room_number if o.booking else None,
+        "guest_name": o.booking.guest.name if (o.booking and o.booking.guest) else None,
+    }
 
 @router.put("/orders/{order_id}/status", response_model=OrderResponse)
 async def update_order_status(
@@ -232,7 +269,9 @@ async def update_order_status(
     status_update: OrderStatusUpdate,
     db: AsyncSession = Depends(get_db)
 ):
-    result = await db.execute(select(Order).where(Order.id == order_id))
+    result = await db.execute(
+        select(Order).options(joinedload(Order.booking).joinedload(Booking.guest)).where(Order.id == order_id)
+    )
     order = result.scalars().first()
     if not order:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found")
@@ -248,7 +287,21 @@ async def update_order_status(
         order.estimated_minutes = 0
         
     await db.flush()
-    return order
+    return {
+        "id": order.id,
+        "booking_id": order.booking_id,
+        "items": order.items,
+        "total_price": order.total_price,
+        "status": order.status,
+        "runner_name": order.runner_name,
+        "estimated_minutes": order.estimated_minutes,
+        "special_instructions": order.special_instructions,
+        "created_at": order.created_at,
+        "updated_at": order.updated_at,
+        "delivered_at": order.delivered_at,
+        "room_number": order.booking.room_number if order.booking else None,
+        "guest_name": order.booking.guest.name if (order.booking and order.booking.guest) else None,
+    }
 
 @router.get("/sales-history")
 async def get_kitchen_sales_history(

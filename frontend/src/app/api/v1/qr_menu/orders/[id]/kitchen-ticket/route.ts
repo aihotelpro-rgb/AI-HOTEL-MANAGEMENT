@@ -1,27 +1,69 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { KITCHEN_ORDERS_DATA } from '@/lib/kitchenOrdersStore';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
-  const orderId = Number(params.id);
-  const order = KITCHEN_ORDERS_DATA.find(o => o.id === orderId) || {
-    id: orderId,
-    booking_id: 101,
-    items: [
-      { name: "Royal Butter Chicken (Murgh Makhani)", quantity: 2, price: 560.00 },
-      { name: "Tandoori Garlic & Butter Naan Basket", quantity: 3, price: 140.00 }
-    ],
-    total_price: 1540.00,
-    special_instructions: "No peanuts, mild spice level.",
-    created_at: new Date().toISOString()
-  };
+function getBackendUrl(): string {
+  return (
+    process.env.BACKEND_API_URL ||
+    process.env.NEXT_PUBLIC_API_URL ||
+    'http://localhost:8000'
+  );
+}
 
-  const timestampStr = new Date(order.created_at).toLocaleString();
-  // BUG 6 FIX: use room_number field, not booking_id which is NOT the room number
-  const roomNumber = (order as any).room_number || `${order.booking_id}` || '101';
+const CORS_HEADERS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+};
 
-  const itemsHtml = order.items.map((item: any) => `
+export async function OPTIONS() {
+  return new NextResponse(null, { status: 200, headers: CORS_HEADERS });
+}
+
+/**
+ * GET /api/v1/qr_menu/orders/[id]/kitchen-ticket
+ * Fetches the order from the Python backend and renders a print-ready KOT HTML ticket.
+ */
+export async function GET(
+  req: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  const orderId = params.id;
+  const backend = getBackendUrl();
+
+  let order: any;
+
+  try {
+    const res = await fetch(`${backend}/api/v1/qr_menu/orders/${orderId}`, {
+      cache: 'no-store',
+    });
+    if (res.ok) {
+      order = await res.json();
+    }
+  } catch {
+    // backend unavailable — use fallback
+  }
+
+  if (!order) {
+    order = {
+      id: orderId,
+      booking_id: 101,
+      room_number: '101',
+      items: [
+        { name: 'Royal Butter Chicken (Murgh Makhani)', quantity: 2, price: 560.00 },
+        { name: 'Tandoori Garlic & Butter Naan Basket', quantity: 3, price: 140.00 }
+      ],
+      total_price: 1540.00,
+      special_instructions: null,
+      created_at: new Date().toISOString()
+    };
+  }
+
+  const timestampStr = new Date(order.created_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
+  const roomNumber = order.room_number || `${order.booking_id}` || '101';
+  const guestName = order.guest?.name || order.guest_name || 'Resident Guest';
+
+  const itemsHtml = (order.items || []).map((item: any) => `
     <div style="display: flex; justify-content: space-between; font-size: 15px; font-weight: bold; margin-bottom: 6px;">
         <span>${item.quantity}x ${item.name}</span>
         <span>₹${((item.price || 0) * (item.quantity || 1)).toFixed(2)}</span>
@@ -54,12 +96,12 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
         <div class="kot-box">
             <div class="header">
                 <h2 style="margin: 0; font-size: 18px;">KITCHEN ORDER TICKET (KOT)</h2>
-                <p style="margin: 2px 0; font-size: 12px;">Blue Bird Nest Gourmet Kitchen</p>
+                <p style="margin: 2px 0; font-size: 12px;">Hotel Blue Bird Inn — Gourmet Kitchen</p>
                 <p style="margin: 2px 0; font-size: 11px;">Date: ${timestampStr}</p>
             </div>
 
             <div class="suite-title">SUITE ${roomNumber}</div>
-            <p style="margin: 2px 0; font-size: 12px; text-align: center;">KOT #${order.id}</p>
+            <p style="margin: 2px 0; font-size: 12px; text-align: center;">KOT #${order.id} | Guest: ${guestName}</p>
 
             <div class="divider"></div>
 
@@ -72,11 +114,11 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
             ${order.special_instructions ? `<div class="instructions">⚠️ CHEF NOTE: ${order.special_instructions}</div>` : ''}
 
             <div style="text-align: right; font-size: 16px; font-weight: 900; margin-top: 10px;">
-                TOTAL: ₹${order.total_price.toFixed(2)}
+                TOTAL: ₹${(order.total_price || 0).toFixed(2)}
             </div>
 
             <div style="text-align: center; font-size: 10px; margin-top: 15px; border-top: 1px solid #000; padding-top: 5px;">
-                STATION: MAIN HOT KITCHEN & TANDOOR<br>
+                STATION: MAIN HOT KITCHEN &amp; TANDOOR<br>
                 *** END OF KOT TICKET ***
             </div>
         </div>
@@ -85,9 +127,6 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   `;
 
   return new NextResponse(htmlContent, {
-    headers: {
-      'Content-Type': 'text/html; charset=utf-8',
-      'Access-Control-Allow-Origin': '*'
-    }
+    headers: { ...CORS_HEADERS, 'Content-Type': 'text/html; charset=utf-8' }
   });
 }
