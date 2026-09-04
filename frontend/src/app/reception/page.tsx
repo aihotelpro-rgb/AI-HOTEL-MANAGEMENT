@@ -1180,7 +1180,7 @@ export default function ReceptionPMSPage() {
                             <div className="flex items-center justify-end gap-2">
                               <button
                                 type="button"
-                                onClick={() => window.open(`${API_BASE}/api/v1/reception/bookings/${stay.booking_id}/invoice`, '_blank')}
+                                onClick={() => window.open(`/api/v1/reception/bookings/${stay.booking_id}/invoice`, '_blank')}
                                 className="px-3 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 rounded-xl text-xs font-bold transition-all shadow hover:scale-[1.02] active:scale-[0.98] flex items-center gap-1.5"
                                 title="Print Official GST Tax Invoice"
                               >
@@ -1881,7 +1881,7 @@ export default function ReceptionPMSPage() {
             <div className="flex gap-2 pt-2">
               <button
                 type="button"
-                onClick={() => window.open(`${API_BASE}/api/v1/reception/bookings/${selectedBookingId}/invoice`, '_blank')}
+                onClick={() => window.open(`/api/v1/reception/bookings/${selectedBookingId}/invoice`, '_blank')}
                 className="py-2.5 px-3 bg-neutral-800 hover:bg-neutral-750 text-amber-400 border border-neutral-700 font-bold text-xs rounded-xl transition flex items-center justify-center gap-1"
                 title="Print Official GST Tax Invoice"
               >

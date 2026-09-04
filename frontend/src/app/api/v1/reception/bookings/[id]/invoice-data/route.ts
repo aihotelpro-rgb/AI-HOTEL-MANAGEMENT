@@ -35,12 +35,14 @@ export async function GET(
     invoice_number: `INV-2026-${bookingId ? String(bookingId).padStart(5, '0') : '00101'}`,
     invoice_date: new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
     hotel_details: {
-      name: 'Hotel Blue Bird Inn',
+      name: 'Hotel Blue Bird Nest',
       gstin: '35AAAAB1234C1Z9',
+      fssai: '1002100000123',
       address: 'Garacharma Main Road, Sri Vijayapuram, Andaman & Nicobar Islands 744105',
-      phone: '+91 3192 259 222',
+      phone: '+91 3192 259 222 / +91 98222 33344',
       email: 'reservations@hotelbluebirdnest.com',
-      logo_url: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=200'
+      website: 'www.hotelbluebirdnest.com',
+      logo_url: 'https://www.hotelbluebirdnest.com/favicon.ico'
     },
     guest_details: {
       name: stay ? stay.guest_name : 'Pooja Sharma',
