@@ -14,18 +14,23 @@ export async function OPTIONS() {
 }
 
 export async function GET() {
-  const activeStays = getActiveStays().filter((s) => s.status === 'CheckedIn');
+  const allStays = getActiveStays();
+  const checkedInStays = allStays.filter((s) => s.status === 'CheckedIn');
   const stayMap = new Map<string, string>();
-  activeStays.forEach((s) => stayMap.set(s.room_number.trim(), s.guest_name));
+  checkedInStays.forEach((s) => stayMap.set(s.room_number.trim(), s.guest_name));
+
+  const checkedOutRooms = new Set<string>();
+  allStays.filter((s) => s.status === 'CheckedOut').forEach((s) => checkedOutRooms.add(s.room_number.trim()));
 
   const ROOMS_24 = Array.from({ length: 24 }, (_, i) => {
     const floor = Math.floor(i / 12) + 1;
     const roomIdx = (i % 12) + 1;
     const roomNum = `${floor}${roomIdx.toString().padStart(2, '0')}`;
     
-    // Check if guest is checked in from store, fallback to default for 101/204
-    const guestName = stayMap.get(roomNum) || (roomNum === '101' ? 'Pooja Sharma' : roomNum === '204' ? 'Maharaja Raghavendra Singh' : null);
+    // Check if guest is checked in from store
+    const guestName = stayMap.get(roomNum) || null;
     const isOccupied = Boolean(guestName);
+    const isDirty = !isOccupied && checkedOutRooms.has(roomNum);
 
     let rtype = 'Deluxe Island King';
     let price = 3500.0;
@@ -45,7 +50,7 @@ export async function GET() {
       room_number: roomNum,
       floor: floor,
       room_type: rtype,
-      status: isOccupied ? 'Occupied' : 'Clean',
+      status: isOccupied ? 'Occupied' : isDirty ? 'Dirty' : 'Clean',
       price_per_night: price,
       image_url: 'https://images.unsplash.com/photo-1590490360182-c33d57733427?w=600',
       is_occupied: isOccupied,

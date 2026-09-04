@@ -555,15 +555,17 @@ export default function ReceptionPMSPage() {
       let combinedStays: ActiveStay[] = Array.isArray(staysData) ? staysData : [];
       if (typeof window !== 'undefined') {
         try {
-          const cachedRaw = localStorage.getItem('pms_active_stays_v2');
-          if (cachedRaw) {
-            const cached: ActiveStay[] = JSON.parse(cachedRaw);
-            const map = new Map<number, ActiveStay>();
-            cached.forEach(s => { if (s.booking_id && s.status === 'CheckedIn') map.set(s.booking_id, s); });
-            combinedStays.forEach(s => { if (s.booking_id && s.status === 'CheckedIn') map.set(s.booking_id, s); });
-            combinedStays = Array.from(map.values());
+          // If server returned valid stays, sync localStorage with server truth
+          if (combinedStays.length > 0) {
+            localStorage.setItem('pms_active_stays_v2', JSON.stringify(combinedStays));
+          } else {
+            // If server returned empty, check localStorage as offline fallback only
+            const cachedRaw = localStorage.getItem('pms_active_stays_v2');
+            if (cachedRaw) {
+              const cached: ActiveStay[] = JSON.parse(cachedRaw);
+              combinedStays = cached.filter(s => s.status === 'CheckedIn');
+            }
           }
-          localStorage.setItem('pms_active_stays_v2', JSON.stringify(combinedStays));
         } catch (e) {}
       }
 
@@ -654,9 +656,22 @@ export default function ReceptionPMSPage() {
         method: 'POST'
       });
       alert(`Invoice Settled! Total paid: ₹${result.grand_total.toLocaleString('en-IN')}. Suite marked Dirty for Housekeeping turnover.`);
+      
+      // Immediately remove from localStorage cache so it never resurrects
+      if (typeof window !== 'undefined') {
+        try {
+          const cachedRaw = localStorage.getItem('pms_active_stays_v2');
+          if (cachedRaw) {
+            const cached: ActiveStay[] = JSON.parse(cachedRaw);
+            const filtered = cached.filter(s => s.booking_id !== selectedBookingId);
+            localStorage.setItem('pms_active_stays_v2', JSON.stringify(filtered));
+          }
+        } catch (e) {}
+      }
+
       setCheckOutModalOpen(false);
       setFolioData(null);
-      loadPMSData();
+      await loadPMSData();
     } catch (err: any) {
       alert(`Check-out error: ${err.message}`);
     } finally {
