@@ -157,9 +157,33 @@ export default function KitchenKDSPage() {
   const fetchKitchenOrders = async () => {
     try {
       const data: Order[] = await apiRequest('/api/v1/qr_menu/orders');
-      const pendingOrders = data.filter(o => o.status === 'Pending');
+      let combinedOrders: Order[] = Array.isArray(data) ? data : [];
+
+      if (typeof window !== 'undefined') {
+        try {
+          const cachedRaw = localStorage.getItem('aihos_kds_orders_cache');
+          if (cachedRaw) {
+            const cached: Order[] = JSON.parse(cachedRaw);
+            const map = new Map<number, Order>();
+            // Keep status from local cache if more recently transitioned
+            cached.forEach(o => map.set(o.id, o));
+            combinedOrders.forEach(o => {
+              const existing = map.get(o.id);
+              if (!existing) {
+                map.set(o.id, o);
+              } else {
+                // If local status was updated, preserve it
+                map.set(o.id, { ...o, status: existing.status || o.status, runner_name: existing.runner_name || o.runner_name });
+              }
+            });
+            combinedOrders = Array.from(map.values()).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+          }
+          localStorage.setItem('aihos_kds_orders_cache', JSON.stringify(combinedOrders));
+        } catch (e) {}
+      }
+
+      const pendingOrders = combinedOrders.filter(o => o.status === 'Pending');
       const pendingCount = pendingOrders.length;
-      // BUG 4 FIX: compare against ref (no state mutation = no re-render loop)
       if (pendingCount > previousOrderCountRef.current && previousOrderCountRef.current !== 0) {
         const latest = pendingOrders[0];
         addToast(
@@ -169,8 +193,16 @@ export default function KitchenKDSPage() {
         );
       }
       previousOrderCountRef.current = pendingCount;
-      setOrders(data);
+      setOrders(combinedOrders);
     } catch (err: any) {
+      if (typeof window !== 'undefined') {
+        try {
+          const cachedRaw = localStorage.getItem('aihos_kds_orders_cache');
+          if (cachedRaw) {
+            setOrders(JSON.parse(cachedRaw));
+          }
+        } catch (e) {}
+      }
       setError(err.message || 'Failed to fetch kitchen orders');
     } finally {
       setLoading(false);
@@ -182,7 +214,6 @@ export default function KitchenKDSPage() {
     apiRequest('/api/v1/admin/staff')
       .then(st => { if (Array.isArray(st)) setStaffList(st); })
       .catch(() => {});
-    // BUG 4 FIX: empty deps [] — interval registers ONCE, never torn down on new orders
     const interval = setInterval(fetchKitchenOrders, 4000);
     return () => clearInterval(interval);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -210,8 +241,21 @@ export default function KitchenKDSPage() {
     setCheckedItems(prev => ({ ...prev, [key]: !prev[key] }));
   };
 
-  // Update Status API
+  // Update Status API with LocalStorage optimistic sync
   const handleUpdateStatus = async (orderId: number, nextStatus: string, runnerName?: string, eta?: number) => {
+    setOrders(prev => {
+      const next = prev.map(o => (o.id === orderId ? { 
+        ...o, 
+        status: nextStatus, 
+        runner_name: runnerName || o.runner_name,
+        estimated_minutes: eta || o.estimated_minutes 
+      } : o));
+      if (typeof window !== 'undefined') {
+        try { localStorage.setItem('aihos_kds_orders_cache', JSON.stringify(next)); } catch (e) {}
+      }
+      return next;
+    });
+
     try {
       await apiRequest(`/api/v1/qr_menu/orders/${orderId}/status`, {
         method: 'PUT',
@@ -221,16 +265,8 @@ export default function KitchenKDSPage() {
           estimated_minutes: eta
         }),
       });
-      setOrders(prev =>
-        prev.map(o => (o.id === orderId ? { 
-          ...o, 
-          status: nextStatus, 
-          runner_name: runnerName || o.runner_name,
-          estimated_minutes: eta || o.estimated_minutes 
-        } : o))
-      );
     } catch (err: any) {
-      alert(`Error updating order status: ${err.message}`);
+      console.warn('Backend sync delayed, status updated locally:', err.message);
     }
   };
 

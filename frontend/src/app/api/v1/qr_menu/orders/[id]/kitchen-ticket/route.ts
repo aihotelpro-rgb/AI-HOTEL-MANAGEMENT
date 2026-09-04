@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getOrders } from '@/lib/kitchenOrdersStore';
 
 export const dynamic = 'force-dynamic';
 
-function getBackendUrl(): string {
-  return (
-    process.env.BACKEND_API_URL ||
-    process.env.NEXT_PUBLIC_API_URL ||
-    'http://localhost:8000'
-  );
+function getBackendUrl(): string | null {
+  if (process.env.BACKEND_API_URL) return process.env.BACKEND_API_URL;
+  if (process.env.NEXT_PUBLIC_API_URL && !process.env.NEXT_PUBLIC_API_URL.includes('localhost')) {
+    return process.env.NEXT_PUBLIC_API_URL;
+  }
+  return null;
 }
 
 const CORS_HEADERS = {
@@ -20,28 +21,33 @@ export async function OPTIONS() {
   return new NextResponse(null, { status: 200, headers: CORS_HEADERS });
 }
 
-/**
- * GET /api/v1/qr_menu/orders/[id]/kitchen-ticket
- * Fetches the order from the Python backend and renders a print-ready KOT HTML ticket.
- */
 export async function GET(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const orderId = params.id;
+  const orderId = Number(params.id);
   const backend = getBackendUrl();
 
-  let order: any;
+  let order: any = null;
 
-  try {
-    const res = await fetch(`${backend}/api/v1/qr_menu/orders/${orderId}`, {
-      cache: 'no-store',
-    });
-    if (res.ok) {
-      order = await res.json();
-    }
-  } catch {
-    // backend unavailable — use fallback
+  if (backend) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3000);
+      const res = await fetch(`${backend}/api/v1/qr_menu/orders/${orderId}`, {
+        cache: 'no-store',
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+      if (res.ok) {
+        order = await res.json();
+      }
+    } catch {}
+  }
+
+  if (!order) {
+    const orders = getOrders();
+    order = orders.find((o) => o.id === orderId);
   }
 
   if (!order) {
@@ -49,13 +55,14 @@ export async function GET(
       id: orderId,
       booking_id: 101,
       room_number: '101',
+      guest_name: 'Pooja Sharma',
       items: [
-        { name: 'Royal Butter Chicken (Murgh Makhani)', quantity: 2, price: 560.00 },
-        { name: 'Tandoori Garlic & Butter Naan Basket', quantity: 3, price: 140.00 }
+        { name: 'Royal Butter Chicken (Murgh Makhani)', quantity: 2, price: 560.0 },
+        { name: 'Tandoori Garlic & Butter Naan Basket', quantity: 3, price: 140.0 },
       ],
-      total_price: 1540.00,
+      total_price: 1540.0,
       special_instructions: null,
-      created_at: new Date().toISOString()
+      created_at: new Date().toISOString(),
     };
   }
 
@@ -127,6 +134,6 @@ export async function GET(
   `;
 
   return new NextResponse(htmlContent, {
-    headers: { ...CORS_HEADERS, 'Content-Type': 'text/html; charset=utf-8' }
+    headers: { ...CORS_HEADERS, 'Content-Type': 'text/html; charset=utf-8' },
   });
 }

@@ -1,4 +1,5 @@
 import * as fs from 'fs';
+import * as path from 'path';
 
 export interface KitchenOrderItem {
   name: string;
@@ -22,28 +23,37 @@ export interface KitchenOrder {
   delivered_at?: string | null;
 }
 
-// ─── Disk Persistence (BUG 2 & 3 FIX) ──────────────────────────────────────
-const DISK_PATH = '/tmp/kitchen_orders.json';
+declare global {
+  // eslint-disable-next-line no-var
+  var __kitchenOrders: KitchenOrder[];
+}
+
+// ─── Dual Disk Persistence ──────────────────────────────────────────────────
+const TMP_ORDERS_FILE = '/tmp/kitchen_orders.json';
+const NEXT_ORDERS_FILE = path.join(process.cwd(), '.next', 'kitchen_orders.json');
 
 function _saveOrdersToDisk(orders: KitchenOrder[]): void {
   try {
-    fs.writeFileSync(DISK_PATH, JSON.stringify(orders, null, 2), 'utf-8');
-  } catch {
-    // /tmp not writable in some environments – silently skip
-  }
+    const dataStr = JSON.stringify(orders, null, 2);
+    try { fs.writeFileSync(TMP_ORDERS_FILE, dataStr, 'utf-8'); } catch {}
+    try { fs.writeFileSync(NEXT_ORDERS_FILE, dataStr, 'utf-8'); } catch {}
+  } catch {}
 }
 
-function _loadOrdersFromDisk(): KitchenOrder[] {
+function _loadOrdersFromDisk(): KitchenOrder[] | null {
   try {
-    if (fs.existsSync(DISK_PATH)) {
-      const raw = fs.readFileSync(DISK_PATH, 'utf-8');
+    const file = fs.existsSync(TMP_ORDERS_FILE)
+      ? TMP_ORDERS_FILE
+      : fs.existsSync(NEXT_ORDERS_FILE)
+      ? NEXT_ORDERS_FILE
+      : null;
+    if (file) {
+      const raw = fs.readFileSync(file, 'utf-8');
       const parsed: KitchenOrder[] = JSON.parse(raw);
       if (Array.isArray(parsed) && parsed.length > 0) return parsed;
     }
-  } catch {
-    // corrupt file – fall through to seed data
-  }
-  return [];
+  } catch {}
+  return null;
 }
 
 // ─── Seed Data ───────────────────────────────────────────────────────────────
@@ -117,37 +127,31 @@ const SEED_ORDERS: KitchenOrder[] = [
   }
 ];
 
-// ─── In-Memory Store (initialized from disk or seed) ─────────────────────────
-export let KITCHEN_ORDERS_DATA: KitchenOrder[] = (() => {
-  const fromDisk = _loadOrdersFromDisk();
-  return fromDisk.length > 0 ? fromDisk : [...SEED_ORDERS];
-})();
-
-// ─── Public API ───────────────────────────────────────────────────────────────
-
-/**
- * Returns orders, always re-merging from disk first to catch updates
- * written by other Vercel serverless containers (BUG 2 & 3 FIX).
- */
-export function getOrders(): KitchenOrder[] {
-  const fromDisk = _loadOrdersFromDisk();
-  if (fromDisk.length > 0) {
-    // Disk is authoritative. Keep any in-memory entries not yet on disk (write-failed edge case)
-    const diskIds = new Set(fromDisk.map((o) => o.id));
-    const memOnly = KITCHEN_ORDERS_DATA.filter((o) => !diskIds.has(o.id));
-    KITCHEN_ORDERS_DATA = [...fromDisk, ...memOnly];
+function initOrders(): KitchenOrder[] {
+  if (!global.__kitchenOrders || global.__kitchenOrders.length === 0) {
+    const fromDisk = _loadOrdersFromDisk();
+    global.__kitchenOrders = fromDisk && fromDisk.length > 0 ? fromDisk : [...SEED_ORDERS];
   }
-  return KITCHEN_ORDERS_DATA;
+  return global.__kitchenOrders;
 }
 
-/**
- * Creates a new order with a unique ID, persists to disk.
- * BUG 1 FIX: Use Date.now() instead of array.length+101 to avoid ID collisions.
- */
+export function getOrders(): KitchenOrder[] {
+  const fromDisk = _loadOrdersFromDisk();
+  if (fromDisk && fromDisk.length > 0) {
+    const diskIds = new Set(fromDisk.map((o) => o.id));
+    const current = initOrders();
+    const memOnly = current.filter((o) => !diskIds.has(o.id));
+    global.__kitchenOrders = [...fromDisk, ...memOnly];
+  } else {
+    initOrders();
+  }
+  return global.__kitchenOrders;
+}
+
 export function createOrder(body: Partial<KitchenOrder> & { items: KitchenOrderItem[] }): KitchenOrder {
-  getOrders(); // re-merge from disk first
+  const orders = getOrders();
   const newOrder: KitchenOrder = {
-    id: Date.now(), // ← BUG 1 FIX: monotonic unique ID
+    id: Date.now(),
     booking_id: Number(body.booking_id || 1),
     room_number: body.room_number || `${body.booking_id || 101}`,
     guest_name: body.guest_name || 'Resident Guest',
@@ -160,23 +164,20 @@ export function createOrder(body: Partial<KitchenOrder> & { items: KitchenOrderI
     created_at: new Date().toISOString(),
     delivered_at: null,
   };
-  KITCHEN_ORDERS_DATA.unshift(newOrder);
-  _saveOrdersToDisk(KITCHEN_ORDERS_DATA); // ← BUG 2 FIX: persist immediately
+  orders.unshift(newOrder);
+  global.__kitchenOrders = orders;
+  _saveOrdersToDisk(orders);
   return newOrder;
 }
 
-/**
- * Updates order status and persists to disk.
- * BUG 3 FIX: Re-reads disk before mutating, then writes back — cross-container safe.
- */
 export function updateOrderStatusInStore(
   orderId: number,
   status: string,
   runnerName?: string,
   eta?: number
 ): KitchenOrder | null {
-  getOrders(); // ← BUG 3 FIX: always read disk before mutating
-  const order = KITCHEN_ORDERS_DATA.find((o) => o.id === orderId);
+  const orders = getOrders();
+  const order = orders.find((o) => o.id === orderId);
   if (!order) return null;
 
   order.status = status;
@@ -187,6 +188,6 @@ export function updateOrderStatusInStore(
     order.estimated_minutes = 0;
   }
 
-  _saveOrdersToDisk(KITCHEN_ORDERS_DATA); // ← BUG 3 FIX: persist status update
+  _saveOrdersToDisk(orders);
   return order;
 }
