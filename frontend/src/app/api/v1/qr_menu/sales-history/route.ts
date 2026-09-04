@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { KITCHEN_ORDERS_DATA } from '@/lib/kitchenOrdersStore';
+import { getOrders } from '@/lib/kitchenOrdersStore';
 
 export const dynamic = 'force-dynamic';
 
@@ -7,7 +7,8 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const date_filter = searchParams.get('date_filter') || 'all_time';
 
-  const orders = KITCHEN_ORDERS_DATA;
+  // BUG 2 FIX: getOrders() reads from disk — includes orders from all containers
+  const orders = getOrders();
   const total_orders = orders.length;
   const total_sales_inr = orders.reduce((sum, o) => sum + o.total_price, 0);
   const delivered_count = orders.filter(o => o.status === 'Delivered').length;
@@ -30,8 +31,8 @@ export async function GET(req: NextRequest) {
     recent_orders: orders.map(o => ({
       order_id: o.id,
       booking_id: o.booking_id,
-      suite_number: `${o.booking_id + 100}`,
-      guest_name: o.booking_id === 1 ? "Pooja Sharma" : "Maharaja Raghavendra Singh",
+      suite_number: o.room_number || `${o.booking_id}`,
+      guest_name: o.guest_name || 'Resident Guest', // BUG 5 FIX: use actual guest_name
       total_price: o.total_price,
       status: o.status,
       items: o.items,

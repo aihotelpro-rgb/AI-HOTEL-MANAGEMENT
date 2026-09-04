@@ -18,7 +18,8 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   };
 
   const timestampStr = new Date(order.created_at).toLocaleString();
-  const roomNumber = order.booking_id ? `${order.booking_id}` : "101";
+  // BUG 6 FIX: use room_number field, not booking_id which is NOT the room number
+  const roomNumber = (order as any).room_number || `${order.booking_id}` || '101';
 
   const itemsHtml = order.items.map((item: any) => `
     <div style="display: flex; justify-content: space-between; font-size: 15px; font-weight: bold; margin-bottom: 6px;">

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { KITCHEN_ORDERS_DATA, updateOrderStatusInStore } from '@/lib/kitchenOrdersStore';
+import { getOrders, createOrder, updateOrderStatusInStore } from '@/lib/kitchenOrdersStore';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,20 +20,24 @@ export async function GET(req: NextRequest, { params }: { params: { path: string
   // 1. GET /api/v1/qr_menu/orders/{order_id}/kitchen-ticket
   if (path.length >= 3 && path[0] === 'orders' && path[2] === 'kitchen-ticket') {
     const orderId = Number(path[1]);
-    const order = KITCHEN_ORDERS_DATA.find(o => o.id === orderId) || {
+    // BUG 2 FIX: use getOrders() which reads from disk
+    const orders = getOrders();
+    const order = orders.find(o => o.id === orderId) || {
       id: orderId,
       booking_id: 101,
+      room_number: '101',
       items: [
-        { name: "Royal Butter Chicken (Murgh Makhani)", quantity: 2, price: 560.00 },
-        { name: "Tandoori Garlic & Butter Naan Basket", quantity: 3, price: 140.00 }
+        { name: 'Royal Butter Chicken (Murgh Makhani)', quantity: 2, price: 560.00 },
+        { name: 'Tandoori Garlic & Butter Naan Basket', quantity: 3, price: 140.00 }
       ],
       total_price: 1540.00,
-      special_instructions: "No peanuts, mild spice level.",
+      special_instructions: 'No peanuts, mild spice level.',
       created_at: new Date().toISOString()
     };
 
     const timestampStr = new Date(order.created_at).toLocaleString();
-    const roomNumber = order.booking_id ? `${order.booking_id}` : "101";
+    // BUG 6 FIX: use room_number, not booking_id
+    const roomNumber = (order as any).room_number || `${order.booking_id}` || '101';
 
     const itemsHtml = order.items.map((item: any) => `
       <div style="display: flex; justify-content: space-between; font-size: 15px; font-weight: bold; margin-bottom: 6px;">
@@ -83,14 +87,14 @@ export async function GET(req: NextRequest, { params }: { params: { path: string
 
               <div class="divider"></div>
 
-              ${order.special_instructions ? `<div class="instructions">⚠️ CHEF NOTE: ${order.special_instructions}</div>` : ''}
+              ${(order as any).special_instructions ? `<div class="instructions">⚠️ CHEF NOTE: ${(order as any).special_instructions}</div>` : ''}
 
               <div style="text-align: right; font-size: 16px; font-weight: 900; margin-top: 10px;">
-                  TOTAL: ₹${order.total_price.toFixed(2)}
+                  TOTAL: ₹${(order.total_price || 0).toFixed(2)}
               </div>
 
               <div style="text-align: center; font-size: 10px; margin-top: 15px; border-top: 1px solid #000; padding-top: 5px;">
-                  STATION: MAIN HOT KITCHEN & TANDOOR<br>
+                  STATION: MAIN HOT KITCHEN &amp; TANDOOR<br>
                   *** END OF KOT TICKET ***
               </div>
           </div>
@@ -106,9 +110,10 @@ export async function GET(req: NextRequest, { params }: { params: { path: string
   // 2. GET /api/v1/qr_menu/orders/{order_id}
   if (path.length === 2 && path[0] === 'orders' && !isNaN(Number(path[1]))) {
     const orderId = Number(path[1]);
-    const order = KITCHEN_ORDERS_DATA.find(o => o.id === orderId);
+    const orders = getOrders(); // BUG 2 FIX
+    const order = orders.find(o => o.id === orderId);
     if (!order) {
-      return NextResponse.json({ detail: "Order not found" }, { status: 404, headers: corsHeaders });
+      return NextResponse.json({ detail: 'Order not found' }, { status: 404, headers: corsHeaders });
     }
     return NextResponse.json(order, { headers: corsHeaders });
   }
@@ -118,7 +123,7 @@ export async function GET(req: NextRequest, { params }: { params: { path: string
     const booking_id = url.searchParams.get('booking_id');
     const status_filter = url.searchParams.get('status');
 
-    let filtered = [...KITCHEN_ORDERS_DATA];
+    let filtered = getOrders(); // BUG 2 FIX
     if (booking_id) {
       filtered = filtered.filter(o => o.booking_id === Number(booking_id));
     }
@@ -131,7 +136,7 @@ export async function GET(req: NextRequest, { params }: { params: { path: string
   // 4. GET /api/v1/qr_menu/sales-history
   if (path.length === 1 && path[0] === 'sales-history') {
     const date_filter = url.searchParams.get('date_filter') || 'all_time';
-    const orders = KITCHEN_ORDERS_DATA;
+    const orders = getOrders(); // BUG 2 FIX
 
     return NextResponse.json({
       date_filter,
@@ -140,16 +145,16 @@ export async function GET(req: NextRequest, { params }: { params: { path: string
       delivered_count: orders.filter(o => o.status === 'Delivered').length,
       pending_count: orders.filter(o => o.status !== 'Delivered').length,
       top_dishes: [
-        { name: "Royal Butter Chicken (Murgh Makhani)", quantity: 18, revenue: 10080.0, category: "Indian Mains" },
-        { name: "Awadhi Dum Gosht Biryani", quantity: 14, revenue: 8960.0, category: "Biryani & Rice" },
-        { name: "Murgh Malai Tikka", quantity: 12, revenue: 5760.0, category: "Starters" },
-        { name: "Tandoori Garlic & Butter Naan Basket", quantity: 35, revenue: 4900.0, category: "Breads" }
+        { name: 'Royal Butter Chicken (Murgh Makhani)', quantity: 18, revenue: 10080.0, category: 'Indian Mains' },
+        { name: 'Awadhi Dum Gosht Biryani', quantity: 14, revenue: 8960.0, category: 'Biryani & Rice' },
+        { name: 'Murgh Malai Tikka', quantity: 12, revenue: 5760.0, category: 'Starters' },
+        { name: 'Tandoori Garlic & Butter Naan Basket', quantity: 35, revenue: 4900.0, category: 'Breads' }
       ],
       recent_orders: orders.map(o => ({
         order_id: o.id,
         booking_id: o.booking_id,
-        suite_number: `${o.booking_id + 100}`,
-        guest_name: o.booking_id === 1 ? "Pooja Sharma" : "Maharaja Raghavendra Singh",
+        suite_number: o.room_number || `${o.booking_id}`,
+        guest_name: o.guest_name || 'Resident Guest', // BUG 5 FIX: use actual guest_name
         total_price: o.total_price,
         status: o.status,
         items: o.items,
@@ -160,7 +165,7 @@ export async function GET(req: NextRequest, { params }: { params: { path: string
     }, { headers: corsHeaders });
   }
 
-  return NextResponse.json({ error: "Endpoint not found" }, { status: 404, headers: corsHeaders });
+  return NextResponse.json({ error: 'Endpoint not found' }, { status: 404, headers: corsHeaders });
 }
 
 export async function PUT(req: NextRequest, { params }: { params: { path: string[] } }) {
@@ -173,33 +178,23 @@ export async function PUT(req: NextRequest, { params }: { params: { path: string
       const body = await req.json();
       const { status, runner_name, estimated_minutes } = body;
 
+      // BUG 3 FIX: updateOrderStatusInStore reads disk before mutating + writes back
       const updated = updateOrderStatusInStore(orderId, status, runner_name, estimated_minutes);
 
       if (!updated) {
-        const fallbackOrder = {
-          id: orderId,
-          booking_id: 1,
-          room_number: "101",
-          guest_name: "Pooja Sharma",
-          items: [{ name: "Gourmet Culinary Order", quantity: 1, price: 450 }],
-          total_price: 450.00,
-          status: status || "Preparing",
-          runner_name: runner_name || null,
-          estimated_minutes: estimated_minutes || 15,
-          special_instructions: null,
-          created_at: new Date().toISOString()
-        };
-        KITCHEN_ORDERS_DATA.unshift(fallbackOrder);
-        return NextResponse.json(fallbackOrder, { headers: corsHeaders });
+        return NextResponse.json(
+          { error: `Order #${orderId} not found.` },
+          { status: 404, headers: corsHeaders }
+        );
       }
 
       return NextResponse.json(updated, { headers: corsHeaders });
     } catch (err: any) {
-      return NextResponse.json({ error: err.message || "Failed to update order status" }, { status: 400, headers: corsHeaders });
+      return NextResponse.json({ error: err.message || 'Failed to update order status' }, { status: 400, headers: corsHeaders });
     }
   }
 
-  return NextResponse.json({ error: "PUT endpoint not found" }, { status: 404, headers: corsHeaders });
+  return NextResponse.json({ error: 'PUT endpoint not found' }, { status: 404, headers: corsHeaders });
 }
 
 export async function POST(req: NextRequest, { params }: { params: { path: string[] } }) {
@@ -209,26 +204,20 @@ export async function POST(req: NextRequest, { params }: { params: { path: strin
   if (path.length >= 1 && (path[0] === 'orders' || path[0] === 'order')) {
     try {
       const body = await req.json();
-      const newOrder = {
-        id: KITCHEN_ORDERS_DATA.length + 101,
+      // BUG 1 FIX: createOrder() uses Date.now() + persists to disk
+      const newOrder = createOrder({
         booking_id: Number(body.booking_id || 1),
         room_number: body.room_number || `${body.booking_id || 101}`,
-        guest_name: body.guest_name || "Resident Guest",
+        guest_name: body.guest_name || 'Resident Guest',
         items: body.items || [],
         total_price: Number(body.total_price || 0),
-        status: "Pending",
-        runner_name: null,
-        estimated_minutes: 25,
         special_instructions: body.special_instructions || null,
-        created_at: new Date().toISOString()
-      };
-
-      KITCHEN_ORDERS_DATA.unshift(newOrder);
+      });
       return NextResponse.json(newOrder, { status: 201, headers: corsHeaders });
     } catch (err: any) {
       return NextResponse.json({ error: err.message }, { status: 400, headers: corsHeaders });
     }
   }
 
-  return NextResponse.json({ error: "POST endpoint not found" }, { status: 404, headers: corsHeaders });
+  return NextResponse.json({ error: 'POST endpoint not found' }, { status: 404, headers: corsHeaders });
 }

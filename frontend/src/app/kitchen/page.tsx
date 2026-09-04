@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiRequest, getAuthToken, API_BASE } from '@/lib/api';
 import Sidebar from '@/components/Sidebar';
@@ -99,7 +99,8 @@ export default function KitchenKDSPage() {
     }
     return true;
   });
-  const [previousOrderCount, setPreviousOrderCount] = useState(0);
+  // BUG 4 FIX: use useRef instead of useState so comparison doesn't trigger useEffect re-subscribe
+  const previousOrderCountRef = useRef(0);
 
   const toggleSound = () => {
     setSoundEnabled(prev => {
@@ -158,15 +159,16 @@ export default function KitchenKDSPage() {
       const data: Order[] = await apiRequest('/api/v1/qr_menu/orders');
       const pendingOrders = data.filter(o => o.status === 'Pending');
       const pendingCount = pendingOrders.length;
-      if (pendingCount > previousOrderCount && previousOrderCount !== 0) {
+      // BUG 4 FIX: compare against ref (no state mutation = no re-render loop)
+      if (pendingCount > previousOrderCountRef.current && previousOrderCountRef.current !== 0) {
         const latest = pendingOrders[0];
         addToast(
           '🔔 New In-Room Dining Order!',
-          `Order #${latest ? latest.id : ''} for Booking #${latest ? latest.booking_id : ''} received.`,
+          `Order #${latest ? latest.id : ''} for Suite ${latest?.room_number || latest?.booking_id || ''} received.`,
           'alert'
         );
       }
-      setPreviousOrderCount(pendingCount);
+      previousOrderCountRef.current = pendingCount;
       setOrders(data);
     } catch (err: any) {
       setError(err.message || 'Failed to fetch kitchen orders');
@@ -180,9 +182,10 @@ export default function KitchenKDSPage() {
     apiRequest('/api/v1/admin/staff')
       .then(st => { if (Array.isArray(st)) setStaffList(st); })
       .catch(() => {});
+    // BUG 4 FIX: empty deps [] — interval registers ONCE, never torn down on new orders
     const interval = setInterval(fetchKitchenOrders, 4000);
     return () => clearInterval(interval);
-  }, [previousOrderCount]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
