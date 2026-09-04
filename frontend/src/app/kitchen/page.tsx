@@ -66,7 +66,7 @@ interface Order {
   cancelled_at?: string | null;
 }
 
-export const PREFILLED_CANCELLATION_REASONS = [
+const PREFILLED_CANCELLATION_REASONS = [
   {
     id: '86_item',
     label: "Item 86'd / Out of Stock",
