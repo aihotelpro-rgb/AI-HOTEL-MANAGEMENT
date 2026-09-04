@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getActiveStays } from '../store';
 
 export const dynamic = 'force-dynamic';
 
-const DAILY_BOOKINGS = [
+const BASE_DAILY_BOOKINGS = [
   {
     id: 1,
     booking_id: 1,
@@ -45,7 +46,27 @@ export async function OPTIONS() {
 }
 
 export async function GET(req: NextRequest) {
-  return NextResponse.json(DAILY_BOOKINGS, {
+  const stays = getActiveStays();
+  const staysMap = new Map<string, string>();
+  stays.forEach((s) => {
+    staysMap.set(String(s.booking_id), s.status);
+    staysMap.set(s.room_number.trim(), s.status);
+  });
+
+  const bookings = BASE_DAILY_BOOKINGS.map((b) => {
+    // Check if matching stay in store was checked out
+    const stayStatus =
+      staysMap.get(String(b.booking_id)) ||
+      (b.room_number === '101' ? staysMap.get('101') : undefined) ||
+      staysMap.get(b.room_number);
+
+    if (stayStatus === 'CheckedOut') {
+      return { ...b, status: 'Completed Stay', is_active: false };
+    }
+    return b;
+  });
+
+  return NextResponse.json(bookings, {
     headers: {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',

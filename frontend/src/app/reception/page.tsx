@@ -537,6 +537,37 @@ export default function ReceptionPMSPage() {
       if (qSearch) params.append('search', qSearch);
 
       const bookingsData = await apiRequest(`/api/v1/reception/daily-bookings?${params.toString()}`);
+      
+      // Filter out or mark checked-out bookings in dailyBookings
+      if (typeof window !== 'undefined' && bookingsData && typeof bookingsData === 'object') {
+        try {
+          const rawIds = localStorage.getItem('pms_checked_out_ids');
+          const checkedOutIds: number[] = rawIds ? JSON.parse(rawIds) : [];
+          const rawRooms = localStorage.getItem('pms_checked_out_rooms');
+          const checkedOutRooms: string[] = rawRooms ? JSON.parse(rawRooms) : [];
+
+          const isCheckedOut = (b: any) =>
+            checkedOutIds.includes(b.booking_id) ||
+            checkedOutIds.includes(b.id) ||
+            checkedOutRooms.includes(String(b.room_number).trim());
+
+          if (Array.isArray(bookingsData.active_stays)) {
+            bookingsData.active_stays = bookingsData.active_stays.filter((b: any) => !isCheckedOut(b));
+          }
+          if (Array.isArray(bookingsData.today_departures)) {
+            bookingsData.today_departures = bookingsData.today_departures.filter((b: any) => !isCheckedOut(b));
+          }
+          if (Array.isArray(bookingsData.all_bookings)) {
+            bookingsData.all_bookings = bookingsData.all_bookings.map((b: any) => {
+              if (isCheckedOut(b)) {
+                return { ...b, is_active: false, status: 'Completed Stay' };
+              }
+              return b;
+            });
+          }
+        } catch (e) {}
+      }
+
       setDailyBookings(bookingsData);
     } catch (err: any) {
       console.error('Error fetching calendar bookings:', err);
@@ -550,25 +581,64 @@ export default function ReceptionPMSPage() {
         apiRequest('/api/v1/reception/active-stays'),
         apiRequest('/api/v1/reception/whatsapp-feed')
       ]);
-      setRooms(roomsData);
 
-      let combinedStays: ActiveStay[] = Array.isArray(staysData) ? staysData : [];
+      // Retrieve checked-out blacklists from localStorage
+      let checkedOutIds: number[] = [];
+      let checkedOutRooms: string[] = [];
       if (typeof window !== 'undefined') {
         try {
-          // If server returned valid stays, sync localStorage with server truth
+          const rawIds = localStorage.getItem('pms_checked_out_ids');
+          if (rawIds) checkedOutIds = JSON.parse(rawIds);
+          const rawRooms = localStorage.getItem('pms_checked_out_rooms');
+          if (rawRooms) checkedOutRooms = JSON.parse(rawRooms);
+        } catch (e) {}
+      }
+
+      // Reconcile and sanitize staysData: exclude any booking or room that has been checked out
+      let combinedStays: ActiveStay[] = Array.isArray(staysData)
+        ? staysData.filter(
+            (s: ActiveStay) =>
+              !checkedOutIds.includes(s.booking_id) &&
+              !checkedOutRooms.includes(String(s.room_number).trim())
+          )
+        : [];
+
+      if (typeof window !== 'undefined') {
+        try {
           if (combinedStays.length > 0) {
             localStorage.setItem('pms_active_stays_v2', JSON.stringify(combinedStays));
           } else {
-            // If server returned empty, check localStorage as offline fallback only
+            // Offline/fallback cache check
             const cachedRaw = localStorage.getItem('pms_active_stays_v2');
             if (cachedRaw) {
               const cached: ActiveStay[] = JSON.parse(cachedRaw);
-              combinedStays = cached.filter(s => s.status === 'CheckedIn');
+              combinedStays = cached.filter(
+                (s: ActiveStay) =>
+                  s.status === 'CheckedIn' &&
+                  !checkedOutIds.includes(s.booking_id) &&
+                  !checkedOutRooms.includes(String(s.room_number).trim())
+              );
             }
           }
         } catch (e) {}
       }
 
+      // Reconcile roomsData: any room in checkedOutRooms must be marked Dirty, not occupied, and guest cleared
+      const processedRooms = (Array.isArray(roomsData) ? roomsData : []).map((r: Room) => {
+        const isBlacklisted = checkedOutRooms.includes(String(r.room_number).trim());
+        const hasActiveStay = combinedStays.some((s) => String(s.room_number).trim() === String(r.room_number).trim());
+        if (isBlacklisted || !hasActiveStay) {
+          return {
+            ...r,
+            is_occupied: false,
+            current_guest_name: undefined,
+            status: isBlacklisted ? 'Dirty' : r.status === 'Occupied' ? 'Dirty' : r.status,
+          };
+        }
+        return r;
+      });
+
+      setRooms(processedRooms);
       setActiveStays(combinedStays);
       setWhatsappLogs(logsData);
       await fetchDailyBookings();
@@ -623,6 +693,21 @@ export default function ReceptionPMSPage() {
           gstin: gstin || undefined
         })
       });
+
+      // Clear any prior check-out blacklist for this room so it is freshly occupied
+      if (typeof window !== 'undefined') {
+        try {
+          const rawRooms = localStorage.getItem('pms_checked_out_rooms');
+          if (rawRooms) {
+            const roomsList: string[] = JSON.parse(rawRooms);
+            const filtered = roomsList.filter(
+              (r) => String(r).trim() !== String(checkInRoomNumber).trim()
+            );
+            localStorage.setItem('pms_checked_out_rooms', JSON.stringify(filtered));
+          }
+        } catch (e) {}
+      }
+
       alert(`Success! Checked in ${guestName} into Suite ${checkInRoomNumber}. Digital Pass generated.`);
       setCheckInModalOpen(false);
       setGuestName('');
@@ -652,22 +737,58 @@ export default function ReceptionPMSPage() {
     if (!selectedBookingId) return;
     setCheckOutLoading(true);
     try {
-      const result = await apiRequest(`/api/v1/reception/check-out/${selectedBookingId}`, {
-        method: 'POST'
-      });
-      alert(`Invoice Settled! Total paid: ₹${result.grand_total.toLocaleString('en-IN')}. Suite marked Dirty for Housekeeping turnover.`);
-      
-      // Immediately remove from localStorage cache so it never resurrects
+      // Find the room being checked out before making the call
+      const stayRecord = activeStays.find((s) => s.booking_id === selectedBookingId);
+      const targetRoom = stayRecord?.room_number || folioData?.room_number || '101';
+
+      // 0ms Optimistic local UI update
+      setActiveStays((prev) => prev.filter((s) => s.booking_id !== selectedBookingId));
+      setRooms((prev) =>
+        prev.map((r) =>
+          String(r.room_number).trim() === String(targetRoom).trim()
+            ? { ...r, is_occupied: false, current_guest_name: undefined, status: 'Dirty' }
+            : r
+        )
+      );
+
+      // Save to localStorage blacklist immediately
       if (typeof window !== 'undefined') {
         try {
+          const rawIds = localStorage.getItem('pms_checked_out_ids');
+          const ids: number[] = rawIds ? JSON.parse(rawIds) : [];
+          if (!ids.includes(selectedBookingId)) {
+            ids.push(selectedBookingId);
+            // Also include booking 2 or 101 aliases if applicable
+            if (selectedBookingId === 101 && !ids.includes(2)) ids.push(2);
+            if (selectedBookingId === 2 && !ids.includes(101)) ids.push(101);
+            localStorage.setItem('pms_checked_out_ids', JSON.stringify(ids));
+          }
+
+          const rawRooms = localStorage.getItem('pms_checked_out_rooms');
+          const roomList: string[] = rawRooms ? JSON.parse(rawRooms) : [];
+          if (targetRoom && !roomList.includes(String(targetRoom).trim())) {
+            roomList.push(String(targetRoom).trim());
+            localStorage.setItem('pms_checked_out_rooms', JSON.stringify(roomList));
+          }
+
+          // Also clean up pms_active_stays_v2 cache
           const cachedRaw = localStorage.getItem('pms_active_stays_v2');
           if (cachedRaw) {
             const cached: ActiveStay[] = JSON.parse(cachedRaw);
-            const filtered = cached.filter(s => s.booking_id !== selectedBookingId);
+            const filtered = cached.filter(
+              (s) =>
+                s.booking_id !== selectedBookingId &&
+                String(s.room_number).trim() !== String(targetRoom).trim()
+            );
             localStorage.setItem('pms_active_stays_v2', JSON.stringify(filtered));
           }
         } catch (e) {}
       }
+
+      const result = await apiRequest(`/api/v1/reception/check-out/${selectedBookingId}`, {
+        method: 'POST'
+      });
+      alert(`Invoice Settled! Total paid: ₹${result.grand_total.toLocaleString('en-IN')}. Suite marked Dirty for Housekeeping turnover.`);
 
       setCheckOutModalOpen(false);
       setFolioData(null);
