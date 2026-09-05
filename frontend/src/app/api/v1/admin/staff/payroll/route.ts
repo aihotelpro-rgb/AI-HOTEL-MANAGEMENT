@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { INITIAL_PAYROLL, disburseStaffSalary } from '@/lib/staffPayrollStore';
+import { INITIAL_PAYROLL, disburseStaffSalary, updateStaffSalaryRecord } from '@/lib/staffPayrollStore';
 
 export const dynamic = 'force-dynamic';
 
@@ -56,5 +56,57 @@ export async function POST(req: NextRequest) {
     }, { status: 200, headers: CORS_HEADERS });
   } catch (err: any) {
     return NextResponse.json({ error: err.message || 'Failed to process salary payment' }, { status: 500, headers: CORS_HEADERS });
+  }
+}
+
+export async function PUT(req: NextRequest) {
+  try {
+    const body = await req.json();
+    const { 
+      payroll_id, 
+      base_salary, 
+      days_present, 
+      total_working_days, 
+      overtime_hours, 
+      overtime_pay, 
+      bonus, 
+      incentives, 
+      pf_deduction, 
+      esi_deduction, 
+      advance_deduction,
+      payment_mode,
+      payment_status 
+    } = body;
+
+    if (!payroll_id) {
+      return NextResponse.json({ error: 'payroll_id is required to update salary' }, { status: 400, headers: CORS_HEADERS });
+    }
+
+    const updated = updateStaffSalaryRecord(Number(payroll_id), {
+      base_salary,
+      days_present,
+      total_working_days,
+      overtime_hours,
+      overtime_pay,
+      bonus,
+      incentives,
+      pf_deduction,
+      esi_deduction,
+      advance_deduction,
+      payment_mode,
+      payment_status
+    });
+
+    if (!updated) {
+      return NextResponse.json({ error: `Payroll record #${payroll_id} not found` }, { status: 404, headers: CORS_HEADERS });
+    }
+
+    return NextResponse.json({
+      status: "success",
+      message: `Salary configuration for ${updated.staff_name} updated successfully. Net Payable: ₹${updated.net_payable.toLocaleString('en-IN')}`,
+      record: updated
+    }, { status: 200, headers: CORS_HEADERS });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message || 'Failed to update salary' }, { status: 500, headers: CORS_HEADERS });
   }
 }

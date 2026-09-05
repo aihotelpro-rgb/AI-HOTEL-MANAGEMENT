@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { INITIAL_ATTENDANCE, getAttendanceByDate, updateStaffAttendance } from '@/lib/staffPayrollStore';
+import { 
+  INITIAL_ATTENDANCE, 
+  getAttendanceByDate, 
+  getMonthlyAttendanceRoster, 
+  updateStaffAttendance 
+} from '@/lib/staffPayrollStore';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,11 +20,22 @@ export async function OPTIONS() {
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
+  const view = searchParams.get('view');
+  const month = searchParams.get('month');
   const date = searchParams.get('date') || new Date().toISOString().split('T')[0];
+
+  if (view === 'monthly' || month) {
+    const targetMonth = month || date.slice(0, 7);
+    const roster = getMonthlyAttendanceRoster(targetMonth);
+    return NextResponse.json({
+      month: targetMonth,
+      roster
+    }, { status: 200, headers: CORS_HEADERS });
+  }
 
   let list = getAttendanceByDate(date);
   if (list.length === 0 && date === new Date().toISOString().split('T')[0]) {
-    list = INITIAL_ATTENDANCE;
+    list = INITIAL_ATTENDANCE.filter(a => a.date === date);
   }
 
   return NextResponse.json(list, { status: 200, headers: CORS_HEADERS });
@@ -44,7 +60,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       status: "success",
-      message: `Attendance marked for ${record.staff_name} as ${record.status}`,
+      message: `Attendance marked for ${record.staff_name} on ${todayDate} as ${record.status}`,
       record
     }, { status: 200, headers: CORS_HEADERS });
   } catch (err: any) {
