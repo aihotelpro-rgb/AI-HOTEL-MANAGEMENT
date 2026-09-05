@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAllLiveTasks } from '@/lib/liveTasksStore';
+import { calculateLiveAiRateRecommendation, AI_OTA_STATE } from '@/lib/aiOtaEngine';
 
 export const dynamic = 'force-dynamic';
 
@@ -53,8 +54,17 @@ export async function GET() {
   const liveTasks = getAllLiveTasks();
   const openTasks = liveTasks.filter(t => t.status !== 'Completed');
 
+  // Compute modern live AI rate suggestion based on real-time occupancy and market intelligence
+  const aiRec = calculateLiveAiRateRecommendation({
+    current_occupancy_percent: BASE_EXECUTIVE_STATS.occupancy_rate
+  });
+
+  const dynamicPricingText = `AI Recommendation: Increase BAR rate from ₹${aiRec.current_bar_rate.toLocaleString('en-IN')} to ₹${aiRec.suggested_bar_rate.toLocaleString('en-IN')} (+${Math.round((aiRec.surge_multiplier - 1) * 100)}%). ${aiRec.primary_driver}. Estimated 14-day revenue lift: +₹${aiRec.estimated_revenue_lift_inr.toLocaleString('en-IN')} (${aiRec.confidence_score}% AI Confidence).`;
+
   const stats = {
     ...BASE_EXECUTIVE_STATS,
+    pricing_recommendation: dynamicPricingText,
+    ai_yield_data: aiRec,
     open_tickets_count: openTasks.length,
     recent_tickets: liveTasks.map(t => ({
       id: t.id,

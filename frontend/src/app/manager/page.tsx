@@ -730,10 +730,30 @@ export default function ManagerDashboard() {
                 {/* Dynamic Pricing AI */}
                 <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-5 shadow-lg space-y-2.5">
                   <div className="flex justify-between items-center">
-                    <h3 className="text-xs font-extrabold uppercase text-neutral-400 tracking-wider flex items-center gap-1.5">
+                    <h3 className="text-xs font-extrabold uppercase text-amber-400 tracking-wider flex items-center gap-1.5">
                       <Sparkles className="h-4 w-4 text-amber-400" />
-                      AI Dynamic Yield Optimization
+                      <span>AI Dynamic Yield Optimization & Surge Tariff</span>
                     </h3>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          const res = await apiRequest('/api/v1/channel/ai-copilot', {
+                            method: 'POST',
+                            body: JSON.stringify({ action: 'apply_yield_tariffs' })
+                          });
+                          alert(res.message || 'AI Yield Tariffs Applied!');
+                          loadStats();
+                        } catch (err: any) {
+                          alert(`Failed to apply rates: ${err.message}`);
+                        }
+                      }}
+                      className="px-2.5 py-1 bg-amber-500 hover:bg-amber-400 text-neutral-950 font-extrabold text-[10px] rounded-lg transition shadow flex items-center gap-1"
+                      title="Apply AI recommended surge tariffs across all suites"
+                    >
+                      <Zap className="w-3 h-3" />
+                      <span>Apply to All OTAs</span>
+                    </button>
                   </div>
                   <p className="text-xs text-amber-200/90 leading-relaxed bg-amber-950/30 p-3 rounded-xl border border-amber-500/30">
                     {stats.pricing_recommendation}
