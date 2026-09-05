@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getAllLiveTasks } from '@/lib/liveTasksStore';
 
 export const dynamic = 'force-dynamic';
 
-const EXECUTIVE_STATS = {
+const BASE_EXECUTIVE_STATS = {
   hotel_name: "Hotel Blue Bird Inn",
   location: "Garacharma, Sri Vijayapuram, Andaman and Nicobar Islands",
   total_rooms: 24,
@@ -22,15 +23,11 @@ const EXECUTIVE_STATS = {
   room_revenue_inr: 82500.0,
   dining_revenue: 16500.0,
   dining_revenue_inr: 16500.0,
-  open_tickets_count: 1,
   active_orders_count: 1,
   sentiment_score: 99,
   sentiment_summary: "Guests at Hotel Blue Bird Inn rate island dining and instant 1-click intercom speed dial 99% positive.",
   pricing_recommendation: "Maintain ₹4,500 ADR rate for Deluxe Island King & Sea Breeze Suites due to steady Andaman ferry tourist arrivals.",
   intercom_status: "100% Online (24 Suite Extensions Registered)",
-  recent_tickets: [
-    { id: 1, room_number: "204", category: "Intercom Audio", description: "Intercom audio test verified with Front Desk Ext 100", priority: "Low", status: "Resolved", created_at: new Date().toISOString() }
-  ],
   recent_orders: [
     { id: 101, booking_id: 1, items: [{ name: "Andaman Fresh Catch Fish Curry", quantity: 1, price: 520.0 }], total_price: 520.0, status: "Preparing", created_at: new Date().toISOString() }
   ],
@@ -53,7 +50,32 @@ export async function OPTIONS() {
 }
 
 export async function GET() {
-  return NextResponse.json(EXECUTIVE_STATS, {
+  const liveTasks = getAllLiveTasks();
+  const openTasks = liveTasks.filter(t => t.status !== 'Completed');
+
+  const stats = {
+    ...BASE_EXECUTIVE_STATS,
+    open_tickets_count: openTasks.length,
+    recent_tickets: liveTasks.map(t => ({
+      id: t.id,
+      room_number: t.room_number,
+      category: t.department,
+      description: t.title,
+      priority: t.priority,
+      status: t.status,
+      assigned_to: t.assigned_to,
+      standard_sla_minutes: t.standard_sla_minutes,
+      elapsed_minutes: t.elapsed_minutes,
+      remaining_minutes: t.remaining_minutes,
+      sla_status: t.sla_status,
+      sla_progress_percent: t.sla_progress_percent,
+      sla_breached: t.sla_status === 'OVERDUE',
+      escalated: t.escalated,
+      created_at: t.started_at
+    }))
+  };
+
+  return NextResponse.json(stats, {
     headers: {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
