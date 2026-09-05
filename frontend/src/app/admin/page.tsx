@@ -365,10 +365,83 @@ export default function AdminControlPage() {
   }, [router]);
 
   // State for Staff Sub-Tabs & HR Operations
-  const [staffSubTab, setStaffSubTab] = useState<'profiles' | 'attendance' | 'payroll'>('profiles');
+  const [staffSubTab, setStaffSubTab] = useState<'profiles' | 'attendance' | 'payroll' | 'task_sop'>('profiles');
   const [attendanceDate, setAttendanceDate] = useState(new Date().toISOString().split('T')[0]);
   const [attendanceList, setAttendanceList] = useState<any[]>([]);
   const [attendanceLoading, setAttendanceLoading] = useState(false);
+
+  // Admin Task SLA Templates State
+  const [adminTaskTemplates, setAdminTaskTemplates] = useState<any[]>([]);
+  const [adminTemplatesLoading, setAdminTemplatesLoading] = useState(false);
+  const [adminEditingTemplate, setAdminEditingTemplate] = useState<any | null>(null);
+  const [adminEditSlaMinutes, setAdminEditSlaMinutes] = useState<number>(30);
+  const [adminEditStaff, setAdminEditStaff] = useState<string>('');
+  const [adminBatchRooms, setAdminBatchRooms] = useState<string[]>(['101', '102']);
+  const [adminBatchDispatching, setAdminBatchDispatching] = useState<string | null>(null);
+
+  const loadAdminTaskTemplates = async () => {
+    setAdminTemplatesLoading(true);
+    try {
+      const data = await apiRequest('/api/v1/executive/task-templates');
+      if (data && data.templates) {
+        setAdminTaskTemplates(data.templates);
+      }
+    } catch (e) {
+      console.error('Failed to load admin task templates', e);
+    } finally {
+      setAdminTemplatesLoading(false);
+    }
+  };
+
+  const handleAdminUpdateTemplateSla = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!adminEditingTemplate) return;
+    try {
+      await apiRequest('/api/v1/executive/task-templates', {
+        method: 'PUT',
+        body: JSON.stringify({
+          id: adminEditingTemplate.id,
+          updates: {
+            default_sla_minutes: Number(adminEditSlaMinutes),
+            default_staff: adminEditStaff || adminEditingTemplate.default_staff
+          }
+        })
+      });
+      showToast(`Standard Operating Time updated for ${adminEditingTemplate.title}`);
+      setAdminEditingTemplate(null);
+      loadAdminTaskTemplates();
+    } catch (err: any) {
+      alert(`Error updating SLA template: ${err.message}`);
+    }
+  };
+
+  const handleAdminBatchDispatch = async (tpl: any) => {
+    if (adminBatchRooms.length === 0) {
+      alert('Please select at least one room for batch dispatch');
+      return;
+    }
+    setAdminBatchDispatching(tpl.id);
+    try {
+      const res = await apiRequest('/api/v1/executive/task-templates', {
+        method: 'POST',
+        body: JSON.stringify({
+          template_id: tpl.id,
+          department: tpl.department,
+          title: tpl.title,
+          room_numbers: adminBatchRooms,
+          assigned_to: tpl.default_staff,
+          standard_sla_minutes: tpl.default_sla_minutes,
+          priority: tpl.priority,
+          notes: `Batch dispatched by Administrator for ${adminBatchRooms.length} rooms`
+        })
+      });
+      showToast(res.message || `Dispatched ${tpl.title} to ${adminBatchRooms.length} rooms!`);
+    } catch (err: any) {
+      alert(`Batch dispatch failed: ${err.message}`);
+    } finally {
+      setAdminBatchDispatching(null);
+    }
+  };
 
   // Dynamic Staff Attendance Views & Filtering
   const [attendanceViewMode, setAttendanceViewMode] = useState<'daily' | 'monthly'>('daily');
@@ -2020,6 +2093,20 @@ export default function AdminControlPage() {
                   >
                     <span>💳 Monthly Payroll & Payment Disbursement</span>
                   </button>
+
+                  <button
+                    onClick={() => {
+                      setStaffSubTab('task_sop');
+                      loadAdminTaskTemplates();
+                    }}
+                    className={`px-4 py-2 rounded-xl font-extrabold transition flex items-center gap-1.5 border ${
+                      staffSubTab === 'task_sop'
+                        ? 'bg-amber-500 text-neutral-950 border-amber-400 shadow'
+                        : 'bg-neutral-950 text-neutral-400 border-neutral-800 hover:text-white'
+                    }`}
+                  >
+                    <span>⚡ Standard Task SLA SOPs ({adminTaskTemplates.length || 14})</span>
+                  </button>
                 </div>
               </div>
 
@@ -2781,6 +2868,245 @@ export default function AdminControlPage() {
                         </tbody>
                       </table>
                     </div>
+                  </div>
+                </div>
+              )}
+
+              {/* SUB-VIEW 4: STANDARD TASK SLA SOPS & BATCH DISPATCH */}
+              {staffSubTab === 'task_sop' && (
+                <div className="space-y-6">
+                  {/* Header & Batch Suite Controls */}
+                  <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 shadow-2xl space-y-4">
+                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-neutral-800 pb-4">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="px-2.5 py-0.5 bg-amber-500/20 border border-amber-500/30 text-amber-400 font-extrabold text-[10px] rounded-lg uppercase tracking-wider">
+                            Standard Operating Procedures
+                          </span>
+                          <span className="px-2.5 py-0.5 bg-green-500/20 border border-green-500/30 text-green-400 text-[10px] font-extrabold rounded-lg">
+                            Active Time SLAs
+                          </span>
+                        </div>
+                        <h3 className="text-base sm:text-lg font-extrabold text-white flex items-center gap-2">
+                          <span>⚡ Standard Task SLA Directory & Batch Dispatch</span>
+                        </h3>
+                        <p className="text-xs text-neutral-400">
+                          Configure standard allocated minutes for Room Cleaning, Attending Room Service Delivery, Maintenance, and Concierge. Dispatch tasks to multiple rooms in 1 click.
+                        </p>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={loadAdminTaskTemplates}
+                        className="px-3.5 py-2 bg-neutral-950 hover:bg-neutral-800 text-neutral-300 text-xs font-bold rounded-xl border border-neutral-800 transition flex items-center gap-1.5 self-start lg:self-center"
+                      >
+                        <RefreshCw className={`w-3.5 h-3.5 ${adminTemplatesLoading ? 'animate-spin text-amber-400' : ''}`} />
+                        <span>Refresh SOPs</span>
+                      </button>
+                    </div>
+
+                    {/* Batch Target Suites Selector */}
+                    <div className="p-3 bg-neutral-950 border border-neutral-800 rounded-2xl space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs font-extrabold text-amber-400 flex items-center gap-1.5">
+                          <span>🏨 Multi-Room Batch Assignment Target:</span>
+                        </span>
+                        <span className="text-[10px] font-mono text-neutral-400">
+                          Selected: <strong className="text-white">{adminBatchRooms.join(', ') || 'None'}</strong> ({adminBatchRooms.length} suites)
+                        </span>
+                      </div>
+                      <div className="flex gap-1.5 flex-wrap">
+                        {['101', '102', '105', '201', '204', '305', 'Lobby'].map(rm => {
+                          const active = adminBatchRooms.includes(rm);
+                          return (
+                            <button
+                              key={rm}
+                              type="button"
+                              onClick={() => {
+                                if (active) {
+                                  if (adminBatchRooms.length > 1) {
+                                    setAdminBatchRooms(adminBatchRooms.filter(r => r !== rm));
+                                  }
+                                } else {
+                                  setAdminBatchRooms([...adminBatchRooms, rm]);
+                                }
+                              }}
+                              className={`px-3 py-1 text-xs rounded-xl font-bold border transition ${
+                                active
+                                  ? 'bg-amber-500 text-neutral-950 border-amber-400 font-extrabold shadow'
+                                  : 'bg-neutral-900 text-neutral-400 border-neutral-800 hover:text-white'
+                              }`}
+                            >
+                              {active ? `✓ Suite ${rm}` : `Suite ${rm}`}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Inline Edit Modal/Card for Admin */}
+                  {adminEditingTemplate && (
+                    <form
+                      onSubmit={handleAdminUpdateTemplateSla}
+                      className="p-5 bg-neutral-900 border border-amber-500/40 rounded-3xl shadow-xl space-y-4 animate-in fade-in"
+                    >
+                      <div className="flex justify-between items-center border-b border-neutral-800 pb-3">
+                        <div className="flex items-center gap-2">
+                          <span className="text-lg">{adminEditingTemplate.icon || '📝'}</span>
+                          <span className="text-sm font-extrabold text-white">
+                            Edit Standard SLA: {adminEditingTemplate.title}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setAdminEditingTemplate(null)}
+                          className="text-xs text-neutral-500 hover:text-white"
+                        >
+                          ✕ Cancel
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <label className="text-xs font-bold text-neutral-300 block mb-1">
+                            Standard SLA Time (Minutes)
+                          </label>
+                          <input
+                            type="number"
+                            min="5"
+                            max="180"
+                            required
+                            value={adminEditSlaMinutes}
+                            onChange={(e) => setAdminEditSlaMinutes(Number(e.target.value))}
+                            className="w-full px-3.5 py-2 bg-neutral-950 border border-neutral-800 rounded-xl text-xs text-amber-400 font-mono font-black focus:outline-none focus:border-amber-500"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-xs font-bold text-neutral-300 block mb-1">
+                            Default Assigned Staff Member
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            value={adminEditStaff}
+                            onChange={(e) => setAdminEditStaff(e.target.value)}
+                            className="w-full px-3.5 py-2 bg-neutral-950 border border-neutral-800 rounded-xl text-xs text-neutral-200 focus:outline-none focus:border-amber-500"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex justify-end gap-2 pt-2">
+                        <button
+                          type="button"
+                          onClick={() => setAdminEditingTemplate(null)}
+                          className="px-4 py-2 bg-neutral-800 text-neutral-300 font-bold text-xs rounded-xl"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="submit"
+                          className="px-5 py-2 bg-amber-500 hover:bg-amber-400 text-neutral-950 font-extrabold text-xs rounded-xl shadow transition"
+                        >
+                          Save SLA Operating Standard
+                        </button>
+                      </div>
+                    </form>
+                  )}
+
+                  {/* SOP Template Grid */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {adminTaskTemplates.map(tpl => (
+                      <div
+                        key={tpl.id}
+                        className="bg-neutral-900 border border-neutral-800 rounded-2xl p-5 shadow-xl space-y-3.5 flex flex-col justify-between hover:border-neutral-700 transition"
+                      >
+                        <div className="space-y-2">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                              <span className="text-2xl p-1.5 bg-neutral-950 rounded-xl border border-neutral-800">
+                                {tpl.icon || '📋'}
+                              </span>
+                              <div>
+                                <h4 className="font-extrabold text-sm text-neutral-100">{tpl.title}</h4>
+                                <div className="flex items-center gap-2 mt-0.5">
+                                  <span className="text-[10px] px-2 py-0.2 rounded font-bold bg-neutral-950 border border-neutral-800 text-neutral-400">
+                                    {tpl.department}
+                                  </span>
+                                  <span className="text-[10px] text-neutral-500">
+                                    Default: <strong className="text-neutral-300">{tpl.default_staff}</strong>
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="text-right shrink-0">
+                              <span className="text-base font-black font-mono text-amber-400 block">
+                                {tpl.default_sla_minutes}m
+                              </span>
+                              <span className="text-[9px] uppercase font-bold text-neutral-500">
+                                SLA Target
+                              </span>
+                            </div>
+                          </div>
+
+                          <p className="text-xs text-neutral-400 leading-relaxed">
+                            {tpl.description}
+                          </p>
+
+                          {tpl.checklist && tpl.checklist.length > 0 && (
+                            <div className="pt-2 border-t border-neutral-800/80 space-y-1">
+                              <span className="text-[10px] font-extrabold uppercase text-neutral-500 tracking-wider block">
+                                Standard SOP Checklist:
+                              </span>
+                              <ul className="text-[11px] text-neutral-400 space-y-0.5">
+                                {tpl.checklist.slice(0, 3).map((chk: string, idx: number) => (
+                                  <li key={idx} className="flex items-center gap-1.5">
+                                    <span className="text-amber-400 text-xs">✓</span>
+                                    <span className="truncate">{chk}</span>
+                                  </li>
+                                ))}
+                                {tpl.checklist.length > 3 && (
+                                  <li className="text-[10px] text-neutral-500 italic pl-3">
+                                    +{tpl.checklist.length - 3} more checklist items
+                                  </li>
+                                )}
+                              </ul>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="flex items-center justify-between gap-2 pt-3 border-t border-neutral-800/80">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setAdminEditingTemplate(tpl);
+                              setAdminEditSlaMinutes(tpl.default_sla_minutes);
+                              setAdminEditStaff(tpl.default_staff);
+                            }}
+                            className="px-3 py-1.5 bg-neutral-950 hover:bg-neutral-800 text-neutral-300 border border-neutral-800 rounded-xl text-xs font-bold transition flex items-center gap-1"
+                          >
+                            <Edit3 className="w-3.5 h-3.5 text-amber-400" />
+                            <span>Edit SLA</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            disabled={adminBatchDispatching === tpl.id}
+                            onClick={() => handleAdminBatchDispatch(tpl)}
+                            className="px-3.5 py-1.5 bg-amber-500 hover:bg-amber-400 text-neutral-950 font-extrabold text-xs rounded-xl shadow transition flex items-center gap-1 disabled:opacity-50"
+                          >
+                            <Zap className="w-3.5 h-3.5" />
+                            <span>
+                              {adminBatchDispatching === tpl.id 
+                                ? 'Dispatching...' 
+                                : `Batch Dispatch (${adminBatchRooms.length} Suites)`}
+                            </span>
+                          </button>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}

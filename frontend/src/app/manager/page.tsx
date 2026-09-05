@@ -63,6 +63,21 @@ export interface LiveTaskSummary {
   department_breakdown: Record<string, { total: number; active: number; overdue: number }>;
 }
 
+export interface SavedTaskTemplate {
+  id: string;
+  department: 'Housekeeping' | 'Maintenance' | 'Kitchen' | 'Runner' | 'FrontDesk';
+  task_type: string;
+  title: string;
+  default_sla_minutes: number;
+  default_role: string;
+  default_staff: string;
+  priority: 'Normal' | 'High' | 'Emergency';
+  checklist?: string[];
+  description?: string;
+  icon?: string;
+}
+
+
 
 interface Stats {
   total_rooms: number;
@@ -160,15 +175,88 @@ export default function ManagerDashboard() {
   const [newTaskDept, setNewTaskDept] = useState<'Housekeeping' | 'Maintenance' | 'Kitchen' | 'Runner' | 'FrontDesk'>('Housekeeping');
   const [newTaskType, setNewTaskType] = useState('Room Turnover');
   const [newTaskRoom, setNewTaskRoom] = useState('101');
+  const [selectedRooms, setSelectedRooms] = useState<string[]>(['101']);
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [newTaskStaff, setNewTaskStaff] = useState('Sunita Rawat');
   const [newTaskSla, setNewTaskSla] = useState(25);
   const [newTaskPriority, setNewTaskPriority] = useState<'Normal' | 'High' | 'Emergency'>('Normal');
   const [newTaskNotes, setNewTaskNotes] = useState('');
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
   const [dispatchLoading, setDispatchLoading] = useState(false);
+
+  // Saved Task Templates Catalog State
+  const [templatesModalOpen, setTemplatesModalOpen] = useState(false);
+  const [taskTemplates, setTaskTemplates] = useState<SavedTaskTemplate[]>([]);
+  const [loadingTemplates, setLoadingTemplates] = useState(false);
+  const [editingTemplate, setEditingTemplate] = useState<SavedTaskTemplate | null>(null);
+  const [editTemplateSla, setEditTemplateSla] = useState<number>(30);
+  const [editTemplateStaff, setEditTemplateStaff] = useState<string>('');
+  const [editTemplateSaving, setEditTemplateSaving] = useState(false);
+
+  const loadTaskTemplates = async () => {
+    setLoadingTemplates(true);
+    try {
+      const data = await apiRequest('/api/v1/executive/task-templates');
+      if (data && data.templates) {
+        setTaskTemplates(data.templates);
+      }
+    } catch (err) {
+      console.error('Failed to load task templates:', err);
+    } finally {
+      setLoadingTemplates(false);
+    }
+  };
+
+  const handleSelectTemplate = (tpl: SavedTaskTemplate) => {
+    setSelectedTemplateId(tpl.id);
+    setNewTaskDept(tpl.department);
+    setNewTaskType(tpl.task_type);
+    setNewTaskTitle(tpl.title);
+    setNewTaskStaff(tpl.default_staff);
+    setNewTaskSla(tpl.default_sla_minutes);
+    setNewTaskPriority(tpl.priority);
+    if (tpl.checklist && tpl.checklist.length > 0) {
+      setNewTaskNotes(`Checklist SOP: ${tpl.checklist.join(' • ')}`);
+    }
+  };
+
+  const handleUpdateTemplateSla = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingTemplate) return;
+    setEditTemplateSaving(true);
+    try {
+      await apiRequest('/api/v1/executive/task-templates', {
+        method: 'PUT',
+        body: JSON.stringify({
+          id: editingTemplate.id,
+          updates: {
+            default_sla_minutes: Number(editTemplateSla),
+            default_staff: editTemplateStaff || editingTemplate.default_staff
+          }
+        })
+      });
+      await loadTaskTemplates();
+      setEditingTemplate(null);
+    } catch (err: any) {
+      alert(`Update template failed: ${err.message}`);
+    } finally {
+      setEditTemplateSaving(false);
+    }
+  };
+
+  const toggleRoomSelection = (rm: string) => {
+    if (selectedRooms.includes(rm)) {
+      if (selectedRooms.length > 1) {
+        setSelectedRooms(selectedRooms.filter(r => r !== rm));
+      }
+    } else {
+      setSelectedRooms([...selectedRooms, rm]);
+    }
+  };
 
   const handleDepartmentChange = (dept: 'Housekeeping' | 'Maintenance' | 'Kitchen' | 'Runner' | 'FrontDesk') => {
     setNewTaskDept(dept);
+    setSelectedTemplateId(null);
     if (dept === 'Housekeeping') {
       setNewTaskType('Turnover Cleaning');
       setNewTaskStaff('Sunita Rawat');
@@ -244,24 +332,44 @@ export default function ManagerDashboard() {
       alert('Please enter a task title or description.');
       return;
     }
+    const roomsToDispatch = selectedRooms.length > 0 ? selectedRooms : [newTaskRoom.trim() || '101'];
     setDispatchLoading(true);
     try {
-      await apiRequest('/api/v1/executive/live-tasks', {
-        method: 'POST',
-        body: JSON.stringify({
-          title: newTaskTitle,
-          department: newTaskDept,
-          task_type: newTaskType,
-          room_number: newTaskRoom,
-          assigned_to: newTaskStaff,
-          standard_sla_minutes: newTaskSla,
-          priority: newTaskPriority,
-          notes: newTaskNotes
-        })
-      });
+      if (roomsToDispatch.length > 1) {
+        // Batch dispatch
+        await apiRequest('/api/v1/executive/task-templates', {
+          method: 'POST',
+          body: JSON.stringify({
+            template_id: selectedTemplateId,
+            department: newTaskDept,
+            title: newTaskTitle,
+            room_numbers: roomsToDispatch,
+            assigned_to: newTaskStaff,
+            standard_sla_minutes: newTaskSla,
+            priority: newTaskPriority,
+            notes: newTaskNotes
+          })
+        });
+      } else {
+        // Single dispatch
+        await apiRequest('/api/v1/executive/live-tasks', {
+          method: 'POST',
+          body: JSON.stringify({
+            title: newTaskTitle,
+            department: newTaskDept,
+            task_type: newTaskType,
+            room_number: roomsToDispatch[0],
+            assigned_to: newTaskStaff,
+            standard_sla_minutes: newTaskSla,
+            priority: newTaskPriority,
+            notes: newTaskNotes
+          })
+        });
+      }
       setDispatchModalOpen(false);
       setNewTaskTitle('');
       setNewTaskNotes('');
+      setSelectedTemplateId(null);
       await loadLiveTasks();
       loadStats();
     } catch (err: any) {
@@ -356,6 +464,7 @@ export default function ManagerDashboard() {
     loadStats();
     loadBriefing();
     loadLiveTasks();
+    loadTaskTemplates();
     const statsInterval = setInterval(loadStats, 8000);
     const tasksInterval = setInterval(loadLiveTasks, 6000);
     const clockInterval = setInterval(() => setCurrentTimeSec(Date.now()), 2000);
@@ -723,18 +832,32 @@ export default function ManagerDashboard() {
                 </div>
 
                 {/* Top Action Buttons */}
-                <div className="flex items-center gap-2 self-stretch sm:self-auto">
+                <div className="flex items-center gap-2 self-stretch sm:self-auto flex-wrap">
                   <button
                     type="button"
                     onClick={() => {
                       loadLiveTasks();
                       loadStats();
+                      loadTaskTemplates();
                     }}
                     className="p-2.5 bg-neutral-950 hover:bg-neutral-800 text-neutral-300 border border-neutral-800 rounded-xl transition flex items-center gap-1.5 text-xs font-bold"
                     title="Refresh Operations"
                   >
                     <RefreshCw className={`w-3.5 h-3.5 ${loadingTasks ? 'animate-spin text-amber-400' : ''}`} />
                     <span className="hidden sm:inline">Refresh</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      loadTaskTemplates();
+                      setTemplatesModalOpen(true);
+                    }}
+                    className="px-3 py-2.5 bg-neutral-950 hover:bg-neutral-800 text-amber-400 border border-amber-500/30 rounded-xl transition flex items-center gap-1.5 text-xs font-bold shadow-sm"
+                    title="Configure Standard Task Operating Times & SLA"
+                  >
+                    <Sliders className="w-3.5 h-3.5" />
+                    <span>Saved SLA SOPs ({taskTemplates.length || 14})</span>
                   </button>
 
                   <button
@@ -1302,13 +1425,18 @@ export default function ManagerDashboard() {
       {/* Dispatch New Live Task & SLA Modal */}
       {dispatchModalOpen && (
         <div className="fixed inset-0 z-50 bg-neutral-950/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-6 max-w-lg w-full shadow-2xl space-y-5 animate-in fade-in zoom-in duration-200">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-6 max-w-xl w-full shadow-2xl space-y-5 animate-in fade-in zoom-in duration-200">
             {/* Modal Header */}
             <div className="flex justify-between items-start border-b border-neutral-800 pb-3">
               <div>
-                <span className="text-[10px] font-extrabold uppercase text-amber-500 tracking-wider">
-                  Hotel Operations Dispatch
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-extrabold uppercase text-amber-500 tracking-wider">
+                    Hotel Operations Dispatch
+                  </span>
+                  <span className="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                    SOP SLA Enabled
+                  </span>
+                </div>
                 <h3 className="text-base font-extrabold text-white flex items-center gap-2 mt-0.5">
                   <span>➕ Dispatch Task & Assign Time SLA</span>
                 </h3>
@@ -1323,6 +1451,53 @@ export default function ManagerDashboard() {
             </div>
 
             <form onSubmit={handleDispatchTask} className="space-y-4">
+              {/* ⚡ Quick Preset Saved Task Templates */}
+              <div className="bg-neutral-950/70 border border-neutral-800/80 rounded-2xl p-3.5 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-extrabold text-amber-400 flex items-center gap-1.5">
+                    <Zap className="w-3.5 h-3.5 text-amber-400" />
+                    <span>⚡ 1-Click Saved SOP Templates (Auto-fills SLA & Staff)</span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDispatchModalOpen(false);
+                      setTemplatesModalOpen(true);
+                    }}
+                    className="text-[10px] text-neutral-400 hover:text-amber-400 underline font-bold"
+                  >
+                    Manage Standard Times
+                  </button>
+                </div>
+
+                <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto pr-1">
+                  {taskTemplates.map(tpl => {
+                    const isSelected = selectedTemplateId === tpl.id;
+                    return (
+                      <button
+                        key={tpl.id}
+                        type="button"
+                        onClick={() => handleSelectTemplate(tpl)}
+                        className={`px-2.5 py-1.5 rounded-xl border text-[11px] font-bold transition flex items-center gap-1.5 text-left ${
+                          isSelected
+                            ? 'bg-amber-500 text-neutral-950 border-amber-400 font-extrabold shadow'
+                            : 'bg-neutral-900 hover:bg-neutral-800 text-neutral-300 border-neutral-800'
+                        }`}
+                        title={`${tpl.title} - Standard SLA: ${tpl.default_sla_minutes}m`}
+                      >
+                        <span>{tpl.icon || '📋'}</span>
+                        <span className="truncate max-w-[170px]">{tpl.title.split(' - ')[0].replace('Full Room Checkout ', '')}</span>
+                        <span className={`px-1.5 py-0.2 rounded text-[10px] font-mono font-black ${
+                          isSelected ? 'bg-neutral-950/40 text-neutral-950' : 'bg-neutral-950 text-amber-400'
+                        }`}>
+                          {tpl.default_sla_minutes}m
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
               {/* Department Selection */}
               <div>
                 <label className="text-xs font-bold text-neutral-300 block mb-1.5">
@@ -1333,7 +1508,7 @@ export default function ManagerDashboard() {
                     { id: 'Housekeeping', label: 'Housekeeping', icon: '🧹' },
                     { id: 'Maintenance', label: 'Maintenance', icon: '🔧' },
                     { id: 'Kitchen', label: 'Kitchen', icon: '🍳' },
-                    { id: 'Runner', label: 'Runner', icon: '🏃' },
+                    { id: 'Runner', label: 'Runner (Delivery)', icon: '🏃' },
                     { id: 'FrontDesk', label: 'Front Desk', icon: '🛎️' },
                   ].map(d => (
                     <button
@@ -1353,33 +1528,41 @@ export default function ManagerDashboard() {
                 </div>
               </div>
 
-              {/* Room & Staff */}
+              {/* Target Room(s) Multi-Select & Staff Assignment */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-bold text-neutral-300 block mb-1">
-                    Room / Suite Number
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={newTaskRoom}
-                    onChange={(e) => setNewTaskRoom(e.target.value)}
-                    placeholder="e.g. 102, 204, Lobby"
-                    className="w-full px-3 py-2 bg-neutral-950 border border-neutral-800 rounded-xl text-xs text-neutral-200 focus:outline-none focus:border-amber-500"
-                  />
-                  <div className="flex gap-1 mt-1.5 flex-wrap">
-                    {['101', '102', '105', '201', '204', '305', 'Lobby'].map(rm => (
-                      <button
-                        key={rm}
-                        type="button"
-                        onClick={() => setNewTaskRoom(rm)}
-                        className={`px-2 py-0.5 text-[10px] rounded-md border ${
-                          newTaskRoom === rm ? 'bg-amber-500/20 text-amber-400 border-amber-500/40 font-bold' : 'bg-neutral-950 text-neutral-400 border-neutral-800'
-                        }`}
-                      >
-                        {rm}
-                      </button>
-                    ))}
+                  <div className="flex justify-between items-center mb-1">
+                    <label className="text-xs font-bold text-neutral-300">
+                      Target Suite(s)
+                    </label>
+                    <span className="text-[10px] font-bold text-amber-400">
+                      {selectedRooms.length} room{selectedRooms.length > 1 ? 's' : ''} selected
+                    </span>
+                  </div>
+                  
+                  <div className="p-2 bg-neutral-950 border border-neutral-800 rounded-xl space-y-1.5">
+                    <div className="flex gap-1 flex-wrap">
+                      {['101', '102', '105', '201', '204', '305', 'Lobby'].map(rm => {
+                        const isChecked = selectedRooms.includes(rm);
+                        return (
+                          <button
+                            key={rm}
+                            type="button"
+                            onClick={() => toggleRoomSelection(rm)}
+                            className={`px-2 py-1 text-[10px] font-bold rounded-lg border transition ${
+                              isChecked 
+                                ? 'bg-amber-500 text-neutral-950 border-amber-400 font-extrabold shadow' 
+                                : 'bg-neutral-900 text-neutral-400 border-neutral-800 hover:text-white'
+                            }`}
+                          >
+                            {isChecked ? `✓ ${rm}` : rm}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <div className="text-[10px] text-neutral-500 font-medium">
+                      Tip: Click suites above to dispatch batch cleaning or service in 1-click!
+                    </div>
                   </div>
                 </div>
 
@@ -1395,17 +1578,45 @@ export default function ManagerDashboard() {
                     className="w-full px-3 py-2 bg-neutral-950 border border-neutral-800 rounded-xl text-xs text-neutral-200 focus:outline-none focus:border-amber-500"
                   />
                   <div className="flex gap-1 mt-1.5 flex-wrap">
+                    {newTaskDept === 'Housekeeping' && (
+                      ['Sunita Rawat', 'Anita Devi', 'Kavita Singh'].map(st => (
+                        <button
+                          key={st}
+                          type="button"
+                          onClick={() => setNewTaskStaff(st)}
+                          className={`px-1.5 py-0.5 text-[9px] rounded-md border truncate ${
+                            newTaskStaff === st ? 'bg-amber-500/20 text-amber-400 border-amber-500/40 font-bold' : 'bg-neutral-950 text-neutral-400 border-neutral-800'
+                          }`}
+                        >
+                          {st.split(' ')[0]}
+                        </button>
+                      ))
+                    )}
                     {newTaskDept === 'Runner' && (
                       ['Runner Vikram Rathore', 'Runner Amit Verma', 'Runner Priya Sundaram'].map(st => (
                         <button
                           key={st}
                           type="button"
                           onClick={() => setNewTaskStaff(st)}
-                          className={`px-1.5 py-0.5 text-[9px] rounded-md border truncate max-w-[120px] ${
+                          className={`px-1.5 py-0.5 text-[9px] rounded-md border truncate ${
                             newTaskStaff === st ? 'bg-amber-500/20 text-amber-400 border-amber-500/40 font-bold' : 'bg-neutral-950 text-neutral-400 border-neutral-800'
                           }`}
                         >
                           {st.split(' ')[1]}
+                        </button>
+                      ))
+                    )}
+                    {newTaskDept === 'Maintenance' && (
+                      ['Ramesh Kumar (Chief Tech)', 'Sunil Sharma', 'Vikram Patel'].map(st => (
+                        <button
+                          key={st}
+                          type="button"
+                          onClick={() => setNewTaskStaff(st)}
+                          className={`px-1.5 py-0.5 text-[9px] rounded-md border truncate ${
+                            newTaskStaff === st ? 'bg-amber-500/20 text-amber-400 border-amber-500/40 font-bold' : 'bg-neutral-950 text-neutral-400 border-neutral-800'
+                          }`}
+                        >
+                          {st.split(' ')[0]}
                         </button>
                       ))
                     )}
@@ -1431,9 +1642,14 @@ export default function ManagerDashboard() {
               {/* Target SLA Time Window & Priority */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-bold text-neutral-300 block mb-1">
-                    Target Time SLA (Minutes)
-                  </label>
+                  <div className="flex justify-between items-center mb-1">
+                    <label className="text-xs font-bold text-neutral-300">
+                      Target Time SLA (Minutes)
+                    </label>
+                    <span className="text-[10px] text-amber-400 font-mono font-extrabold">
+                      {newTaskSla} mins countdown
+                    </span>
+                  </div>
                   <div className="flex items-center gap-2">
                     <input
                       type="number"
@@ -1493,14 +1709,14 @@ export default function ManagerDashboard() {
               {/* Special Instructions / Notes */}
               <div>
                 <label className="text-xs font-bold text-neutral-300 block mb-1">
-                  Instructions / Dispatch Notes
+                  Instructions / SOP Notes
                 </label>
                 <textarea
                   rows={2}
                   value={newTaskNotes}
                   onChange={(e) => setNewTaskNotes(e.target.value)}
-                  placeholder="e.g. VIP guest requesting prompt turn-around before 11:30 AM."
-                  className="w-full px-3 py-2 bg-neutral-950 border border-neutral-800 rounded-xl text-xs text-neutral-200 focus:outline-none focus:border-amber-500 resize-none"
+                  placeholder="e.g. Guest checkout completed. Follow island linen standards."
+                  className="w-full px-3 py-2 bg-neutral-950 border border-neutral-800 rounded-xl text-xs text-neutral-200 focus:outline-none focus:border-amber-500 resize-none font-mono text-[11px]"
                 />
               </div>
 
@@ -1512,7 +1728,13 @@ export default function ManagerDashboard() {
                   className="flex-1 py-2.5 bg-amber-500 hover:bg-amber-400 text-neutral-950 font-extrabold text-xs rounded-xl shadow transition flex items-center justify-center gap-1.5 disabled:opacity-50"
                 >
                   <Plus className="w-4 h-4" />
-                  <span>{dispatchLoading ? 'Dispatching...' : `Dispatch Task (${newTaskSla}m SLA)`}</span>
+                  <span>
+                    {dispatchLoading 
+                      ? 'Dispatching Tasks...' 
+                      : selectedRooms.length > 1
+                        ? `🚀 Dispatch ${selectedRooms.length} Tasks (${newTaskSla}m SLA each)`
+                        : `Dispatch Task (${newTaskSla}m SLA)`}
+                  </span>
                 </button>
                 <button
                   type="button"
@@ -1527,7 +1749,200 @@ export default function ManagerDashboard() {
         </div>
       )}
 
+      {/* Saved Task Templates & SLA Directory Modal */}
+      {templatesModalOpen && (
+        <div className="fixed inset-0 z-50 bg-neutral-950/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-6 max-w-2xl w-full shadow-2xl space-y-5 animate-in fade-in zoom-in duration-200">
+            {/* Modal Header */}
+            <div className="flex justify-between items-start border-b border-neutral-800 pb-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-extrabold uppercase text-amber-500 tracking-wider">
+                    Executive SOP Library
+                  </span>
+                  <span className="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                    Live Operational Times
+                  </span>
+                </div>
+                <h3 className="text-base font-extrabold text-white flex items-center gap-2 mt-0.5">
+                  <Sliders className="w-4 h-4 text-amber-400" />
+                  <span>Saved Task SLA Templates & Standard Operating Times</span>
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setTemplatesModalOpen(false);
+                  setEditingTemplate(null);
+                }}
+                className="p-1.5 text-neutral-400 hover:text-white rounded-lg hover:bg-neutral-800 transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Editing Sub-Form if clicked */}
+            {editingTemplate && (
+              <form onSubmit={handleUpdateTemplateSla} className="p-4 bg-neutral-950 border border-amber-500/30 rounded-2xl space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-xs font-extrabold text-amber-400">
+                    Edit Standard Time: {editingTemplate.title}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setEditingTemplate(null)}
+                    className="text-[10px] text-neutral-500 hover:text-white"
+                  >
+                    Cancel Edit
+                  </button>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[11px] font-bold text-neutral-300 block mb-1">
+                      Standard SLA Duration (Minutes)
+                    </label>
+                    <input
+                      type="number"
+                      min="5"
+                      max="180"
+                      value={editTemplateSla}
+                      onChange={(e) => setEditTemplateSla(Number(e.target.value))}
+                      className="w-full px-3 py-1.5 bg-neutral-900 border border-neutral-800 rounded-xl text-xs text-white font-mono font-bold"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-bold text-neutral-300 block mb-1">
+                      Default Assigned Staff Member
+                    </label>
+                    <input
+                      type="text"
+                      value={editTemplateStaff}
+                      onChange={(e) => setEditTemplateStaff(e.target.value)}
+                      className="w-full px-3 py-1.5 bg-neutral-900 border border-neutral-800 rounded-xl text-xs text-white"
+                    />
+                  </div>
+                </div>
+                <div className="flex justify-end gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setEditingTemplate(null)}
+                    className="px-3 py-1.5 bg-neutral-800 text-neutral-300 text-xs rounded-lg font-bold"
+                  >
+                    Discard
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={editTemplateSaving}
+                    className="px-4 py-1.5 bg-amber-500 hover:bg-amber-400 text-neutral-950 text-xs rounded-lg font-extrabold shadow"
+                  >
+                    {editTemplateSaving ? 'Saving...' : 'Save Standard Time'}
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {/* Template Directory List */}
+            <div className="max-h-96 overflow-y-auto space-y-2 pr-1">
+              {loadingTemplates ? (
+                <div className="py-8 text-center text-xs text-neutral-500 font-bold">Loading saved templates...</div>
+              ) : taskTemplates.length === 0 ? (
+                <div className="py-8 text-center text-xs text-neutral-500 font-bold">No templates found.</div>
+              ) : (
+                taskTemplates.map(tpl => (
+                  <div
+                    key={tpl.id}
+                    className="p-3.5 bg-neutral-950 border border-neutral-800 rounded-2xl hover:border-neutral-700 transition space-y-2"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-start gap-2.5">
+                        <span className="text-xl p-1 bg-neutral-900 rounded-lg border border-neutral-800">
+                          {tpl.icon || '📋'}
+                        </span>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-extrabold text-white">
+                              {tpl.title}
+                            </span>
+                            <span className="text-[10px] px-2 py-0.5 rounded font-extrabold bg-neutral-900 border border-neutral-800 text-neutral-400">
+                              {tpl.department}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-neutral-400 mt-0.5">
+                            {tpl.description}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        <div className="text-right">
+                          <span className="text-sm font-black font-mono text-amber-400 block">
+                            {tpl.default_sla_minutes}m
+                          </span>
+                          <span className="text-[9px] text-neutral-500 uppercase font-bold">
+                            Standard SLA
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingTemplate(tpl);
+                            setEditTemplateSla(tpl.default_sla_minutes);
+                            setEditTemplateStaff(tpl.default_staff);
+                          }}
+                          className="p-2 bg-neutral-900 hover:bg-neutral-800 text-neutral-300 border border-neutral-800 rounded-xl transition text-xs font-bold"
+                          title="Edit standard time"
+                        >
+                          ✏️
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            handleSelectTemplate(tpl);
+                            setTemplatesModalOpen(false);
+                            setDispatchModalOpen(true);
+                          }}
+                          className="px-2.5 py-1.5 bg-amber-500 hover:bg-amber-400 text-neutral-950 font-extrabold text-[11px] rounded-xl transition shadow"
+                        >
+                          Dispatch
+                        </button>
+                      </div>
+                    </div>
+
+                    {tpl.checklist && tpl.checklist.length > 0 && (
+                      <div className="pt-2 border-t border-neutral-900 flex flex-wrap gap-1.5">
+                        {tpl.checklist.map((item, idx) => (
+                          <span
+                            key={idx}
+                            className="text-[10px] px-2 py-0.5 bg-neutral-900 text-neutral-400 rounded-md border border-neutral-800"
+                          >
+                            ✓ {item}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className="flex justify-end pt-2 border-t border-neutral-800">
+              <button
+                type="button"
+                onClick={() => {
+                  setTemplatesModalOpen(false);
+                  setEditingTemplate(null);
+                }}
+                className="px-4 py-2 bg-neutral-800 hover:bg-neutral-750 text-neutral-300 font-bold text-xs rounded-xl"
+              >
+                Close Directory
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
+
 
