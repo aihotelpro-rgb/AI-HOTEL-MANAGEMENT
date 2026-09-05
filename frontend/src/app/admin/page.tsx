@@ -44,7 +44,11 @@ import {
   Sparkles,
   Timer,
   AlertOctagon,
-  UserCheck
+  UserCheck,
+  QrCode,
+  Printer,
+  Download,
+  ExternalLink
 } from 'lucide-react';
 
 interface HotelSettings {
@@ -448,6 +452,54 @@ export default function AdminControlPage() {
   const [attendanceMonth, setAttendanceMonth] = useState('2026-09');
   const [monthlyRoster, setMonthlyRoster] = useState<any[]>([]);
   const [monthlyAttendanceLoading, setMonthlyAttendanceLoading] = useState(false);
+
+  // QR Standee & Print Suite Control States
+  const [qrModalOpen, setQrModalOpen] = useState(false);
+  const [qrSelectedRooms, setQrSelectedRooms] = useState<string[]>([]);
+  const [qrStandeeStyle, setQrStandeeStyle] = useState<'acrylic_gold' | 'minimal_white' | 'wooden_rustic'>('acrylic_gold');
+  const [qrPrimaryAction, setQrPrimaryAction] = useState<'dining' | 'concierge' | 'folio'>('dining');
+  const [qrWifiInclude, setQrWifiInclude] = useState(true);
+  const [qrCustomHeading, setQrCustomHeading] = useState('Scan for In-Room Dining & AI Concierge');
+  const [qrDataUrls, setQrDataUrls] = useState<Record<string, string>>({});
+  const [generatingQr, setGeneratingQr] = useState(false);
+
+  // Generate QR Data URLs dynamically using qrcode package
+  const handleOpenQrModal = async (targetRooms?: string[]) => {
+    const list = targetRooms && targetRooms.length > 0 
+      ? targetRooms 
+      : rooms.map(r => r.room_number);
+    setQrSelectedRooms(list);
+    setQrModalOpen(true);
+    setGeneratingQr(true);
+
+    try {
+      const QRCodeLib = (await import('qrcode')).default;
+      const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
+      const urlsMap: Record<string, string> = {};
+
+      for (const rm of list) {
+        const targetUrl = `${origin}/room-qr?room=${encodeURIComponent(rm)}`;
+        const dataUrl = await QRCodeLib.toDataURL(targetUrl, {
+          width: 320,
+          margin: 1,
+          color: {
+            dark: '#000000',
+            light: '#ffffff'
+          }
+        });
+        urlsMap[rm] = dataUrl;
+      }
+      setQrDataUrls(urlsMap);
+    } catch (err) {
+      console.error('Error generating QR codes:', err);
+    } finally {
+      setGeneratingQr(false);
+    }
+  };
+
+  const handlePrintQrCards = () => {
+    window.print();
+  };
   const [attendanceDeptFilter, setAttendanceDeptFilter] = useState('All');
   const [attendanceSearch, setAttendanceSearch] = useState('');
 
@@ -1522,13 +1574,25 @@ export default function AdminControlPage() {
                     <h3 className="text-sm sm:text-base font-extrabold text-neutral-100 leading-snug">Suite Inventory Master</h3>
                     <p className="text-xs text-neutral-400">Total {rooms.length} Suites configured with photos, bed type, area, and ₹ INR tariffs.</p>
                   </div>
-                  <button
-                    onClick={() => setRoomModalOpen(true)}
-                    className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-neutral-950 font-extrabold text-xs rounded-xl transition shadow flex items-center gap-1.5 whitespace-nowrap shrink-0 self-start sm:self-center"
-                  >
-                    <Plus className="h-4 w-4" />
-                    <span>Add New Suite</span>
-                  </button>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <button
+                      type="button"
+                      onClick={() => handleOpenQrModal()}
+                      className="px-4 py-2 bg-neutral-950 hover:bg-neutral-800 text-amber-400 border border-amber-500/30 font-extrabold text-xs rounded-xl transition shadow flex items-center gap-1.5 whitespace-nowrap"
+                      title="Generate Luxury QR Tent Cards & Standees for all suites"
+                    >
+                      <QrCode className="h-4 w-4" />
+                      <span>Print Suite QR Standees ({rooms.length})</span>
+                    </button>
+
+                    <button
+                      onClick={() => setRoomModalOpen(true)}
+                      className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-neutral-950 font-extrabold text-xs rounded-xl transition shadow flex items-center gap-1.5 whitespace-nowrap shrink-0 self-start sm:self-center"
+                    >
+                      <Plus className="h-4 w-4" />
+                      <span>Add New Suite</span>
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -1606,6 +1670,16 @@ export default function AdminControlPage() {
                       </span>
 
                       <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => handleOpenQrModal([room.room_number])}
+                          className="px-2.5 py-1 bg-neutral-800 hover:bg-neutral-700 text-amber-400 font-bold text-xs rounded-lg border border-neutral-700 transition flex items-center gap-1"
+                          title={`Print Luxury QR Standee for Suite ${room.room_number}`}
+                        >
+                          <QrCode className="h-3.5 w-3.5" />
+                          <span>QR</span>
+                        </button>
+
                         <button
                           onClick={() => setEditingRoom(room)}
                           className="px-2.5 py-1 bg-neutral-800 hover:bg-neutral-700 text-amber-400 font-bold text-xs rounded-lg border border-neutral-700 transition flex items-center gap-1"
@@ -6130,6 +6204,257 @@ export default function AdminControlPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ─────────────────────────────────────────────────────────────────────────────
+          LUXURY IN-ROOM QR STANDEE STUDIO & PRINT GENERATOR MODAL
+          Generates Printable High-Resolution Acrylic Tent Cards with Wi-Fi & Fast Direct Routing
+      ───────────────────────────────────────────────────────────────────────────── */}
+      {qrModalOpen && (
+        <div className="fixed inset-0 z-50 bg-neutral-950/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 overflow-y-auto print:p-0 print:bg-white print:static">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-4xl w-full p-5 sm:p-6 shadow-2xl space-y-5 print:border-none print:shadow-none print:p-0 print:bg-white print:max-w-none">
+            
+            {/* Modal Header (Hidden on Print) */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-neutral-800 pb-4 print:hidden">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="px-2.5 py-0.5 bg-amber-500/20 border border-amber-500/30 text-amber-400 font-extrabold text-[10px] rounded-lg uppercase tracking-wider">
+                    Physical Collateral Studio
+                  </span>
+                  <span className="px-2 py-0.5 bg-green-500/20 border border-green-500/30 text-green-400 font-extrabold text-[10px] rounded-lg">
+                    {qrSelectedRooms.length} Standees Ready
+                  </span>
+                </div>
+                <h3 className="text-base sm:text-lg font-extrabold text-white flex items-center gap-2 mt-1">
+                  <QrCode className="w-5 h-5 text-amber-400" />
+                  <span>Suite Luxury QR Standee Studio & Print Controls</span>
+                </h3>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handlePrintQrCards}
+                  className="px-4 py-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-neutral-950 font-black text-xs rounded-xl shadow-lg transition flex items-center gap-1.5"
+                >
+                  <Printer className="w-4 h-4" />
+                  <span>Print All QR Cards</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setQrModalOpen(false)}
+                  className="p-2 text-neutral-400 hover:text-white rounded-xl hover:bg-neutral-800 transition"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Customization Controls Toolbar (Hidden on Print) */}
+            <div className="bg-neutral-950 border border-neutral-800 rounded-2xl p-4 grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs print:hidden">
+              <div>
+                <label className="block text-[10px] uppercase font-extrabold text-neutral-400 mb-1.5">
+                  Standee Visual Theme
+                </label>
+                <div className="grid grid-cols-3 gap-1">
+                  {[
+                    { id: 'acrylic_gold', label: 'Gold Palace', icon: '👑' },
+                    { id: 'minimal_white', label: 'Minimalist', icon: '⚪' },
+                    { id: 'wooden_rustic', label: 'Island Teak', icon: '🪵' }
+                  ].map(style => (
+                    <button
+                      key={style.id}
+                      type="button"
+                      onClick={() => setQrStandeeStyle(style.id as any)}
+                      className={`p-2 rounded-xl border text-[11px] font-bold text-center transition flex flex-col items-center gap-0.5 ${
+                        qrStandeeStyle === style.id
+                          ? 'bg-amber-500 text-neutral-950 border-amber-400 font-extrabold shadow'
+                          : 'bg-neutral-900 text-neutral-300 border-neutral-800 hover:text-white'
+                      }`}
+                    >
+                      <span className="text-sm">{style.icon}</span>
+                      <span className="text-[10px]">{style.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[10px] uppercase font-extrabold text-neutral-400 mb-1.5">
+                  Card Headline / Guest Message
+                </label>
+                <input
+                  type="text"
+                  value={qrCustomHeading}
+                  onChange={(e) => setQrCustomHeading(e.target.value)}
+                  className="w-full px-3 py-2 bg-neutral-900 border border-neutral-800 rounded-xl text-xs text-white focus:outline-none focus:border-amber-500"
+                />
+                <div className="flex items-center gap-2 mt-2">
+                  <input
+                    type="checkbox"
+                    id="includeWifiCheck"
+                    checked={qrWifiInclude}
+                    onChange={(e) => setQrWifiInclude(e.target.checked)}
+                    className="accent-amber-500 rounded cursor-pointer"
+                  />
+                  <label htmlFor="includeWifiCheck" className="text-[11px] text-neutral-300 cursor-pointer font-medium">
+                    Embed Resort Wi-Fi Access details
+                  </label>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[10px] uppercase font-extrabold text-neutral-400 mb-1.5">
+                  Direct Target Landing Feature
+                </label>
+                <div className="grid grid-cols-3 gap-1">
+                  {[
+                    { id: 'dining', label: 'In-Room Menu' },
+                    { id: 'concierge', label: 'AI Concierge' },
+                    { id: 'folio', label: 'Direct Bill' }
+                  ].map(act => (
+                    <button
+                      key={act.id}
+                      type="button"
+                      onClick={() => setQrPrimaryAction(act.id as any)}
+                      className={`py-2 px-1 text-[10px] font-bold rounded-xl border text-center transition ${
+                        qrPrimaryAction === act.id
+                          ? 'bg-amber-500 text-neutral-950 border-amber-400 font-extrabold shadow'
+                          : 'bg-neutral-900 text-neutral-400 border-neutral-800'
+                      }`}
+                    >
+                      {act.label}
+                    </button>
+                  ))}
+                </div>
+                <div className="text-[10px] text-neutral-500 mt-2">
+                  URL Target: <span className="font-mono text-amber-400/90">/room-qr?room=[SUITE]</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Standees Printable Sheet Area */}
+            <div className="max-h-[60vh] overflow-y-auto p-2 sm:p-4 bg-neutral-950/60 rounded-2xl border border-neutral-800/80 print:max-h-none print:overflow-visible print:border-none print:bg-white print:p-0">
+              {generatingQr ? (
+                <div className="py-16 text-center text-xs text-neutral-400 font-bold flex flex-col items-center gap-2">
+                  <RefreshCw className="w-5 h-5 animate-spin text-amber-400" />
+                  <span>Rendering Vector QR Standees for Selected Suites...</span>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 print:grid-cols-2 print:gap-4 print:p-0">
+                  {qrSelectedRooms.map(rm => {
+                    const qrImg = qrDataUrls[rm];
+                    const suiteObj = rooms.find(r => r.room_number === rm);
+
+                    return (
+                      <div
+                        key={rm}
+                        className={`rounded-3xl p-6 relative overflow-hidden transition shadow-xl border flex flex-col items-center text-center justify-between min-h-[380px] print:shadow-none print:rounded-2xl print:min-h-[340px] print:page-break-inside-avoid ${
+                          qrStandeeStyle === 'acrylic_gold'
+                            ? 'bg-gradient-to-b from-neutral-900 via-neutral-950 to-neutral-900 border-amber-500/40 text-neutral-100 print:bg-white print:text-black print:border-amber-600'
+                            : qrStandeeStyle === 'wooden_rustic'
+                              ? 'bg-stone-900 border-amber-700/50 text-stone-100 print:bg-white print:text-black print:border-stone-800'
+                              : 'bg-neutral-950 border-neutral-700 text-white print:bg-white print:text-black print:border-neutral-300'
+                        }`}
+                      >
+                        {/* Top Decorative Gold Crown / Emblem */}
+                        <div className="space-y-1.5 w-full">
+                          <div className="flex items-center justify-center gap-1 text-amber-400 text-xs font-extrabold uppercase tracking-widest print:text-amber-700">
+                            <span>⚜️</span>
+                            <span>{settings?.hotel_name || 'HOTEL BLUE BIRD INN'}</span>
+                            <span>⚜️</span>
+                          </div>
+                          <div className="text-[11px] text-neutral-400 italic print:text-neutral-600">
+                            {settings?.tagline || 'Andaman Luxury Suites & Ocean In-Room Dining'}
+                          </div>
+                        </div>
+
+                        {/* Room Number Badge */}
+                        <div className="my-2.5">
+                          <div className="px-5 py-1.5 bg-amber-500 text-neutral-950 rounded-2xl font-black text-sm tracking-wider shadow border border-amber-400 inline-block print:border-amber-700">
+                            SUITE {rm}
+                          </div>
+                          <div className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider mt-1 print:text-neutral-700">
+                            {suiteObj?.room_type || 'Deluxe Luxury Suite'}
+                          </div>
+                        </div>
+
+                        {/* QR Code Container */}
+                        <div className="p-3.5 bg-white rounded-2xl shadow-xl border-2 border-amber-400/60 inline-block my-2 print:border-amber-600">
+                          {qrImg ? (
+                            <img 
+                              src={qrImg} 
+                              alt={`QR Code for Suite ${rm}`} 
+                              className="w-40 h-40 object-contain mx-auto"
+                            />
+                          ) : (
+                            <div className="w-40 h-40 flex items-center justify-center text-neutral-400 text-xs">
+                              Rendering QR...
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Guest Instructions & Value Proposition */}
+                        <div className="space-y-2 w-full mt-1">
+                          <h4 className="text-xs font-black text-amber-400 uppercase tracking-wider print:text-neutral-900">
+                            {qrCustomHeading}
+                          </h4>
+                          <p className="text-[11px] text-neutral-300 leading-snug px-3 print:text-neutral-700">
+                            Scan with your phone camera to order Andaman fresh catch, gourmet meals, request housekeeping, or call front desk.
+                          </p>
+                        </div>
+
+                        {/* Bottom Resort Wi-Fi Strip */}
+                        {qrWifiInclude && (
+                          <div className="w-full mt-3 pt-2.5 border-t border-neutral-800/80 flex items-center justify-between text-[10px] font-mono text-neutral-400 print:text-neutral-800 print:border-neutral-300">
+                            <div>
+                              <span>Wi-Fi SSID: </span>
+                              <strong className="text-neutral-200 print:text-black">{settings?.wifi_ssid || 'BlueBird_Guest_HighSpeed'}</strong>
+                            </div>
+                            <div>
+                              <span>Pass: </span>
+                              <strong className="text-amber-400 print:text-black font-bold">{settings?.wifi_password || 'IslandWelcome2026'}</strong>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Print Only Footer Note */}
+                        <div className="hidden print:block text-[8px] text-neutral-400 text-center w-full mt-2 pt-1 border-t border-neutral-200">
+                          AI-Hotel OS Luxury Standee • Suite {rm} • Direct In-Suite Hospitality
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Modal Actions Footer (Hidden on Print) */}
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-3 pt-2 border-t border-neutral-800 print:hidden text-xs">
+              <div className="text-neutral-400 text-[11px]">
+                💡 <strong>Admin Tip:</strong> Print on 300 GSM matte cardstock and place inside standard A5 or A6 acrylic table tents.
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setQrModalOpen(false)}
+                  className="px-4 py-2 bg-neutral-800 hover:bg-neutral-750 text-neutral-300 font-bold rounded-xl"
+                >
+                  Close Studio
+                </button>
+                <button
+                  type="button"
+                  onClick={handlePrintQrCards}
+                  className="px-5 py-2 bg-amber-500 hover:bg-amber-400 text-neutral-950 font-extrabold rounded-xl shadow flex items-center gap-1.5"
+                >
+                  <Printer className="w-4 h-4" />
+                  <span>Print Standees Now</span>
+                </button>
+              </div>
+            </div>
+
           </div>
         </div>
       )}
