@@ -30,7 +30,9 @@ export async function GET(
   const sgst = Math.round(subtotal * 0.06);
   const totalGst = cgst + sgst;
   const grandTotal = subtotal + totalGst;
-  const advanceDeposit = stay?.vip_status ? 5000 : 2500;
+  const advanceDeposit = (stay?.advance_payment !== undefined && stay?.advance_payment !== null)
+    ? Number(stay.advance_payment)
+    : (stay?.vip_status ? 5000 : 2500);
   const balanceDue = Math.max(0, grandTotal - advanceDeposit);
 
   const charges = [

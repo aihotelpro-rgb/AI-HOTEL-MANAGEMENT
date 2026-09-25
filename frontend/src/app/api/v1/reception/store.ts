@@ -26,6 +26,10 @@ export interface ActiveStayRecord {
   city_state_origin?: string;
   purpose_of_visit?: string;
   gstin?: string;
+  advance_payment?: number;
+  advance_mode?: 'Cash' | 'Card' | 'UPI' | 'Bank Transfer' | string;
+  channel?: string;
+  created_at?: string;
 }
 
 declare global {
@@ -78,6 +82,10 @@ const INITIAL_STAYS: ActiveStayRecord[] = [
     nationality: 'Indian',
     id_type: 'Aadhaar Card',
     purpose_of_visit: 'Business / IT Conference',
+    advance_payment: 2500,
+    advance_mode: 'Cash',
+    channel: 'Direct Walk-In',
+    created_at: new Date().toISOString(),
   },
   {
     booking_id: 204,
@@ -95,6 +103,10 @@ const INITIAL_STAYS: ActiveStayRecord[] = [
     nationality: 'Indian',
     id_type: 'Passport',
     purpose_of_visit: 'Tourism & Leisure',
+    advance_payment: 5000,
+    advance_mode: 'Card',
+    channel: 'Direct Website',
+    created_at: new Date().toISOString(),
   },
 ];
 

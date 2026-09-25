@@ -375,6 +375,8 @@ export default function ReceptionPMSPage() {
   const [nights, setNights] = useState(2);
   const [isVip, setIsVip] = useState(false);
   const [checkInLoading, setCheckInLoading] = useState(false);
+  const [checkInAdvancePayment, setCheckInAdvancePayment] = useState(0);
+  const [checkInAdvanceMode, setCheckInAdvanceMode] = useState<'Cash' | 'Card' | 'UPI' | 'Bank Transfer'>('Cash');
 
   // Ministry of Tourism & Police C-Form Compliance States
   const [nationality, setNationality] = useState('Indian');
@@ -416,7 +418,15 @@ export default function ReceptionPMSPage() {
   const [resCityStateOrigin, setResCityStateOrigin] = useState('');
   const [resPurposeOfVisit, setResPurposeOfVisit] = useState('Tourism & Leisure');
   const [resGstin, setResGstin] = useState('');
+  const [resAdvancePayment, setResAdvancePayment] = useState(0);
+  const [resAdvanceMode, setResAdvanceMode] = useState<'Cash' | 'Card' | 'UPI' | 'Bank Transfer'>('Cash');
   const [resLoading, setResLoading] = useState(false);
+
+  // Daily Flash & Night Audit Report Modal State
+  const [dailyReportModalOpen, setDailyReportModalOpen] = useState(false);
+  const [dailyReportData, setDailyReportData] = useState<any>(null);
+  const [dailyReportLoading, setDailyReportLoading] = useState(false);
+  const [dailyReportDate, setDailyReportDate] = useState<string>(new Date().toISOString().split('T')[0]);
 
   // Booking View & Details Modal State
   const [viewBookingModalOpen, setViewBookingModalOpen] = useState(false);
@@ -450,10 +460,13 @@ export default function ReceptionPMSPage() {
             id_number: resIdNumber || undefined,
             city_state_origin: resCityStateOrigin || undefined,
             purpose_of_visit: resPurposeOfVisit,
-            gstin: resGstin || undefined
+            gstin: resGstin || undefined,
+            advance_payment: Number(resAdvancePayment || 0),
+            advance_mode: resAdvanceMode,
+            channel: resChannel
           })
         });
-        alert(`⚡ Instant Walk-In Check-In Successful! Guest ${resGuestName} checked into Suite ${resRoomNumber}.`);
+        alert(`⚡ Instant Walk-In Check-In Successful! Guest ${resGuestName} checked into Suite ${resRoomNumber}. Advance Paid: ₹${Number(resAdvancePayment || 0).toLocaleString('en-IN')} (${resAdvanceMode}).`);
       } else {
         await apiRequest('/api/v1/reception/reservations', {
           method: 'POST',
@@ -466,14 +479,18 @@ export default function ReceptionPMSPage() {
             check_out_date: resCheckOutDate,
             room_rate: resRate,
             channel: resChannel,
-            vip_status: resVip
+            vip_status: resVip,
+            advance_payment: Number(resAdvancePayment || 0),
+            advance_mode: resAdvanceMode
           })
         });
-        alert(`Advance Reservation created successfully for ${resGuestName}!`);
+        alert(`Advance Reservation created successfully for ${resGuestName}! Advance Paid: ₹${Number(resAdvancePayment || 0).toLocaleString('en-IN')} (${resAdvanceMode}).`);
       }
       setReservationModalOpen(false);
       setResGuestName('');
       setResGuestPhone('+91 ');
+      setResAdvancePayment(0);
+      setResAdvanceMode('Cash');
       loadPMSData();
     } catch (err: any) {
       alert(`Operation Failed: ${err.message}`);
@@ -517,6 +534,21 @@ export default function ReceptionPMSPage() {
       setViewBookingModalOpen(true);
     } catch (err: any) {
       alert(`Failed to load booking details: ${err.message}`);
+    }
+  };
+
+  const openDailyReportModal = async (dateOverride?: string) => {
+    const targetDate = dateOverride || dailyReportDate || new Date().toISOString().split('T')[0];
+    setDailyReportDate(targetDate);
+    setDailyReportModalOpen(true);
+    setDailyReportLoading(true);
+    try {
+      const data = await apiRequest(`/api/v1/reception/daily-report?date=${targetDate}`);
+      setDailyReportData(data);
+    } catch (err: any) {
+      alert(`Failed to generate daily report: ${err.message}`);
+    } finally {
+      setDailyReportLoading(false);
     }
   };
 
@@ -695,7 +727,9 @@ export default function ReceptionPMSPage() {
           id_number: idNumber || undefined,
           city_state_origin: cityStateOrigin || undefined,
           purpose_of_visit: purposeOfVisit,
-          gstin: gstin || undefined
+          gstin: gstin || undefined,
+          advance_payment: Number(checkInAdvancePayment || 0),
+          advance_mode: checkInAdvanceMode
         })
       });
 
@@ -713,10 +747,12 @@ export default function ReceptionPMSPage() {
         } catch (e) {}
       }
 
-      alert(`Success! Checked in ${guestName} into Suite ${checkInRoomNumber}. Digital Pass generated.`);
+      alert(`Success! Checked in ${guestName} into Suite ${checkInRoomNumber}. Advance Collected: ₹${Number(checkInAdvancePayment || 0).toLocaleString('en-IN')} (${checkInAdvanceMode}). Digital Pass generated.`);
       setCheckInModalOpen(false);
       setGuestName('');
       setGuestPhone('+91 ');
+      setCheckInAdvancePayment(0);
+      setCheckInAdvanceMode('Cash');
       loadPMSData();
     } catch (err: any) {
       alert(`Check-in error: ${err.message}`);
@@ -940,6 +976,16 @@ export default function ReceptionPMSPage() {
             >
               <span>➕</span>
               <span>New Booking</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => openDailyReportModal()}
+              className="px-3 py-1.5 bg-neutral-850 hover:bg-neutral-800 text-neutral-200 border border-neutral-700 hover:border-amber-500/50 font-extrabold text-[11px] rounded-xl transition flex items-center gap-1.5 shadow whitespace-nowrap shrink-0"
+              title="Generate Daily Night Audit & Revenue Flash Report"
+            >
+              <span>📑</span>
+              <span className="hidden sm:inline">Daily DSR Report</span>
             </button>
 
             <button
@@ -1936,6 +1982,45 @@ export default function ReceptionPMSPage() {
                 </div>
               </div>
 
+              {/* Advance Cash / Digital Deposit at Check-In */}
+              <div className="bg-neutral-950 p-3 rounded-2xl border border-neutral-800 space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-[9px] font-extrabold uppercase text-green-400 tracking-wider flex items-center gap-1">
+                    <CreditCard className="h-3 w-3" />
+                    💵 Advance Cash / Digital Deposit at Desk
+                  </span>
+                  <span className="text-[9px] text-neutral-400 font-mono">
+                    {checkInAdvancePayment > 0 ? `₹${checkInAdvancePayment.toLocaleString('en-IN')} Received` : 'Optional'}
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-[9px] uppercase font-bold text-neutral-400 mb-0.5">Payment Mode</label>
+                    <select
+                      value={checkInAdvanceMode}
+                      onChange={(e) => setCheckInAdvanceMode(e.target.value as any)}
+                      className="w-full text-xs rounded-lg border border-neutral-800 bg-neutral-900 p-2 text-neutral-200 focus:border-amber-500 font-bold"
+                    >
+                      <option value="Cash">💵 Cash</option>
+                      <option value="Card">💳 Card Swipe</option>
+                      <option value="UPI">📱 UPI / QR</option>
+                      <option value="Bank Transfer">🏦 Bank Transfer</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[9px] uppercase font-bold text-neutral-400 mb-0.5">Advance Amount (₹)</label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={checkInAdvancePayment}
+                      onChange={(e) => setCheckInAdvancePayment(Number(e.target.value))}
+                      placeholder="e.g. 2500"
+                      className="w-full text-xs rounded-lg border border-neutral-800 bg-neutral-900 p-2 text-green-400 font-mono font-bold focus:border-amber-500"
+                    />
+                  </div>
+                </div>
+              </div>
+
               <div className="flex items-center gap-2 pt-1">
                 <input
                   type="checkbox"
@@ -2534,6 +2619,132 @@ export default function ReceptionPMSPage() {
                 </div>
               </div>
 
+              {/* Advance Cash / Digital Payment & Financial Settlement */}
+              <div className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 space-y-3">
+                <div className="flex justify-between items-center pb-2 border-b border-neutral-850">
+                  <div className="flex items-center gap-1.5">
+                    <span className="h-6 w-6 rounded-lg bg-green-500/20 text-green-400 flex items-center justify-center text-xs">
+                      💳
+                    </span>
+                    <div>
+                      <span className="text-xs font-extrabold text-white block">Advance Payment & Settlement</span>
+                      <span className="text-[10px] text-neutral-400">Record cash / digital deposit collected at Front Desk</span>
+                    </div>
+                  </div>
+                  <span className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full border ${
+                    resAdvancePayment >= Math.round((Math.max(1, Math.round((new Date(resCheckOutDate).getTime() - new Date(resCheckInDate).getTime()) / (1000 * 3600 * 24))) * resRate) * 1.12)
+                      ? 'bg-emerald-950/80 text-emerald-400 border-emerald-700'
+                      : resAdvancePayment > 0
+                      ? 'bg-amber-950/80 text-amber-400 border-amber-700'
+                      : 'bg-neutral-900 text-neutral-400 border-neutral-800'
+                  }`}>
+                    {resAdvancePayment >= Math.round((Math.max(1, Math.round((new Date(resCheckOutDate).getTime() - new Date(resCheckInDate).getTime()) / (1000 * 3600 * 24))) * resRate) * 1.12) ? '✓ Fully Paid' : resAdvancePayment > 0 ? 'Partial Advance' : '0 Advance'}
+                  </span>
+                </div>
+
+                {/* Live Cost Breakdown */}
+                <div className="grid grid-cols-3 gap-2 bg-neutral-900/80 p-2.5 rounded-xl border border-neutral-800/80 text-center text-xs">
+                  <div>
+                    <span className="text-[9px] text-neutral-500 uppercase font-bold block">Tariff ({Math.max(1, Math.round((new Date(resCheckOutDate).getTime() - new Date(resCheckInDate).getTime()) / (1000 * 3600 * 24)))}N)</span>
+                    <span className="font-extrabold text-neutral-200">₹{(Math.max(1, Math.round((new Date(resCheckOutDate).getTime() - new Date(resCheckInDate).getTime()) / (1000 * 3600 * 24))) * resRate).toLocaleString('en-IN')}</span>
+                  </div>
+                  <div>
+                    <span className="text-[9px] text-neutral-500 uppercase font-bold block">12% GST</span>
+                    <span className="font-extrabold text-neutral-400">₹{Math.round((Math.max(1, Math.round((new Date(resCheckOutDate).getTime() - new Date(resCheckInDate).getTime()) / (1000 * 3600 * 24))) * resRate) * 0.12).toLocaleString('en-IN')}</span>
+                  </div>
+                  <div>
+                    <span className="text-[9px] text-amber-400/90 uppercase font-extrabold block">Estimated Total</span>
+                    <span className="font-black text-amber-400">₹{Math.round((Math.max(1, Math.round((new Date(resCheckOutDate).getTime() - new Date(resCheckInDate).getTime()) / (1000 * 3600 * 24))) * resRate) * 1.12).toLocaleString('en-IN')}</span>
+                  </div>
+                </div>
+
+                {/* Input Fields */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1">
+                      Advance Mode *
+                    </label>
+                    <select
+                      value={resAdvanceMode}
+                      onChange={(e) => setResAdvanceMode(e.target.value as any)}
+                      className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500 font-bold"
+                    >
+                      <option value="Cash">💵 Cash in Drawer</option>
+                      <option value="Card">💳 Card Swipe / POS EDC</option>
+                      <option value="UPI">📱 UPI QR / PhonePe / GPay</option>
+                      <option value="Bank Transfer">🏦 Direct Bank Transfer / NEFT</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1">
+                      Advance Amount Paid (₹)
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={resAdvancePayment}
+                      onChange={(e) => setResAdvancePayment(Number(e.target.value))}
+                      placeholder="0"
+                      className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-green-400 font-mono font-black focus:outline-none focus:border-amber-500"
+                    />
+                  </div>
+                </div>
+
+                {/* Quick Presets & Live Balance Due */}
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                  <div className="flex items-center gap-1.5 text-[10px]">
+                    <span className="text-neutral-500 font-bold">Quick:</span>
+                    <button
+                      type="button"
+                      onClick={() => setResAdvancePayment(0)}
+                      className="px-2 py-0.5 bg-neutral-900 hover:bg-neutral-850 text-neutral-400 rounded-md border border-neutral-800 font-mono"
+                    >
+                      ₹0
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const total = Math.round((Math.max(1, Math.round((new Date(resCheckOutDate).getTime() - new Date(resCheckInDate).getTime()) / (1000 * 3600 * 24))) * resRate) * 1.12);
+                        setResAdvancePayment(Math.round(total * 0.25));
+                      }}
+                      className="px-2 py-0.5 bg-neutral-900 hover:bg-neutral-850 text-neutral-300 rounded-md border border-neutral-800 font-mono"
+                    >
+                      25%
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const total = Math.round((Math.max(1, Math.round((new Date(resCheckOutDate).getTime() - new Date(resCheckInDate).getTime()) / (1000 * 3600 * 24))) * resRate) * 1.12);
+                        setResAdvancePayment(Math.round(total * 0.50));
+                      }}
+                      className="px-2 py-0.5 bg-neutral-900 hover:bg-neutral-850 text-neutral-300 rounded-md border border-neutral-800 font-mono"
+                    >
+                      50%
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const total = Math.round((Math.max(1, Math.round((new Date(resCheckOutDate).getTime() - new Date(resCheckInDate).getTime()) / (1000 * 3600 * 24))) * resRate) * 1.12);
+                        setResAdvancePayment(total);
+                      }}
+                      className="px-2 py-0.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 rounded-md border border-amber-500/40 font-mono font-bold"
+                    >
+                      100% Full
+                    </button>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-[10px] text-neutral-400 font-bold block">Balance Due on Arrival:</span>
+                    <span className={`font-mono font-black text-xs ${
+                      (Math.round((Math.max(1, Math.round((new Date(resCheckOutDate).getTime() - new Date(resCheckInDate).getTime()) / (1000 * 3600 * 24))) * resRate) * 1.12) - resAdvancePayment) <= 0
+                        ? 'text-green-400'
+                        : 'text-amber-400'
+                    }`}>
+                      ₹{Math.max(0, Math.round((Math.max(1, Math.round((new Date(resCheckOutDate).getTime() - new Date(resCheckInDate).getTime()) / (1000 * 3600 * 24))) * resRate) * 1.12) - resAdvancePayment).toLocaleString('en-IN')}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
               {/* Toggle Instant Check-In Mode */}
               <div className="p-3.5 bg-neutral-950 border border-neutral-800 rounded-2xl space-y-2">
                 <div className="flex items-center justify-between">
@@ -2806,6 +3017,220 @@ export default function ReceptionPMSPage() {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* 3. Daily Flash & Night Audit Report (DSR) Modal */}
+      {dailyReportModalOpen && (
+        <div className="fixed inset-0 bg-neutral-950/85 backdrop-blur-md z-50 overflow-y-auto p-3 sm:p-6 flex justify-center items-start">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 sm:p-7 max-w-4xl w-full shadow-2xl space-y-5 my-4 sm:my-8 relative shrink-0">
+            {/* Modal Header */}
+            <div className="flex flex-wrap justify-between items-center gap-3 border-b border-neutral-800 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 bg-amber-500 text-neutral-950 rounded-2xl flex items-center justify-center font-black text-lg shadow-md">
+                  📑
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-base sm:text-lg font-black text-white">Daily Flash Night Audit & Revenue Report</h3>
+                    <span className="text-[10px] font-extrabold px-2 py-0.5 bg-neutral-800 text-amber-400 border border-neutral-700 rounded-full">
+                      DSR Ledger
+                    </span>
+                  </div>
+                  <p className="text-xs text-neutral-400">Hotel Blue Bird Inn · Garacharma, Sri Vijayapuram · GSTIN: 35AAAAB1234C1Z9</p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <input
+                  type="date"
+                  value={dailyReportDate}
+                  onChange={(e) => {
+                    setDailyReportDate(e.target.value);
+                    openDailyReportModal(e.target.value);
+                  }}
+                  className="bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-1.5 text-xs text-amber-400 font-bold focus:outline-none focus:border-amber-500"
+                />
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className="px-3.5 py-1.5 bg-amber-500 hover:bg-amber-400 text-neutral-950 font-black text-xs rounded-xl shadow transition flex items-center gap-1.5"
+                >
+                  <span>🖨️</span>
+                  <span>Print Report</span>
+                </button>
+                <button
+                  onClick={() => setDailyReportModalOpen(false)}
+                  className="h-8 w-8 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 rounded-full flex items-center justify-center text-xs font-bold"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+
+            {/* Loading Indicator */}
+            {dailyReportLoading && (
+              <div className="py-12 text-center space-y-3">
+                <div className="h-8 w-8 animate-spin rounded-full border-4 border-amber-500 border-t-transparent mx-auto" />
+                <p className="text-xs text-neutral-400">Generating Daily Night Audit & Flash Revenue Ledger...</p>
+              </div>
+            )}
+
+            {/* Report Content */}
+            {!dailyReportLoading && dailyReportData && (
+              <div className="space-y-5 text-xs printable-daily-report">
+                {/* 4 Summary KPI Cards */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  {/* Card 1: Occupancy */}
+                  <div className="p-3.5 bg-neutral-950 border border-neutral-800 rounded-2xl space-y-1">
+                    <span className="text-[10px] font-extrabold text-neutral-400 uppercase tracking-wider block">Occupancy Rate</span>
+                    <span className="text-2xl font-black text-amber-400">{dailyReportData.inventory_summary?.occupancy_rate || '0%'}</span>
+                    <div className="flex justify-between text-[10px] text-neutral-400 pt-1 border-t border-neutral-850">
+                      <span>Occupied: <strong className="text-white">{dailyReportData.inventory_summary?.occupied_rooms}</strong></span>
+                      <span>Vacant: <strong className="text-emerald-400">{dailyReportData.inventory_summary?.vacant_rooms}</strong></span>
+                    </div>
+                  </div>
+
+                  {/* Card 2: Gross Revenue */}
+                  <div className="p-3.5 bg-neutral-950 border border-neutral-800 rounded-2xl space-y-1">
+                    <span className="text-[10px] font-extrabold text-neutral-400 uppercase tracking-wider block">Gross Revenue Today</span>
+                    <span className="text-2xl font-black text-green-400">₹{(dailyReportData.revenue_summary?.grand_gross_revenue_inr || 0).toLocaleString('en-IN')}</span>
+                    <div className="flex justify-between text-[10px] text-neutral-400 pt-1 border-t border-neutral-850">
+                      <span>Room: <strong className="text-white">₹{(dailyReportData.revenue_summary?.room_revenue_inr || 0).toLocaleString('en-IN')}</strong></span>
+                      <span>F&B: <strong className="text-amber-400">₹{(dailyReportData.revenue_summary?.food_beverage_inr || 0).toLocaleString('en-IN')}</strong></span>
+                    </div>
+                  </div>
+
+                  {/* Card 3: Cashier Drawer */}
+                  <div className="p-3.5 bg-neutral-950 border border-neutral-800 rounded-2xl space-y-1">
+                    <span className="text-[10px] font-extrabold text-neutral-400 uppercase tracking-wider block">Cash in Drawer</span>
+                    <span className="text-2xl font-black text-white">₹{(dailyReportData.cashier_settlement?.cash_in_drawer || 0).toLocaleString('en-IN')}</span>
+                    <div className="flex justify-between text-[10px] text-neutral-400 pt-1 border-t border-neutral-850">
+                      <span>Card: <strong className="text-neutral-300">₹{(dailyReportData.cashier_settlement?.card_pos_swipe || 0).toLocaleString('en-IN')}</strong></span>
+                      <span>UPI: <strong className="text-blue-400">₹{(dailyReportData.cashier_settlement?.upi_qr_digital || 0).toLocaleString('en-IN')}</strong></span>
+                    </div>
+                  </div>
+
+                  {/* Card 4: Total Advance Deposits */}
+                  <div className="p-3.5 bg-neutral-950 border border-neutral-800 rounded-2xl space-y-1">
+                    <span className="text-[10px] font-extrabold text-neutral-400 uppercase tracking-wider block">Advance Deposits</span>
+                    <span className="text-2xl font-black text-blue-400">₹{(dailyReportData.cashier_settlement?.total_advance_collected || 0).toLocaleString('en-IN')}</span>
+                    <div className="flex justify-between text-[10px] text-neutral-400 pt-1 border-t border-neutral-850">
+                      <span>GST 12%: <strong className="text-neutral-300">₹{(dailyReportData.revenue_summary?.total_gst_inr || 0).toLocaleString('en-IN')}</strong></span>
+                      <span>In-House: <strong className="text-white">{dailyReportData.frontdesk_movement?.active_inhouse}</strong></span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Cashier Payment Breakdown Bar */}
+                <div className="p-3.5 bg-neutral-950 border border-neutral-800 rounded-2xl flex flex-wrap justify-between items-center gap-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-black uppercase text-amber-400 tracking-wider">💵 Payment Settlement Modes:</span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-3 text-xs">
+                    <span className="text-neutral-300">Cash in Drawer: <strong className="text-white font-mono font-bold">₹{(dailyReportData.cashier_settlement?.cash_in_drawer || 0).toLocaleString('en-IN')}</strong></span>
+                    <span className="text-neutral-500">•</span>
+                    <span className="text-neutral-300">Card POS EDC: <strong className="text-neutral-200 font-mono font-bold">₹{(dailyReportData.cashier_settlement?.card_pos_swipe || 0).toLocaleString('en-IN')}</strong></span>
+                    <span className="text-neutral-500">•</span>
+                    <span className="text-neutral-300">UPI / QR Digital: <strong className="text-blue-400 font-mono font-bold">₹{(dailyReportData.cashier_settlement?.upi_qr_digital || 0).toLocaleString('en-IN')}</strong></span>
+                    <span className="text-neutral-500">•</span>
+                    <span className="text-neutral-300">Bank Transfer / NEFT: <strong className="text-purple-400 font-mono font-bold">₹{(dailyReportData.cashier_settlement?.bank_transfer || 0).toLocaleString('en-IN')}</strong></span>
+                  </div>
+                </div>
+
+                {/* Kardex Guest Ledger Table */}
+                <div className="border border-neutral-800 rounded-2xl overflow-hidden bg-neutral-950">
+                  <div className="p-3 bg-neutral-900 border-b border-neutral-800 flex justify-between items-center">
+                    <h4 className="font-black text-white text-xs uppercase tracking-wider">
+                      📋 In-House & Checked-In Guest Daily Ledger ({dailyReportData.guest_ledger?.length || 0} Rooms)
+                    </h4>
+                    <span className="text-[10px] font-mono text-neutral-400">Generated: {dailyReportData.generated_at}</span>
+                  </div>
+                  <div className="overflow-x-auto max-h-72">
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-neutral-950 text-neutral-400 uppercase text-[10px] tracking-wider border-b border-neutral-800 sticky top-0">
+                        <tr>
+                          <th className="p-3">Suite #</th>
+                          <th className="p-3">Guest Name</th>
+                          <th className="p-3">Check-In / Out</th>
+                          <th className="p-3">Tariff / Nt</th>
+                          <th className="p-3">Grand Total</th>
+                          <th className="p-3">Advance Paid (Mode)</th>
+                          <th className="p-3">Balance Due</th>
+                          <th className="p-3 text-right">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-neutral-850">
+                        {dailyReportData.guest_ledger?.map((g: any) => (
+                          <tr key={g.booking_id} className="hover:bg-neutral-900/60 transition">
+                            <td className="p-3 font-mono font-black text-amber-400">Suite {g.room_number}</td>
+                            <td className="p-3">
+                              <span className="font-extrabold text-white block">{g.guest_name}</span>
+                              <span className="text-[10px] text-neutral-400 font-mono">{g.guest_phone}</span>
+                            </td>
+                            <td className="p-3 text-[11px] text-neutral-300 font-mono">
+                              <div>{g.check_in}</div>
+                              <div className="text-neutral-500">to {g.check_out} ({g.nights}N)</div>
+                            </td>
+                            <td className="p-3 font-mono font-bold text-neutral-200">₹{g.tariff_per_night?.toLocaleString('en-IN')}</td>
+                            <td className="p-3 font-mono font-extrabold text-amber-400">₹{g.grand_total?.toLocaleString('en-IN')}</td>
+                            <td className="p-3">
+                              <span className="font-mono font-bold text-green-400 block">₹{g.advance_paid?.toLocaleString('en-IN')}</span>
+                              <span className="text-[9px] uppercase px-1.5 py-0.2 bg-neutral-900 text-neutral-400 border border-neutral-800 rounded">
+                                {g.payment_mode}
+                              </span>
+                            </td>
+                            <td className="p-3">
+                              <span className={`font-mono font-bold ${g.balance_due > 0 ? 'text-red-400' : 'text-green-400'}`}>
+                                ₹{g.balance_due?.toLocaleString('en-IN')}
+                              </span>
+                            </td>
+                            <td className="p-3 text-right">
+                              <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full border ${
+                                g.status === 'CheckedIn'
+                                  ? 'bg-green-950 text-green-400 border-green-700'
+                                  : g.status === 'CheckedOut'
+                                  ? 'bg-neutral-900 text-neutral-400 border-neutral-800'
+                                  : 'bg-amber-950 text-amber-400 border-amber-700'
+                              }`}>
+                                {g.status === 'CheckedIn' ? 'In-House' : g.status}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Footer Signoff */}
+                <div className="p-3.5 bg-neutral-950 border border-neutral-800 rounded-2xl flex flex-wrap justify-between items-center text-[10px] text-neutral-400 gap-2">
+                  <div>
+                    <span>Audited by: <strong>Front Desk Night Auditor</strong></span>
+                    <span className="mx-2">•</span>
+                    <span>Approved by: <strong>General Manager</strong></span>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setDailyReportModalOpen(false)}
+                      className="px-4 py-1.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 rounded-xl font-bold transition"
+                    >
+                      Close
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => window.print()}
+                      className="px-4 py-1.5 bg-amber-500 hover:bg-amber-400 text-neutral-950 rounded-xl font-black shadow transition flex items-center gap-1"
+                    >
+                      <span>🖨️</span>
+                      <span>Print Official DSR</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

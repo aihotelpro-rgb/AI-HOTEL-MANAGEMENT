@@ -65,7 +65,9 @@ export async function POST(req: NextRequest) {
     const subtotal = totalRoomCharges + totalDiningCharges;
     const gstCharges = Math.round(subtotal * 0.12);
     const grandTotal = subtotal + gstCharges;
-    const advancePaid = stay.vip_status ? 5000 : 2500;
+    const advancePaid = (stay.advance_payment !== undefined && stay.advance_payment !== null)
+      ? Number(stay.advance_payment)
+      : (stay.vip_status ? 5000 : 2500);
     const balanceDue = Math.max(0, grandTotal - advancePaid);
 
     return NextResponse.json(

@@ -28,6 +28,10 @@ export async function POST(req: NextRequest) {
     const checkInDate = new Date().toISOString();
     const checkOutDate = new Date(Date.now() + 86400000 * nights).toISOString();
 
+    const advancePayment = Number(body.advance_payment || body.advance_amount || body.advancePayment || 0);
+    const advanceMode = String(body.advance_mode || body.advanceMode || 'Cash');
+    const channel = String(body.channel || 'Direct Walk-In');
+
     const stayRecord: ActiveStayRecord = {
       booking_id: bookingId,
       guest_name: guestName,
@@ -47,6 +51,10 @@ export async function POST(req: NextRequest) {
       city_state_origin: body.city_state_origin,
       purpose_of_visit: body.purpose_of_visit || 'Tourism & Leisure',
       gstin: body.gstin,
+      advance_payment: advancePayment,
+      advance_mode: advanceMode,
+      channel: channel,
+      created_at: new Date().toISOString(),
     };
 
     // Save to central store

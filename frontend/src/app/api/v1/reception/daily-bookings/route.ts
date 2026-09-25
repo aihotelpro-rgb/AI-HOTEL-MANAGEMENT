@@ -29,6 +29,8 @@ export async function GET(req: NextRequest) {
     const isCheckedIn = s.status === 'CheckedIn';
     const isCheckedOut = s.status === 'CheckedOut';
 
+    const isConfirmed = s.status === 'Confirmed';
+
     return {
       id: idx + 1,
       booking_id: s.booking_id,
@@ -38,12 +40,14 @@ export async function GET(req: NextRequest) {
       room_type: s.room_type,
       check_in: checkInDate,
       check_out: checkOutDate,
-      status: isCheckedOut ? 'Completed Stay' : isCheckedIn ? 'CheckedIn' : s.status,
+      status: isCheckedOut ? 'Completed Stay' : isCheckedIn ? 'CheckedIn' : isConfirmed ? 'Expected Arrival' : s.status,
       total_nights: s.total_nights,
       room_rate: s.room_rate,
       is_vip: s.vip_status,
       is_active: isCheckedIn,
-      channel: 'Direct Walk-In',
+      channel: s.channel || 'Direct Walk-In',
+      advance_payment: s.advance_payment || 0,
+      advance_mode: s.advance_mode || 'Cash',
       nationality: s.nationality || 'Indian',
       purpose_of_visit: s.purpose_of_visit || 'Tourism & Leisure',
       intercom_extension: s.room_number,
