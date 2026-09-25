@@ -187,7 +187,7 @@ export default function RunnerDashboardPage() {
     if (nextStatus === 'OutForDelivery') {
       addToast('🛵 Order Picked Up!', `Order #${orderId} marked Out For Delivery by ${assignedRunner}.`, 'info');
     } else if (nextStatus === 'Delivered') {
-      addToast('✅ Delivery Completed!', `Order #${orderId} delivered to guest suite and billed to folio.`, 'success');
+      addToast('✅ Delivery Completed!', `Order #${orderId} delivered to guest suite and billed to room bill.`, 'success');
     }
 
     // 2. Persist to API

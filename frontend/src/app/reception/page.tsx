@@ -931,7 +931,7 @@ export default function ReceptionPMSPage() {
     const cleanGuest = guestName || `Guest #${bookingId}`;
     if (
       !confirm(
-        `Confirm Check-Out for ${cleanGuest} (Suite ${cleanRoom})?\n\n• Settle folio invoice\n• Mark Suite Dirty for Housekeeping turnover\n• Transfer record to Past Guest Stay History`
+        `Confirm Check-Out for ${cleanGuest} (Suite ${cleanRoom})?\n\n• Settle guest bill & invoice\n• Mark Suite Dirty for Housekeeping turnover\n• Transfer record to Past Guest Stay History`
       )
     ) {
       return;
@@ -1118,7 +1118,7 @@ export default function ReceptionPMSPage() {
         setAdvanceCashAmount(data.advance_paid);
       }
     } catch (err: any) {
-      alert(`Error loading folio: ${err.message}`);
+      alert(`Error loading bill: ${err.message}`);
     } finally {
       setFolioLoading(false);
     }
@@ -1596,7 +1596,7 @@ export default function ReceptionPMSPage() {
                             <div 
                               onClick={() => stay && openBookingDetailsModal(stay.booking_id)}
                               className="mt-3 p-2 bg-neutral-950/70 border border-neutral-800 hover:border-amber-500/50 rounded-xl cursor-pointer transition group/guest"
-                              title="Click to view Guest Profile, GRC, ID & Advance Payment Details"
+                              title="Click to view Guest Profile, ID Proof & Advance Payment Details"
                             >
                               <div className="flex justify-between items-center">
                                 <p className="text-[10px] text-neutral-500 uppercase font-bold">Resident</p>
@@ -1615,7 +1615,7 @@ export default function ReceptionPMSPage() {
                               <button
                                 onClick={() => openBookingDetailsModal(stay.booking_id)}
                                 className="py-1.5 px-2 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 border border-neutral-700 font-bold text-[11px] rounded-xl transition flex items-center justify-center gap-1"
-                                title="View Guest Profile, GRC, ID & Advance Payment Details"
+                                title="View Guest Profile, ID Proof & Advance Payment Details"
                               >
                                 <UserCheck className="h-3 w-3 text-amber-400" />
                                 Profile
@@ -1759,7 +1759,7 @@ export default function ReceptionPMSPage() {
                         <th className="p-4">Phone</th>
                         <th className="p-4">Check-In</th>
                         <th className="p-4">Departure</th>
-                        <th className="p-4">Tariff / Night</th>
+                        <th className="p-4">Rate / Night</th>
                         <th className="p-4 pr-4 text-right">Actions</th>
                       </tr>
                     </thead>
@@ -1996,7 +1996,7 @@ export default function ReceptionPMSPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] uppercase font-black text-amber-400/90 mb-1 tracking-wider">🔍 Search Kardex Ledger</label>
+                    <label className="block text-[10px] uppercase font-black text-amber-400/90 mb-1 tracking-wider">🔍 Search Guest Records & Stays</label>
                     <div className="relative">
                       <Search className="absolute left-3 top-2.5 h-4 w-4 text-neutral-500" />
                       <input
@@ -2174,7 +2174,7 @@ export default function ReceptionPMSPage() {
                           <button
                             onClick={() => openBookingDetailsModal(b.booking_id)}
                             className="px-3 py-2 bg-neutral-950 hover:bg-neutral-800 border border-neutral-700 text-neutral-300 font-bold text-xs rounded-xl transition"
-                            title="View Folio & Bill"
+                            title="View Guest Bill"
                           >
                             👁️ Bill
                           </button>
@@ -2231,7 +2231,7 @@ export default function ReceptionPMSPage() {
                 <div className="bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden shadow-xl">
                   <div className="p-4 bg-neutral-950 border-b border-neutral-800">
                     <h3 className="text-xs font-extrabold uppercase text-neutral-300 tracking-wider">
-                      📜 Past Guest Stay History Kardex ({dailyBookings.past_history?.length || 0} Records)
+                      📜 Past Guest Stay History ({dailyBookings.past_history?.length || 0} Records)
                     </h3>
                   </div>
                   <div className="overflow-x-auto">
@@ -2281,7 +2281,7 @@ export default function ReceptionPMSPage() {
                                     className="px-2 py-1 bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 text-neutral-300 rounded-xl text-[10px] font-bold inline-flex items-center gap-1 transition"
                                     title="View Settled Bill"
                                   >
-                                    👁️ Folio
+                                    👁️ Bill
                                   </button>
                                 </div>
                               </td>
@@ -2527,9 +2527,9 @@ export default function ReceptionPMSPage() {
             <div className="flex justify-between items-start pb-3 border-b border-neutral-800">
               <div>
                 <span className="text-[10px] font-extrabold uppercase text-amber-500">
-                  {folioData ? `Suite ${folioData.room_number}` : 'Loading Folio...'}
+                  {folioData ? `Suite ${folioData.room_number}` : 'Loading Guest Bill...'}
                 </span>
-                <h3 className="text-lg font-extrabold text-neutral-100">Guest Folio & Settlement</h3>
+                <h3 className="text-lg font-extrabold text-neutral-100">Guest Bill & Settlement</h3>
                 {folioData && <p className="text-xs text-neutral-400">Guest: <strong>{folioData.guest_name}</strong></p>}
               </div>
               <button onClick={() => { setCheckOutModalOpen(false); setFolioData(null); }} className="text-neutral-500 hover:text-white font-bold text-sm">✕</button>
@@ -2650,14 +2650,14 @@ export default function ReceptionPMSPage() {
                     onClick={() => {
                       if (advanceCashAmount > 0) {
                         setAdvanceCashPosted(true);
-                        alert(`✅ Advance payment of ₹${advanceCashAmount.toLocaleString('en-IN')} via ${advanceCashMode} posted to folio. Balance due: ₹${Math.max(0, (folioData.grand_total || 0) - advanceCashAmount).toLocaleString('en-IN')}`);
+                        alert(`✅ Advance payment of ₹${advanceCashAmount.toLocaleString('en-IN')} via ${advanceCashMode} recorded on bill. Balance due: ₹${Math.max(0, (folioData.grand_total || 0) - advanceCashAmount).toLocaleString('en-IN')}`);
                       }
                     }}
                     disabled={advanceCashAmount <= 0 || advanceCashPosted}
                     className="w-full py-2 bg-green-950 border border-green-700 text-green-300 hover:bg-green-900 disabled:opacity-50 font-extrabold text-xs rounded-xl transition flex items-center justify-center gap-1.5"
                   >
                     <CreditCard className="h-3.5 w-3.5" />
-                    {advanceCashPosted ? '✓ Advance Posted to Ledger' : `Post ₹${advanceCashAmount.toLocaleString('en-IN')} Advance to Folio`}
+                    {advanceCashPosted ? '✓ Advance Payment Recorded' : `Record ₹${advanceCashAmount.toLocaleString('en-IN')} Advance Payment`}
                   </button>
                 </div>
 
@@ -2686,7 +2686,7 @@ export default function ReceptionPMSPage() {
                     className="flex-1 py-2.5 bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white font-extrabold text-xs rounded-xl transition shadow-lg flex items-center justify-center gap-1.5"
                   >
                     <CreditCard className="h-4 w-4" />
-                    {checkOutLoading ? 'Settling Ledger...' : 'Settle Bill & Check Out'}
+                    {checkOutLoading ? 'Settling Bill...' : 'Settle Bill & Check Out'}
                   </button>
                 </div>
               </>
@@ -3108,7 +3108,7 @@ export default function ReceptionPMSPage() {
                 {/* Live Cost Breakdown */}
                 <div className="grid grid-cols-3 gap-2 bg-neutral-900/80 p-2.5 rounded-xl border border-neutral-800/80 text-center text-xs">
                   <div>
-                    <span className="text-[9px] text-neutral-500 uppercase font-bold block">Tariff ({Math.max(1, Math.round((new Date(resCheckOutDate).getTime() - new Date(resCheckInDate).getTime()) / (1000 * 3600 * 24)))}N)</span>
+                    <span className="text-[9px] text-neutral-500 uppercase font-bold block">Room Rent ({Math.max(1, Math.round((new Date(resCheckOutDate).getTime() - new Date(resCheckInDate).getTime()) / (1000 * 3600 * 24)))}N)</span>
                     <span className="font-extrabold text-neutral-200">₹{(Math.max(1, Math.round((new Date(resCheckOutDate).getTime() - new Date(resCheckInDate).getTime()) / (1000 * 3600 * 24))) * resRate).toLocaleString('en-IN')}</span>
                   </div>
                   <div>
@@ -3377,7 +3377,7 @@ export default function ReceptionPMSPage() {
               {/* GRC ID Verification & Advance Deposit Summary */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="p-3 bg-neutral-950 border border-neutral-800 rounded-2xl space-y-1 text-neutral-300">
-                  <span className="text-[10px] font-extrabold text-amber-500 uppercase tracking-wider block">🪪 Identity Verification (GRC)</span>
+                  <span className="text-[10px] font-extrabold text-amber-500 uppercase tracking-wider block">🪪 Guest ID Proof & Verification</span>
                   <p>Document: <strong className="text-white">{viewBookingData.guest_details.id_type || 'Aadhaar Card'}</strong> ({viewBookingData.guest_details.id_number || 'XXXX-XXXX-4819'})</p>
                   <p>Nationality: <strong className="text-white">{viewBookingData.guest_details.nationality || 'Indian'}</strong></p>
                   <p>Origin / City: <strong className="text-white">{viewBookingData.guest_details.city_state_origin || 'New Delhi, DL'}</strong></p>
@@ -3385,7 +3385,7 @@ export default function ReceptionPMSPage() {
                 </div>
                 <div className="p-3 bg-neutral-950 border border-neutral-800 rounded-2xl space-y-1.5 text-neutral-300">
                   <span className="text-[10px] font-extrabold text-emerald-400 uppercase tracking-wider block">💳 Advance Payment & Balance Due</span>
-                  <p>Estimated Total Tariff: <strong className="text-white">₹{viewBookingData.financial_summary.grand_total?.toLocaleString('en-IN')}</strong></p>
+                  <p>Total Bill Amount: <strong className="text-white">₹{viewBookingData.financial_summary.grand_total?.toLocaleString('en-IN')}</strong></p>
                   <p>Advance Deposit Paid: <strong className="text-emerald-400 font-bold">₹{(viewBookingData.financial_summary.advance_deposit || 5000).toLocaleString('en-IN')}</strong></p>
                   <div className="border-t border-neutral-800 pt-1 flex justify-between items-center">
                     <span className="text-[10px] font-extrabold text-neutral-400 uppercase">Balance Remaining:</span>
@@ -3511,7 +3511,7 @@ export default function ReceptionPMSPage() {
                   <div className="flex items-center gap-2">
                     <h3 className="text-base sm:text-lg font-black text-white">Daily Flash Night Audit & Revenue Report</h3>
                     <span className="text-[10px] font-extrabold px-2 py-0.5 bg-neutral-800 text-amber-400 border border-neutral-700 rounded-full">
-                      DSR Ledger
+                      Daily Sales Report
                     </span>
                   </div>
                   <p className="text-xs text-neutral-400">Hotel Blue Bird Inn · Garacharma, Sri Vijayapuram · GSTIN: 35AAAAB1234C1Z9</p>
@@ -3549,7 +3549,7 @@ export default function ReceptionPMSPage() {
             {dailyReportLoading && (
               <div className="py-12 text-center space-y-3">
                 <div className="h-8 w-8 animate-spin rounded-full border-4 border-amber-500 border-t-transparent mx-auto" />
-                <p className="text-xs text-neutral-400">Generating Daily Night Audit & Flash Revenue Ledger...</p>
+                <p className="text-xs text-neutral-400">Generating Daily Revenue & Sales Report...</p>
               </div>
             )}
 
@@ -3619,7 +3619,7 @@ export default function ReceptionPMSPage() {
                 <div className="border border-neutral-800 rounded-2xl overflow-hidden bg-neutral-950">
                   <div className="p-3 bg-neutral-900 border-b border-neutral-800 flex justify-between items-center">
                     <h4 className="font-black text-white text-xs uppercase tracking-wider">
-                      📋 In-House & Checked-In Guest Daily Ledger ({dailyReportData.guest_ledger?.length || 0} Rooms)
+                      📋 In-House & Checked-In Guest Daily Bill List ({dailyReportData.guest_ledger?.length || 0} Rooms)
                     </h4>
                     <span className="text-[10px] font-mono text-neutral-400">Generated: {dailyReportData.generated_at}</span>
                   </div>
@@ -3630,7 +3630,7 @@ export default function ReceptionPMSPage() {
                           <th className="p-3">Suite #</th>
                           <th className="p-3">Guest Name</th>
                           <th className="p-3">Check-In / Out</th>
-                          <th className="p-3">Tariff / Nt</th>
+                          <th className="p-3">Rate / Night</th>
                           <th className="p-3">Grand Total</th>
                           <th className="p-3">Advance Paid (Mode)</th>
                           <th className="p-3">Balance Due</th>

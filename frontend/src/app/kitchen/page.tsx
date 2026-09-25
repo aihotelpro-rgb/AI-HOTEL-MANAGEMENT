@@ -210,7 +210,7 @@ export default function KitchenKDSPage() {
     playNotificationChime('alert');
     addToast(
       `🚫 Order #${orderId} Voided & Cancelled`,
-      `Reason: ${finalReason} • Room Folio void applied.`,
+      `Reason: ${finalReason} • Room bill charge cancelled.`,
       'alert'
     );
 
@@ -951,7 +951,7 @@ export default function KitchenKDSPage() {
                       {order.status === 'Delivered' && (
                         <div className="w-full py-2 text-center text-xs font-bold text-green-400 flex items-center justify-center gap-1">
                           <CheckCircle2 className="h-4 w-4" />
-                          Delivered & Billed to Folio
+                          Delivered & Added to Room Bill
                         </div>
                       )}
 
@@ -1298,8 +1298,8 @@ export default function KitchenKDSPage() {
               <div className="flex items-center gap-2">
                 <span className="text-base">💳</span>
                 <div>
-                  <span className="text-xs font-bold text-neutral-200 block">Void Room Folio Charges</span>
-                  <span className="text-[10px] text-neutral-400 block">Automatically reverses ₹{orderToCancel.total_price.toFixed(2)} from guest folio</span>
+                  <span className="text-xs font-bold text-neutral-200 block">Cancel Room Bill Charges</span>
+                  <span className="text-[10px] text-neutral-400 block">Automatically reverses ₹{orderToCancel.total_price.toFixed(2)} from guest room bill</span>
                 </div>
               </div>
               <input
