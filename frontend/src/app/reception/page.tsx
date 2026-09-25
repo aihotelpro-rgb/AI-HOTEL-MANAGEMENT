@@ -55,6 +55,16 @@ interface WhatsAppLog {
   created_at: string;
 }
 
+function isDeepEqual(a: any, b: any): boolean {
+  if (a === b) return true;
+  if (a == null || b == null) return false;
+  try {
+    return JSON.stringify(a) === JSON.stringify(b);
+  } catch (e) {
+    return false;
+  }
+}
+
 export default function ReceptionPMSPage() {
   const router = useRouter();
   const [rooms, setRooms] = useState<Room[]>([]);
@@ -95,9 +105,25 @@ export default function ReceptionPMSPage() {
 
   // Incoming call notification state (live polling)
   const [incomingCall, setIncomingCall] = useState<any>(null);
+  const incomingCallRef = useRef<any>(null);
+  const isFetchingPmsRef = useRef<boolean>(false);
   const [incomingCallVisible, setIncomingCallVisible] = useState(false);
   const [activeCallId, setActiveCallId] = useState<string | null>(null);
   const activeWebRtcRef = useRef<IntercomAudioSession | null>(null);
+
+  const calendarStartDateRef = useRef(calendarStartDate);
+  const calendarEndDateRef = useRef(calendarEndDate);
+  const calendarSearchRef = useRef(calendarSearch);
+
+  useEffect(() => {
+    calendarStartDateRef.current = calendarStartDate;
+  }, [calendarStartDate]);
+  useEffect(() => {
+    calendarEndDateRef.current = calendarEndDate;
+  }, [calendarEndDate]);
+  useEffect(() => {
+    calendarSearchRef.current = calendarSearch;
+  }, [calendarSearch]);
 
   const loadIntercomHistory = async () => {
     try {
@@ -198,13 +224,15 @@ export default function ReceptionPMSPage() {
       if (!Array.isArray(queue)) return;
       // Find first ringing call not already being handled
       const ringing = queue.find(c => c.status === 'ringing');
-      if (ringing && incomingCall?.call_id !== ringing.call_id) {
+      if (ringing && incomingCallRef.current?.call_id !== ringing.call_id) {
+        incomingCallRef.current = ringing;
         setIncomingCall(ringing);
         setIncomingCallVisible(true);
         startContinuousRingtone();
       }
       // If our active call was answered/completed on server side, update UI
-      if (!ringing && incomingCall && incomingCall.status === 'ringing') {
+      if (!ringing && incomingCallRef.current && incomingCallRef.current.status === 'ringing') {
+        incomingCallRef.current = null;
         stopContinuousRingtone();
         setIncomingCall(null);
         setIncomingCallVisible(false);
@@ -227,6 +255,7 @@ export default function ReceptionPMSPage() {
     setIntercomCallModalOpen(true);
     setIntercomTab('console');
     setIncomingCallVisible(false);
+    incomingCallRef.current = null;
     setIncomingCall(null);
 
     // Background API state update
@@ -250,6 +279,7 @@ export default function ReceptionPMSPage() {
       });
     } catch (err) {}
     setIncomingCallVisible(false);
+    incomingCallRef.current = null;
     setIncomingCall(null);
     loadIntercomHistory();
   };
@@ -564,9 +594,9 @@ export default function ReceptionPMSPage() {
   // 2. Fetch Data
   const fetchDailyBookings = async (overrideStart?: string, overrideEnd?: string, overrideSearch?: string) => {
     try {
-      const sDate = overrideStart !== undefined ? overrideStart : calendarStartDate;
-      const eDate = overrideEnd !== undefined ? overrideEnd : calendarEndDate;
-      const qSearch = overrideSearch !== undefined ? overrideSearch : calendarSearch;
+      const sDate = overrideStart !== undefined ? overrideStart : calendarStartDateRef.current;
+      const eDate = overrideEnd !== undefined ? overrideEnd : calendarEndDateRef.current;
+      const qSearch = overrideSearch !== undefined ? overrideSearch : calendarSearchRef.current;
 
       const params = new URLSearchParams();
       if (sDate) params.append('start_date', sDate);
@@ -605,13 +635,15 @@ export default function ReceptionPMSPage() {
         } catch (e) {}
       }
 
-      setDailyBookings(bookingsData);
+      setDailyBookings((prev: any) => isDeepEqual(prev, bookingsData) ? prev : bookingsData);
     } catch (err: any) {
       console.error('Error fetching calendar bookings:', err);
     }
   };
 
   const loadPMSData = async () => {
+    if (isFetchingPmsRef.current) return;
+    isFetchingPmsRef.current = true;
     try {
       const [roomsData, staysData, logsData] = await Promise.all([
         apiRequest('/api/v1/reception/rooms'),
@@ -675,13 +707,14 @@ export default function ReceptionPMSPage() {
         return r;
       });
 
-      setRooms(processedRooms);
-      setActiveStays(combinedStays);
-      setWhatsappLogs(logsData);
+      setRooms((prev: Room[]) => isDeepEqual(prev, processedRooms) ? prev : processedRooms);
+      setActiveStays((prev: ActiveStay[]) => isDeepEqual(prev, combinedStays) ? prev : combinedStays);
+      setWhatsappLogs((prev: WhatsAppLog[]) => isDeepEqual(prev, logsData) ? prev : logsData);
       await fetchDailyBookings();
     } catch (err: any) {
       setError(err.message || 'Failed to load Front Desk PMS data');
     } finally {
+      isFetchingPmsRef.current = false;
       setLoading(false);
     }
   };
@@ -721,7 +754,7 @@ export default function ReceptionPMSPage() {
 
   useEffect(() => {
     loadPMSData();
-    const interval = setInterval(loadPMSData, 6000);
+    const interval = setInterval(loadPMSData, 12000);
     return () => clearInterval(interval);
   }, []);
 
