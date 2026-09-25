@@ -25,11 +25,15 @@ export async function POST(
     const existing = allStays.find((s) => s.booking_id === bookingId);
 
     if (existing) {
-      // Already checked in — just update status to CheckedIn
+      // Update status to CheckedIn
       const updated: ActiveStayRecord = { ...existing, status: 'CheckedIn' };
       addOrUpdateCheckIn(updated);
       return NextResponse.json(
-        { ...updated, message: `Booking #${bookingId} converted to Check-In for Suite ${existing.room_number}.` },
+        {
+          ...updated,
+          success: true,
+          message: `🎉 Check-In Successful! ${existing.guest_name} is now checked into Suite ${existing.room_number}. Status updated to Active In-House.`,
+        },
         { status: 200, headers: CORS_HEADERS }
       );
     }

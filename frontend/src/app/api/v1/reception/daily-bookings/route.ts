@@ -65,9 +65,16 @@ export async function GET(req: NextRequest) {
     : allBookings;
 
   // Categorize bookings
-  const todayArrivals = filtered.filter(
-    (b) => b.check_in === today && b.status !== 'Completed Stay'
-  );
+  const todayArrivals = filtered
+    .filter((b) => b.check_in === today && b.status !== 'Completed Stay')
+    .sort((a, b) => {
+      // Expected arrivals waiting to check in appear first
+      if (a.status === 'Expected Arrival' && b.status !== 'Expected Arrival') return -1;
+      if (b.status === 'Expected Arrival' && a.status !== 'Expected Arrival') return 1;
+      return 0;
+    });
+
+  const pendingArrivals = todayArrivals.filter((b) => b.status === 'Expected Arrival' || !b.is_active);
   const todayDepartures = filtered.filter(
     (b) => b.check_out === today && b.is_active
   );
@@ -96,7 +103,9 @@ export async function GET(req: NextRequest) {
       past_history: pastHistory,
       upcoming_reservations: upcomingReservations,
       total_bookings_count: dateFilteredAll.length,
-      arrivals_count: todayArrivals.length,
+      arrivals_count: pendingArrivals.length > 0 ? pendingArrivals.length : todayArrivals.length,
+      pending_arrivals_count: pendingArrivals.length,
+      checked_in_arrivals_count: todayArrivals.length - pendingArrivals.length,
       departures_count: todayDepartures.length,
       active_count: activeStays.length,
       past_count: pastHistory.length,

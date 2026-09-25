@@ -108,6 +108,48 @@ const INITIAL_STAYS: ActiveStayRecord[] = [
     channel: 'Direct Website',
     created_at: new Date().toISOString(),
   },
+  {
+    booking_id: 305,
+    guest_name: 'Vikramaditya Rathore',
+    guest_phone: '+91 94342 88120',
+    guest_email: 'vikram.rathore@rajasthan.gov.in',
+    room_number: '105',
+    room_type: 'Deluxe Island King',
+    check_in: new Date().toISOString(),
+    check_out: new Date(Date.now() + 86400000 * 3).toISOString(),
+    total_nights: 3,
+    room_rate: 4800.0,
+    vip_status: false,
+    status: 'Confirmed',
+    nationality: 'Indian',
+    id_type: 'Aadhaar Card',
+    purpose_of_visit: 'Tourism & Leisure',
+    advance_payment: 2000,
+    advance_mode: 'UPI',
+    channel: 'MakeMyTrip',
+    created_at: new Date().toISOString(),
+  },
+  {
+    booking_id: 408,
+    guest_name: 'Ananya Deshmukh',
+    guest_phone: '+91 97665 44321',
+    guest_email: 'ananya.d@fintech.co',
+    room_number: '208',
+    room_type: 'Super Deluxe Sea Breeze',
+    check_in: new Date().toISOString(),
+    check_out: new Date(Date.now() + 86400000 * 2).toISOString(),
+    total_nights: 2,
+    room_rate: 5500.0,
+    vip_status: true,
+    status: 'Confirmed',
+    nationality: 'Indian',
+    id_type: 'Driving License',
+    purpose_of_visit: 'Tourism & Leisure',
+    advance_payment: 3500,
+    advance_mode: 'Card',
+    channel: 'Booking.com',
+    created_at: new Date().toISOString(),
+  },
 ];
 
 const diskStays = _loadStaysFromDisk();
@@ -138,11 +180,16 @@ export function addOrUpdateCheckIn(stay: ActiveStayRecord): ActiveStayRecord {
   const cleanRoom = stay.room_number.trim();
   const currentStays = getActiveStays();
   
+  // Filter out any existing record with the SAME booking_id OR same room with active status if this is also checked-in
   const updatedStays = currentStays.filter(
-    (s) => !(s.room_number.trim() === cleanRoom && s.status === 'CheckedIn')
+    (s) => s.booking_id !== stay.booking_id && !(s.room_number.trim() === cleanRoom && s.status === 'CheckedIn' && stay.status === 'CheckedIn')
   );
   
-  const newRecord = { ...stay, room_number: cleanRoom, status: 'CheckedIn' as const };
+  const newRecord: ActiveStayRecord = { 
+    ...stay, 
+    room_number: cleanRoom, 
+    status: stay.status || 'CheckedIn' 
+  };
   updatedStays.unshift(newRecord);
   
   global.__pmsActiveStays = updatedStays;

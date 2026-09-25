@@ -693,10 +693,27 @@ export default function ReceptionPMSPage() {
     }
   }, [calendarStartDate, calendarEndDate, calendarSearch, activeTab]);
 
-  const handleConvertBookingToCheckIn = async (bookingId: number) => {
+  const handleConvertBookingToCheckIn = async (bookingId: number, guestName?: string, roomNum?: string) => {
     try {
-      await apiRequest(`/api/v1/reception/convert-booking-checkin/${bookingId}`, { method: 'POST' });
-      loadPMSData();
+      const res = await apiRequest(`/api/v1/reception/convert-booking-checkin/${bookingId}`, { method: 'POST' });
+      
+      // Clear any prior check-out blacklist for this room so room grid shows it freshly Occupied
+      if (roomNum && typeof window !== 'undefined') {
+        try {
+          const rawRooms = localStorage.getItem('pms_checked_out_rooms');
+          if (rawRooms) {
+            const roomsList: string[] = JSON.parse(rawRooms);
+            const filtered = roomsList.filter(
+              (r) => String(r).trim() !== String(roomNum).trim()
+            );
+            localStorage.setItem('pms_checked_out_rooms', JSON.stringify(filtered));
+          }
+        } catch (e) {}
+      }
+
+      alert(res.message || `🎉 Check-In Successful! ${guestName ? `Guest ${guestName}` : `Booking #${bookingId}`} checked into Suite ${roomNum || ''}. Status is now Active In-House.`);
+      await loadPMSData();
+      await fetchDailyBookings();
     } catch (err: any) {
       alert(err.message || 'Failed to convert booking to check-in');
     }
@@ -1690,14 +1707,16 @@ export default function ReceptionPMSPage() {
                                     <span>Bill</span>
                                   </button>
 
-                                  {b.status === 'Expected Arrival' ? (
+                                  {b.status === 'Expected Arrival' || b.status === 'Confirmed' ? (
                                     <button
-                                      onClick={() => handleConvertBookingToCheckIn(b.booking_id)}
-                                      className="px-3.5 py-1.5 bg-amber-500 hover:bg-amber-400 text-neutral-950 font-black text-xs rounded-xl shadow transition transform active:scale-95 whitespace-nowrap inline-flex items-center justify-center"
+                                      onClick={() => handleConvertBookingToCheckIn(b.booking_id, b.guest_name, b.room_number)}
+                                      className="px-3.5 py-1.5 bg-amber-500 hover:bg-amber-400 text-neutral-950 font-black text-xs rounded-xl shadow transition transform active:scale-95 whitespace-nowrap inline-flex items-center justify-center gap-1"
+                                      title="Convert Reservation to Active Check-In"
                                     >
-                                      1-Click Check-In
+                                      <span>⚡</span>
+                                      <span>1-Click Check-In</span>
                                     </button>
-                                  ) : b.is_active ? (
+                                  ) : b.is_active || b.status === 'CheckedIn' ? (
                                     <button
                                       onClick={() => openCheckOutModal(b.booking_id)}
                                       className="px-3.5 py-1.5 bg-red-950 border border-red-700 text-red-300 font-extrabold text-xs rounded-xl hover:bg-red-900 transition shadow whitespace-nowrap inline-flex items-center justify-center"
@@ -1748,12 +1767,36 @@ export default function ReceptionPMSPage() {
                         </div>
                       </div>
 
-                      <button
-                        onClick={() => handleConvertBookingToCheckIn(b.booking_id)}
-                        className="w-full py-2.5 bg-amber-500 hover:bg-amber-400 text-neutral-950 font-extrabold text-xs rounded-xl shadow transition"
-                      >
-                        1-Click Convert to Check-In
-                      </button>
+                      {b.status === 'CheckedIn' || b.is_active ? (
+                        <div className="flex items-center gap-2 pt-1">
+                          <span className="flex-1 py-2 text-center bg-green-950/80 border border-green-700 text-green-300 font-extrabold text-xs rounded-xl flex items-center justify-center gap-1.5 shadow-sm">
+                            <span className="h-2 w-2 rounded-full bg-green-400 animate-pulse"></span>
+                            ✓ In-House Checked In
+                          </span>
+                          <button
+                            onClick={() => openBookingDetailsModal(b.booking_id)}
+                            className="px-3 py-2 bg-neutral-950 hover:bg-neutral-800 border border-neutral-700 text-neutral-300 font-bold text-xs rounded-xl transition"
+                            title="View Folio & Bill"
+                          >
+                            👁️ Bill
+                          </button>
+                          <button
+                            onClick={() => openCheckOutModal(b.booking_id)}
+                            className="px-3 py-2 bg-red-950/80 hover:bg-red-900 border border-red-700 text-red-300 font-bold text-xs rounded-xl transition"
+                            title="Check-Out"
+                          >
+                            Check-Out
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => handleConvertBookingToCheckIn(b.booking_id, b.guest_name, b.room_number)}
+                          className="w-full py-2.5 bg-amber-500 hover:bg-amber-400 text-neutral-950 font-black text-xs rounded-xl shadow-lg transition transform active:scale-95 flex items-center justify-center gap-1.5"
+                        >
+                          <span>⚡</span>
+                          <span>1-Click Convert to Check-In</span>
+                        </button>
+                      )}
                     </div>
                   ))}
                 </div>
