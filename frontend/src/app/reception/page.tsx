@@ -388,7 +388,12 @@ export default function ReceptionPMSPage() {
   const [checkOutModalOpen, setCheckOutModalOpen] = useState(false);
   const [selectedBookingId, setSelectedBookingId] = useState<number | null>(null);
   const [folioData, setFolioData] = useState<any>(null);
+  const [folioLoading, setFolioLoading] = useState(false);
   const [checkOutLoading, setCheckOutLoading] = useState(false);
+  // Advance Cash Payment state
+  const [advanceCashAmount, setAdvanceCashAmount] = useState(0);
+  const [advanceCashMode, setAdvanceCashMode] = useState<'Cash' | 'Card' | 'UPI' | 'Bank Transfer'>('Cash');
+  const [advanceCashPosted, setAdvanceCashPosted] = useState(false);
 
   // Bedside Room QR Standee Modal State
   const [selectedQrRoom, setSelectedQrRoom] = useState<string | null>(null);
@@ -723,14 +728,26 @@ export default function ReceptionPMSPage() {
   // Open Check Out Modal & Fetch Folio
   const openCheckOutModal = async (bookingId: number) => {
     setSelectedBookingId(bookingId);
+    setFolioData(null);
+    setAdvanceCashAmount(0);
+    setAdvanceCashPosted(false);
+    setAdvanceCashMode('Cash');
     setCheckOutModalOpen(true);
+    setFolioLoading(true);
     try {
-      const data = await apiRequest(`/api/v1/qr_menu/folio/${bookingId}`);
+      const data = await apiRequest(`/api/v1/reception/bookings/${bookingId}/invoice-data`);
       setFolioData(data);
+      // Pre-fill advance amount from API if available
+      if (data?.advance_paid && data.advance_paid > 0) {
+        setAdvanceCashAmount(data.advance_paid);
+      }
     } catch (err: any) {
       alert(`Error loading folio: ${err.message}`);
+    } finally {
+      setFolioLoading(false);
     }
   };
+
 
   // Perform Check Out
   const handleCheckOut = async () => {
@@ -1955,95 +1972,181 @@ export default function ReceptionPMSPage() {
       )}
 
       {/* Check Out & Folio Settlement Modal with GST */}
-      {checkOutModalOpen && folioData && (
+      {checkOutModalOpen && (
         <div className="fixed inset-0 bg-neutral-950/80 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-in fade-in">
-          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-5">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+            {/* Header */}
             <div className="flex justify-between items-start pb-3 border-b border-neutral-800">
               <div>
-                <span className="text-[10px] font-extrabold uppercase text-amber-500">Suite {folioData.room_number}</span>
-                <h3 className="text-lg font-extrabold text-neutral-100">Tax Invoice & Settlement</h3>
-                <p className="text-xs text-neutral-400">Guest: <strong>{folioData.guest_name}</strong></p>
+                <span className="text-[10px] font-extrabold uppercase text-amber-500">
+                  {folioData ? `Suite ${folioData.room_number}` : 'Loading Folio...'}
+                </span>
+                <h3 className="text-lg font-extrabold text-neutral-100">Guest Folio & Settlement</h3>
+                {folioData && <p className="text-xs text-neutral-400">Guest: <strong>{folioData.guest_name}</strong></p>}
               </div>
-              <button onClick={() => setCheckOutModalOpen(false)} className="text-neutral-500 hover:text-white font-bold text-sm">✕</button>
+              <button onClick={() => { setCheckOutModalOpen(false); setFolioData(null); }} className="text-neutral-500 hover:text-white font-bold text-sm">✕</button>
             </div>
 
-            {/* Charges Breakdown */}
-            <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-2 text-xs bg-neutral-950 p-3 rounded-xl border border-neutral-800">
-                <div>
-                  <span className="text-neutral-500 text-[10px] uppercase font-bold block">Room Charges</span>
-                  <span className="font-extrabold text-sm text-neutral-200">₹{folioData.total_room_charges.toLocaleString('en-IN')}</span>
-                </div>
-                <div>
-                  <span className="text-neutral-500 text-[10px] uppercase font-bold block">In-Room Dining Tab</span>
-                  <span className="font-extrabold text-sm text-amber-400">₹{folioData.total_dining_charges.toLocaleString('en-IN')}</span>
-                </div>
+            {/* Loading skeleton */}
+            {folioLoading && (
+              <div className="space-y-3 py-4">
+                <div className="h-8 bg-neutral-800 rounded-xl animate-pulse" />
+                <div className="h-8 bg-neutral-800 rounded-xl animate-pulse" />
+                <div className="h-16 bg-neutral-800 rounded-xl animate-pulse" />
+                <div className="h-12 bg-neutral-800 rounded-xl animate-pulse" />
               </div>
+            )}
 
-              {/* Transactions List */}
-              <div className="max-h-40 overflow-y-auto divide-y divide-neutral-800 text-xs pr-1">
-                {folioData.charges.map((c: any) => (
-                  <div key={c.id} className="py-2 flex justify-between items-center">
+            {folioData && !folioLoading && (
+              <>
+                {/* Charges Breakdown */}
+                <div className="space-y-2">
+                  <div className="grid grid-cols-2 gap-2 text-xs bg-neutral-950 p-3 rounded-xl border border-neutral-800">
                     <div>
-                      <span className={`text-[9px] font-bold uppercase px-1.5 py-0.2 rounded mr-1.5 ${
-                        c.charge_type === 'Room' ? 'bg-blue-950 text-blue-400' : 'bg-amber-950 text-amber-400'
-                      }`}>
-                        {c.charge_type}
-                      </span>
-                      <span className="text-neutral-300">{c.description}</span>
+                      <span className="text-neutral-500 text-[10px] uppercase font-bold block">Room Charges</span>
+                      <span className="font-extrabold text-sm text-neutral-200">₹{(folioData.total_room_charges || 0).toLocaleString('en-IN')}</span>
                     </div>
-                    <span className="font-extrabold text-neutral-100">₹{c.amount.toFixed(2)}</span>
+                    <div>
+                      <span className="text-neutral-500 text-[10px] uppercase font-bold block">Dining & Extras</span>
+                      <span className="font-extrabold text-sm text-amber-400">₹{(folioData.total_dining_charges || 0).toLocaleString('en-IN')}</span>
+                    </div>
                   </div>
-                ))}
-              </div>
 
-              {/* Tax & Grand Total */}
-              <div className="p-3 bg-amber-950/30 border border-amber-500/40 rounded-xl space-y-1.5">
-                <div className="flex justify-between text-xs text-neutral-300">
-                  <span>Subtotal</span>
-                  <span>₹{(folioData.subtotal || (folioData.total_room_charges + folioData.total_dining_charges)).toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between text-xs text-neutral-400">
-                  <span>12% GST (CGST + SGST)</span>
-                  <span>₹{(folioData.gst_charges || (folioData.grand_total * 0.12)).toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between items-center pt-1 border-t border-amber-500/30">
-                  <span className="font-extrabold text-xs text-amber-300 uppercase tracking-wider">Grand Total Balance</span>
-                  <span className="text-xl font-extrabold text-amber-400">₹{folioData.grand_total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-                </div>
-              </div>
-            </div>
+                  {/* Transactions List */}
+                  {Array.isArray(folioData.charges) && folioData.charges.length > 0 && (
+                    <div className="max-h-36 overflow-y-auto divide-y divide-neutral-800 text-xs pr-1 bg-neutral-950 rounded-xl border border-neutral-800 px-3">
+                      {folioData.charges.map((c: any) => (
+                        <div key={c.id} className="py-2 flex justify-between items-center">
+                          <div>
+                            <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded mr-1.5 ${
+                              c.charge_type === 'Room' ? 'bg-blue-950 text-blue-400' : 'bg-amber-950 text-amber-400'
+                            }`}>
+                              {c.charge_type}
+                            </span>
+                            <span className="text-neutral-300">{c.description}</span>
+                          </div>
+                          <span className="font-extrabold text-neutral-100">₹{Number(c.amount).toFixed(2)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
 
-            <div className="flex gap-2 pt-2">
-              <button
-                type="button"
-                onClick={() => window.open(`/api/v1/reception/bookings/${selectedBookingId}/invoice`, '_blank')}
-                className="py-2.5 px-3 bg-neutral-800 hover:bg-neutral-750 text-amber-400 border border-neutral-700 font-bold text-xs rounded-xl transition flex items-center justify-center gap-1"
-                title="Print Official GST Tax Invoice"
-              >
-                <span>🖨️</span>
-                <span>Print GST Invoice</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setCheckOutModalOpen(false)}
-                className="py-2.5 px-3 bg-neutral-800 hover:bg-neutral-750 text-neutral-300 font-bold text-xs rounded-xl transition"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                disabled={checkOutLoading}
-                onClick={handleCheckOut}
-                className="flex-1 py-2.5 bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white font-extrabold text-xs rounded-xl transition shadow-lg flex items-center justify-center gap-1.5"
-              >
-                <CreditCard className="h-4 w-4" />
-                {checkOutLoading ? 'Settling Ledger...' : 'Settle Bill & Check Out'}
-              </button>
-            </div>
+                  {/* Tax & Grand Total */}
+                  <div className="p-3 bg-amber-950/30 border border-amber-500/40 rounded-xl space-y-1.5">
+                    <div className="flex justify-between text-xs text-neutral-300">
+                      <span>Subtotal</span>
+                      <span>₹{(folioData.subtotal || (folioData.total_room_charges + folioData.total_dining_charges)).toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between text-xs text-neutral-400">
+                      <span>12% GST (CGST + SGST)</span>
+                      <span>₹{(folioData.gst_charges || 0).toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between items-center pt-1.5 border-t border-amber-500/30">
+                      <span className="font-extrabold text-xs text-amber-300 uppercase tracking-wider">Grand Total</span>
+                      <span className="text-xl font-extrabold text-amber-400">₹{(folioData.grand_total || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* ── ADVANCE CASH PAYMENT SECTION ── */}
+                <div className="bg-neutral-950 border border-neutral-800 rounded-2xl p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] uppercase font-extrabold text-green-400 tracking-wider flex items-center gap-1.5">
+                      <CreditCard className="h-3.5 w-3.5" />
+                      Advance / Partial Payment Received
+                    </span>
+                    {advanceCashPosted && (
+                      <span className="text-[9px] font-extrabold px-2 py-0.5 bg-green-950 text-green-400 border border-green-700 rounded-full">✓ Posted</span>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[9px] uppercase font-bold text-neutral-400 mb-1">Payment Mode</label>
+                      <select
+                        value={advanceCashMode}
+                        onChange={(e) => setAdvanceCashMode(e.target.value as any)}
+                        className="w-full text-xs rounded-xl border border-neutral-700 bg-neutral-800 p-2 text-neutral-100 focus:outline-none focus:border-amber-500"
+                      >
+                        <option value="Cash">💵 Cash</option>
+                        <option value="Card">💳 Card (Swipe)</option>
+                        <option value="UPI">📱 UPI / QR</option>
+                        <option value="Bank Transfer">🏦 Bank Transfer / NEFT</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[9px] uppercase font-bold text-neutral-400 mb-1">Advance Amount (₹)</label>
+                      <input
+                        type="number"
+                        min={0}
+                        max={folioData.grand_total || 99999}
+                        value={advanceCashAmount}
+                        onChange={(e) => setAdvanceCashAmount(Number(e.target.value))}
+                        className="w-full text-xs rounded-xl border border-neutral-700 bg-neutral-800 p-2 text-neutral-100 font-mono focus:outline-none focus:border-amber-500"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Balance Due Live Calculator */}
+                  <div className="flex justify-between items-center bg-neutral-900 border border-neutral-800 rounded-xl p-2.5">
+                    <span className="text-xs font-bold text-neutral-400">Balance Due at Checkout</span>
+                    <span className={`text-sm font-extrabold ${
+                      (folioData.grand_total - advanceCashAmount) <= 0 ? 'text-green-400' : 'text-red-400'
+                    }`}>
+                      ₹{Math.max(0, (folioData.grand_total || 0) - advanceCashAmount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    </span>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (advanceCashAmount > 0) {
+                        setAdvanceCashPosted(true);
+                        alert(`✅ Advance payment of ₹${advanceCashAmount.toLocaleString('en-IN')} via ${advanceCashMode} posted to folio. Balance due: ₹${Math.max(0, (folioData.grand_total || 0) - advanceCashAmount).toLocaleString('en-IN')}`);
+                      }
+                    }}
+                    disabled={advanceCashAmount <= 0 || advanceCashPosted}
+                    className="w-full py-2 bg-green-950 border border-green-700 text-green-300 hover:bg-green-900 disabled:opacity-50 font-extrabold text-xs rounded-xl transition flex items-center justify-center gap-1.5"
+                  >
+                    <CreditCard className="h-3.5 w-3.5" />
+                    {advanceCashPosted ? '✓ Advance Posted to Ledger' : `Post ₹${advanceCashAmount.toLocaleString('en-IN')} Advance to Folio`}
+                  </button>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => window.open(`/api/v1/reception/bookings/${selectedBookingId}/invoice`, '_blank')}
+                    className="py-2.5 px-3 bg-neutral-800 hover:bg-neutral-750 text-amber-400 border border-neutral-700 font-bold text-xs rounded-xl transition flex items-center justify-center gap-1"
+                    title="Print Official GST Tax Invoice"
+                  >
+                    <span>🖨️</span>
+                    <span>GST Invoice</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setCheckOutModalOpen(false); setFolioData(null); }}
+                    className="py-2.5 px-3 bg-neutral-800 hover:bg-neutral-750 text-neutral-300 font-bold text-xs rounded-xl transition"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    disabled={checkOutLoading}
+                    onClick={handleCheckOut}
+                    className="flex-1 py-2.5 bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white font-extrabold text-xs rounded-xl transition shadow-lg flex items-center justify-center gap-1.5"
+                  >
+                    <CreditCard className="h-4 w-4" />
+                    {checkOutLoading ? 'Settling Ledger...' : 'Settle Bill & Check Out'}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
+
 
       {/* Bedside Room QR Standee Printable Modal */}
       {selectedQrRoom && (
