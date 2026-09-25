@@ -6,6 +6,7 @@
 
 import fs from 'fs';
 import path from 'path';
+import os from 'os';
 
 export interface ActiveStayRecord {
   booking_id: number;
@@ -38,7 +39,7 @@ declare global {
 }
 
 const DISK_STAYS_FILE = path.join(process.cwd(), '.next', 'pms_active_stays.json');
-const TMP_STAYS_FILE = '/tmp/pms_active_stays.json';
+const TMP_STAYS_FILE = path.join(os.tmpdir(), 'pms_active_stays.json');
 
 function _loadStaysFromDisk(): ActiveStayRecord[] | null {
   try {
@@ -149,6 +150,69 @@ const INITIAL_STAYS: ActiveStayRecord[] = [
     advance_mode: 'Card',
     channel: 'Booking.com',
     created_at: new Date().toISOString(),
+  },
+  {
+    booking_id: 88,
+    guest_name: 'Dr. Aris Thorne',
+    guest_phone: '+91 98401 22345',
+    guest_email: 'dr.thorne@oxford.ac.uk',
+    room_number: '301',
+    room_type: 'Presidential Ocean Suite',
+    check_in: new Date(Date.now() - 86400000 * 5).toISOString(),
+    check_out: new Date(Date.now() - 86400000 * 2).toISOString(),
+    total_nights: 3,
+    room_rate: 6500.0,
+    vip_status: true,
+    status: 'CheckedOut',
+    nationality: 'British',
+    id_type: 'Passport',
+    purpose_of_visit: 'Marine Biology Research',
+    advance_payment: 19500,
+    advance_mode: 'Card',
+    channel: 'Direct Website',
+    created_at: new Date(Date.now() - 86400000 * 6).toISOString(),
+  },
+  {
+    booking_id: 89,
+    guest_name: 'Rajesh & Meera Patel',
+    guest_phone: '+91 94251 77665',
+    guest_email: 'rajesh.patel@gujaratindustries.com',
+    room_number: '202',
+    room_type: 'Deluxe Island King',
+    check_in: new Date(Date.now() - 86400000 * 6).toISOString(),
+    check_out: new Date(Date.now() - 86400000 * 2).toISOString(),
+    total_nights: 4,
+    room_rate: 3500.0,
+    vip_status: false,
+    status: 'CheckedOut',
+    nationality: 'Indian',
+    id_type: 'Aadhaar Card',
+    purpose_of_visit: 'Family Vacation',
+    advance_payment: 14000,
+    advance_mode: 'UPI',
+    channel: 'MakeMyTrip',
+    created_at: new Date(Date.now() - 86400000 * 7).toISOString(),
+  },
+  {
+    booking_id: 90,
+    guest_name: 'Sunita Rao',
+    guest_phone: '+91 98860 11223',
+    guest_email: 'sunita.rao@bangalorebio.com',
+    room_number: '104',
+    room_type: 'Deluxe Island King',
+    check_in: new Date(Date.now() - 86400000 * 4).toISOString(),
+    check_out: new Date(Date.now() - 86400000 * 1).toISOString(),
+    total_nights: 3,
+    room_rate: 3500.0,
+    vip_status: false,
+    status: 'CheckedOut',
+    nationality: 'Indian',
+    id_type: 'Driving License',
+    purpose_of_visit: 'Leisure / Scuba Diving',
+    advance_payment: 10500,
+    advance_mode: 'Cash',
+    channel: 'Booking.com',
+    created_at: new Date(Date.now() - 86400000 * 5).toISOString(),
   },
 ];
 
