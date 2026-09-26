@@ -224,6 +224,73 @@ class BookingResponse(BookingBase):
     class Config:
         from_attributes = True
 
+# --- Travel Agent & B2B Ledger Schemas ---
+class TravelAgentBase(BaseModel):
+    agency_name: str
+    contact_person: Optional[str] = None
+    phone: str
+    email: Optional[str] = None
+    city: Optional[str] = "Port Blair"
+    address: Optional[str] = None
+    gstin: Optional[str] = None
+    pan_number: Optional[str] = None
+    contract_type: str = "NET_RATE"  # NET_RATE or COMMISSION
+    commission_pct: float = 0.0
+    credit_limit: float = 100000.0  # in ₹
+    credit_days: int = 30
+    notes: Optional[str] = None
+
+class TravelAgentCreate(TravelAgentBase):
+    pass
+
+class TravelAgentUpdate(BaseModel):
+    agency_name: Optional[str] = None
+    contact_person: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    city: Optional[str] = None
+    address: Optional[str] = None
+    gstin: Optional[str] = None
+    pan_number: Optional[str] = None
+    contract_type: Optional[str] = None
+    commission_pct: Optional[float] = None
+    credit_limit: Optional[float] = None
+    credit_days: Optional[int] = None
+    is_active: Optional[bool] = None
+    notes: Optional[str] = None
+
+class TravelAgentResponse(TravelAgentBase):
+    id: int
+    current_balance: float
+    is_active: bool
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class AgentPaymentCreate(BaseModel):
+    agent_id: int
+    amount: float
+    payment_mode: str = "Bank Transfer (NEFT/RTGS)"  # Bank Transfer (NEFT/RTGS), UPI, Cheque, Cash
+    reference_utr: Optional[str] = None
+    booking_id: Optional[int] = None
+    notes: Optional[str] = None
+
+class AgentLedgerTransactionResponse(BaseModel):
+    id: int
+    agent_id: int
+    booking_id: Optional[int] = None
+    transaction_type: str
+    payment_mode: Optional[str] = None
+    reference_utr: Optional[str] = None
+    amount: float
+    balance_after: float
+    description: str
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
 class CheckInRequest(BaseModel):
     guest_name: str
     guest_phone: str
@@ -238,6 +305,15 @@ class CheckInRequest(BaseModel):
     city_state_origin: Optional[str] = None
     purpose_of_visit: Optional[str] = "Tourism & Leisure"
     gstin: Optional[str] = None
+    # Travel Agent / B2B Extensions
+    channel: Optional[str] = "Direct Walk-In"
+    travel_agent_id: Optional[int] = None
+    voucher_number: Optional[str] = None
+    billing_type: Optional[str] = "DIRECT_GUEST"
+    meal_plan: Optional[str] = "EP"
+    agent_advance_paid: Optional[float] = 0.0
+    agent_rate: Optional[float] = None
+    payment_reference_utr: Optional[str] = None
 
 class CreateReservationRequest(BaseModel):
     guest_name: str
@@ -250,6 +326,14 @@ class CreateReservationRequest(BaseModel):
     channel: Optional[str] = "Direct Walk-In"
     vip_status: bool = False
     notes: Optional[str] = None
+    # Travel Agent / B2B Extensions
+    travel_agent_id: Optional[int] = None
+    voucher_number: Optional[str] = None
+    billing_type: Optional[str] = "DIRECT_GUEST"  # DIRECT_GUEST, FULL_ADVANCE, PART_ADVANCE, CREDIT_LEDGER_BTC
+    meal_plan: Optional[str] = "EP"  # EP, CP, MAP, AP
+    agent_advance_paid: Optional[float] = 0.0
+    agent_rate: Optional[float] = None
+    payment_reference_utr: Optional[str] = None
 
 class CheckOutResponse(BaseModel):
     booking_id: int

@@ -7,7 +7,7 @@ from typing import List, Optional
 import datetime
 
 from app.database import get_db
-from app.models import Room, Booking, Guest, FolioCharge, WhatsAppLog, User, HotelSettings, Ticket
+from app.models import Room, Booking, Guest, FolioCharge, WhatsAppLog, User, HotelSettings, Ticket, TravelAgent, AgentLedgerTransaction
 from app.schemas import RoomResponse, RoomStatusUpdate, CheckInRequest, CheckOutResponse, WhatsAppLogResponse, CreateReservationRequest
 from app.auth import RoleChecker, get_current_user
 
@@ -112,6 +112,7 @@ async def check_in_guest(
     # 3. Create Booking
     now = datetime.datetime.utcnow()
     check_out_date = now + datetime.timedelta(days=request.nights)
+    channel_name = request.channel or ("Travel Agent" if request.travel_agent_id else "Direct Walk-In")
     booking = Booking(
         guest_id=guest.id,
         room_number=request.room_number,
@@ -119,7 +120,14 @@ async def check_in_guest(
         check_out=check_out_date,
         is_active=True,
         total_nights=request.nights,
-        room_rate=request.room_rate or room.price_per_night
+        room_rate=request.room_rate or room.price_per_night,
+        channel=channel_name,
+        travel_agent_id=request.travel_agent_id,
+        voucher_number=request.voucher_number,
+        billing_type=request.billing_type or "DIRECT_GUEST",
+        meal_plan=request.meal_plan or "EP",
+        agent_advance_paid=request.agent_advance_paid or 0.0,
+        agent_rate=request.agent_rate or request.room_rate or room.price_per_night
     )
     db.add(booking)
     await db.flush()
@@ -140,6 +148,38 @@ async def check_in_guest(
     )
     db.add(folio_room)
     await db.flush()
+
+    # 6. Travel Agent B2B Ledger Updates
+    if booking.travel_agent_id:
+        ag_res = await db.execute(select(TravelAgent).where(TravelAgent.id == booking.travel_agent_id))
+        agent = ag_res.scalars().first()
+        if agent:
+            if booking.billing_type == "CREDIT_LEDGER_BTC":
+                agent.current_balance += total_room_cost
+                tx_debit = AgentLedgerTransaction(
+                    agent_id=agent.id,
+                    booking_id=booking.id,
+                    transaction_type="DEBIT_INVOICE",
+                    amount=total_room_cost,
+                    balance_after=agent.current_balance,
+                    description=f"Check-In Stay #{booking.id} Suite {booking.room_number} ({guest.name}) - VCH: {booking.voucher_number or 'N/A'} ({booking.meal_plan} Plan)",
+                    created_at=datetime.datetime.utcnow()
+                )
+                db.add(tx_debit)
+            if booking.agent_advance_paid and booking.agent_advance_paid > 0:
+                agent.current_balance -= booking.agent_advance_paid
+                tx_credit = AgentLedgerTransaction(
+                    agent_id=agent.id,
+                    booking_id=booking.id,
+                    transaction_type="CREDIT_PAYMENT",
+                    payment_mode="Bank Transfer (NEFT/RTGS)",
+                    reference_utr=request.payment_reference_utr or f"ADV-VCH-{booking.voucher_number or booking.id}",
+                    amount=booking.agent_advance_paid,
+                    balance_after=agent.current_balance,
+                    description=f"Advance Deposit for VCH {booking.voucher_number or ''} (Suite {booking.room_number}, {guest.name})",
+                    created_at=datetime.datetime.utcnow()
+                )
+                db.add(tx_credit)
 
     return {
         "status": "checked_in",
@@ -498,7 +538,7 @@ async def get_daily_bookings(
     today_start = datetime.datetime(now.year, now.month, now.day)
     today_end = today_start + datetime.timedelta(days=1)
 
-    query = select(Booking).options(joinedload(Booking.guest)).order_by(Booking.check_in.asc())
+    query = select(Booking).options(joinedload(Booking.guest), joinedload(Booking.travel_agent)).order_by(Booking.check_in.asc())
     bookings_res = await db.execute(query)
     all_bookings = bookings_res.scalars().all()
 
@@ -557,7 +597,14 @@ async def get_daily_bookings(
             "is_active": b.is_active,
             "total_nights": b.total_nights,
             "status": b_status,
-            "vip_status": b.guest.vip_status if b.guest else False
+            "vip_status": b.guest.vip_status if b.guest else False,
+            "travel_agent_id": b.travel_agent_id,
+            "travel_agent_name": b.travel_agent.agency_name if b.travel_agent else None,
+            "voucher_number": b.voucher_number,
+            "billing_type": b.billing_type or "DIRECT_GUEST",
+            "meal_plan": b.meal_plan or "EP",
+            "agent_advance_paid": b.agent_advance_paid or 0.0,
+            "agent_rate": b.agent_rate
         }
 
         all_records.append(b_data)
@@ -677,7 +724,7 @@ async def create_reservation(
     # 4. Create Booking
     today_start = datetime.datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
     is_active = (check_in_dt <= today_start <= check_out_dt)
-
+    channel_name = request.channel or ("Travel Agent" if request.travel_agent_id else "Direct Walk-In")
     booking = Booking(
         guest_id=guest.id,
         room_number=request.room_number,
@@ -686,7 +733,13 @@ async def create_reservation(
         is_active=is_active,
         total_nights=nights,
         room_rate=request.room_rate or room.price_per_night,
-        channel=request.channel or "Direct Walk-In"
+        channel=channel_name,
+        travel_agent_id=request.travel_agent_id,
+        voucher_number=request.voucher_number,
+        billing_type=request.billing_type or "DIRECT_GUEST",
+        meal_plan=request.meal_plan or "EP",
+        agent_advance_paid=request.agent_advance_paid or 0.0,
+        agent_rate=request.agent_rate or request.room_rate or room.price_per_night
     )
     db.add(booking)
     await db.flush()
@@ -705,6 +758,38 @@ async def create_reservation(
         is_paid=False
     )
     db.add(folio_charge)
+
+    # Travel Agent B2B Ledger Updates
+    if booking.travel_agent_id:
+        ag_res = await db.execute(select(TravelAgent).where(TravelAgent.id == booking.travel_agent_id))
+        agent = ag_res.scalars().first()
+        if agent:
+            if booking.billing_type == "CREDIT_LEDGER_BTC":
+                agent.current_balance += total_room_cost
+                tx_debit = AgentLedgerTransaction(
+                    agent_id=agent.id,
+                    booking_id=booking.id,
+                    transaction_type="DEBIT_INVOICE",
+                    amount=total_room_cost,
+                    balance_after=agent.current_balance,
+                    description=f"Voucher Booking #{booking.id} Suite {booking.room_number} ({guest.name}) - VCH: {booking.voucher_number or 'N/A'} ({booking.meal_plan} Plan)",
+                    created_at=datetime.datetime.utcnow()
+                )
+                db.add(tx_debit)
+            if booking.agent_advance_paid and booking.agent_advance_paid > 0:
+                agent.current_balance -= booking.agent_advance_paid
+                tx_credit = AgentLedgerTransaction(
+                    agent_id=agent.id,
+                    booking_id=booking.id,
+                    transaction_type="CREDIT_PAYMENT",
+                    payment_mode="Bank Transfer (NEFT/RTGS)",
+                    reference_utr=request.payment_reference_utr or f"ADV-VCH-{booking.voucher_number or booking.id}",
+                    amount=booking.agent_advance_paid,
+                    balance_after=agent.current_balance,
+                    description=f"Advance Deposit for VCH {booking.voucher_number or ''} (Suite {booking.room_number}, {guest.name})",
+                    created_at=datetime.datetime.utcnow()
+                )
+                db.add(tx_credit)
 
     await db.commit()
 

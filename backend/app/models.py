@@ -110,6 +110,32 @@ class Guest(Base):
     bookings = relationship("Booking", back_populates="guest")
 
 
+class TravelAgent(Base):
+    __tablename__ = "travel_agents"
+
+    id = Column(Integer, primary_key=True, index=True)
+    agency_name = Column(String, nullable=False, index=True)
+    contact_person = Column(String, nullable=True)
+    phone = Column(String, nullable=False)
+    email = Column(String, nullable=True)
+    city = Column(String, default="Port Blair")
+    address = Column(String, nullable=True)
+    gstin = Column(String, nullable=True)
+    pan_number = Column(String, nullable=True)
+    contract_type = Column(String, default="NET_RATE")  # NET_RATE or COMMISSION
+    commission_pct = Column(Float, default=0.0)
+    credit_limit = Column(Float, default=100000.0)  # Maximum allowed outstanding credit (₹)
+    credit_days = Column(Integer, default=30)  # Payment cycle (15, 30, 45 days)
+    current_balance = Column(Float, default=0.0)  # Running unpaid balance owed to hotel (₹)
+    is_active = Column(Boolean, default=True)
+    notes = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+    # Relationships
+    bookings = relationship("Booking", back_populates="travel_agent")
+    ledger_transactions = relationship("AgentLedgerTransaction", back_populates="travel_agent", cascade="all, delete-orphan")
+
+
 class Booking(Base):
     __tablename__ = "bookings"
 
@@ -121,13 +147,41 @@ class Booking(Base):
     is_active = Column(Boolean, default=True)
     total_nights = Column(Integer, default=1)
     room_rate = Column(Float, default=4500.0)  # in INR (₹)
-    channel = Column(String, default="Direct Website")  # Direct Website, Agoda, Booking.com, MakeMyTrip
+    channel = Column(String, default="Direct Website")  # Direct Website, Agoda, Booking.com, MakeMyTrip, Travel Agent
+
+    # Travel Agent & B2B Billing Fields
+    travel_agent_id = Column(Integer, ForeignKey("travel_agents.id"), nullable=True)
+    voucher_number = Column(String, nullable=True)
+    billing_type = Column(String, default="DIRECT_GUEST")  # DIRECT_GUEST, FULL_ADVANCE, PART_ADVANCE, CREDIT_LEDGER_BTC
+    meal_plan = Column(String, default="EP")  # EP (Room Only), CP (Breakfast), MAP (Breakfast + Dinner), AP (All Meals)
+    agent_advance_paid = Column(Float, default=0.0)
+    agent_rate = Column(Float, nullable=True)  # Contracted B2B Net Rate
 
     # Relationships
     guest = relationship("Guest", back_populates="bookings")
     orders = relationship("Order", back_populates="booking")
     tickets = relationship("Ticket", back_populates="booking")
     folio_charges = relationship("FolioCharge", back_populates="booking")
+    travel_agent = relationship("TravelAgent", back_populates="bookings")
+
+
+class AgentLedgerTransaction(Base):
+    __tablename__ = "agent_ledger_transactions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    agent_id = Column(Integer, ForeignKey("travel_agents.id"), nullable=False)
+    booking_id = Column(Integer, ForeignKey("bookings.id"), nullable=True)
+    transaction_type = Column(String, default="DEBIT_INVOICE")  # DEBIT_INVOICE (charge to ledger) or CREDIT_PAYMENT (deposit/payment)
+    payment_mode = Column(String, nullable=True)  # Bank Transfer (NEFT/RTGS), UPI, Cheque, Cash, Credit Note
+    reference_utr = Column(String, nullable=True)  # Bank UTR / Cheque # / UPI Ref
+    amount = Column(Float, nullable=False)  # in INR (₹)
+    balance_after = Column(Float, nullable=False)  # Running balance after this entry
+    description = Column(String, nullable=False)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+    # Relationships
+    travel_agent = relationship("TravelAgent", back_populates="ledger_transactions")
+    booking = relationship("Booking")
 
 
 class Order(Base):

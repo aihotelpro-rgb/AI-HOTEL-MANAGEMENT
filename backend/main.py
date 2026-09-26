@@ -7,10 +7,11 @@ from sqlalchemy.future import select
 from app.database import engine, Base, AsyncSessionLocal
 from app.models import (
     User, Room, Guest, Booking, Order, Ticket, FolioCharge, HotelSettings, MenuItem,
-    Property, RoomType, RatePlan, OtaChannel, OtaCredential, ChannelMapping, RateMapping
+    Property, RoomType, RatePlan, OtaChannel, OtaCredential, ChannelMapping, RateMapping,
+    TravelAgent, AgentLedgerTransaction
 )
 from app.auth import get_password_hash
-from app.routes import auth_routes, qr_menu, reception, housekeeping, concierge, whatsapp, executive, admin, public_booking, channel_routes, ota_webhooks
+from app.routes import auth_routes, qr_menu, reception, housekeeping, concierge, whatsapp, executive, admin, public_booking, channel_routes, ota_webhooks, travel_agents
 from app.crypto import encrypt_credential
 
 logging.basicConfig(level=logging.INFO)
@@ -76,6 +77,7 @@ app.include_router(executive.router)
 app.include_router(public_booking.router)
 app.include_router(channel_routes.router)
 app.include_router(ota_webhooks.router)
+app.include_router(travel_agents.router)
 
 from sqlalchemy import text
 
@@ -88,10 +90,19 @@ async def startup_event():
         # Safe column migration for SQLite fallback
         if "sqlite" in settings.DATABASE_URL:
             async with engine.begin() as conn:
-                try:
-                    await conn.execute(text("ALTER TABLE bookings ADD COLUMN channel VARCHAR DEFAULT 'Direct Website'"))
-                except Exception:
-                    pass # Column already exists
+                for col_sql in [
+                    "ALTER TABLE bookings ADD COLUMN channel VARCHAR DEFAULT 'Direct Website'",
+                    "ALTER TABLE bookings ADD COLUMN travel_agent_id INTEGER",
+                    "ALTER TABLE bookings ADD COLUMN voucher_number VARCHAR",
+                    "ALTER TABLE bookings ADD COLUMN billing_type VARCHAR DEFAULT 'DIRECT_GUEST'",
+                    "ALTER TABLE bookings ADD COLUMN meal_plan VARCHAR DEFAULT 'EP'",
+                    "ALTER TABLE bookings ADD COLUMN agent_advance_paid FLOAT DEFAULT 0.0",
+                    "ALTER TABLE bookings ADD COLUMN agent_rate FLOAT",
+                ]:
+                    try:
+                        await conn.execute(text(col_sql))
+                    except Exception:
+                        pass # Column already exists
 
         async with AsyncSessionLocal() as session:
             result = await session.execute(select(User).limit(1))
@@ -492,8 +503,94 @@ async def startup_event():
                 ]
                 session.add_all(rate_mappings_seed)
 
+            # Seed Travel Agencies if none exist
+            agent_res = await session.execute(select(TravelAgent).limit(1))
+            if not agent_res.scalars().first():
+                logger.info("Seeding initial Travel Agencies for Andaman market...")
+                seed_agents = [
+                    TravelAgent(
+                        agency_name="Andaman Island Tour DMC",
+                        contact_person="Rajesh Nair",
+                        phone="+91 94342 81100",
+                        email="bookings@andamantoursdmc.com",
+                        city="Port Blair",
+                        address="Aberdeen Bazaar, Port Blair, South Andaman",
+                        gstin="35AABCA1234F1Z1",
+                        contract_type="NET_RATE",
+                        commission_pct=0.0,
+                        credit_limit=250000.0,
+                        credit_days=30,
+                        current_balance=48000.0,
+                        is_active=True,
+                        notes="Top DMC partner for luxury family holiday packages & island ferry connections."
+                    ),
+                    TravelAgent(
+                        agency_name="Dekho Andaman Holidays",
+                        contact_person="Priya Haldar",
+                        phone="+91 99332 54321",
+                        email="reservations@dekhoandaman.in",
+                        city="Port Blair",
+                        address="Garacharma Junction, Sri Vijayapuram",
+                        gstin="35AADCD5678G1Z8",
+                        contract_type="NET_RATE",
+                        commission_pct=0.0,
+                        credit_limit=150000.0,
+                        credit_days=15,
+                        current_balance=18500.0,
+                        is_active=True,
+                        notes="Local corporate and leisure travel operator. 15-day settlement cycle."
+                    ),
+                    TravelAgent(
+                        agency_name="Havelock Escapes & Watersports",
+                        contact_person="Arun Kumar",
+                        phone="+91 94742 98765",
+                        email="agent@havelockescapes.com",
+                        city="Port Blair",
+                        address="Phoenix Bay Jetty Road, Port Blair",
+                        gstin="35AAEFG9012H1Z5",
+                        contract_type="COMMISSION",
+                        commission_pct=15.0,
+                        credit_limit=100000.0,
+                        credit_days=30,
+                        current_balance=0.0,
+                        is_active=True,
+                        notes="Commissionable partner for honeymoon suites and scuba diving packages."
+                    )
+                ]
+                session.add_all(seed_agents)
+                await session.flush()
+
+                # Add sample initial transactions for demonstration
+                tx1 = AgentLedgerTransaction(
+                    agent_id=seed_agents[0].id,
+                    transaction_type="DEBIT_INVOICE",
+                    amount=48000.0,
+                    balance_after=48000.0,
+                    description="Group Booking Stay 4N (Suite 101, 102) - VCH: AND-8821 (MAP Plan)",
+                    created_at=datetime.datetime.utcnow() - datetime.timedelta(days=5)
+                )
+                tx2 = AgentLedgerTransaction(
+                    agent_id=seed_agents[1].id,
+                    transaction_type="DEBIT_INVOICE",
+                    amount=38500.0,
+                    balance_after=38500.0,
+                    description="Guest Dr. Mehra Family 3N - VCH: DKH-7712 (CP Plan)",
+                    created_at=datetime.datetime.utcnow() - datetime.timedelta(days=8)
+                )
+                tx3 = AgentLedgerTransaction(
+                    agent_id=seed_agents[1].id,
+                    transaction_type="CREDIT_PAYMENT",
+                    payment_mode="Bank Transfer (NEFT/RTGS)",
+                    reference_utr="SBIN002948194",
+                    amount=20000.0,
+                    balance_after=18500.0,
+                    description="Part Advance NEFT Payment (Ref: SBIN002948194)",
+                    created_at=datetime.datetime.utcnow() - datetime.timedelta(days=2)
+                )
+                session.add_all([tx1, tx2, tx3])
+
             await session.commit()
-            logger.info("Database initialized successfully with Enterprise Channel Manager models & seed data.")
+            logger.info("Database initialized successfully with Enterprise Channel Manager & Travel Agent models.")
     except Exception as e:
         logger.warning(f"Startup DB auto-init notice (service starting normally): {e}")
 
