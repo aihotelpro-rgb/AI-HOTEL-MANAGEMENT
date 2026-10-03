@@ -19,7 +19,18 @@ import {
   CreditCard,
   Calendar,
   LayoutGrid,
-  List
+  List,
+  Briefcase,
+  FileText,
+  PlusCircle,
+  Printer,
+  Download,
+  AlertCircle,
+  CheckCircle2,
+  TrendingUp,
+  Clock,
+  ArrowUpRight,
+  Users
 } from 'lucide-react';
 
 interface Room {
@@ -78,7 +89,7 @@ export default function ReceptionPMSPage() {
   const [selectedStatus, setSelectedStatus] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [roomViewMode, setRoomViewMode] = useState<'grid' | 'list'>('grid');
-  const [activeTab, setActiveTab] = useState<'grid' | 'stays' | 'whatsapp' | 'daily'>('grid');
+  const [activeTab, setActiveTab] = useState<'grid' | 'stays' | 'whatsapp' | 'daily' | 'agents'>('grid');
   const [dailyBookings, setDailyBookings] = useState<any>({
     today_arrivals: [],
     today_departures: [],
@@ -465,6 +476,155 @@ export default function ReceptionPMSPage() {
   const [addChargeDesc, setAddChargeDesc] = useState('');
   const [addChargeAmount, setAddChargeAmount] = useState(500);
   const [addChargeLoading, setAddChargeLoading] = useState(false);
+  // ── Travel Agent & B2B Ledger Management States ──
+  const [agentsList, setAgentsList] = useState<any[]>([]);
+  const [agentsStats, setAgentsStats] = useState<any>(null);
+  const [agentsLoading, setAgentsLoading] = useState(false);
+  const [agentSearch, setAgentSearch] = useState('');
+
+  // New Agent Registration Modal
+  const [newAgentModalOpen, setNewAgentModalOpen] = useState(false);
+  const [newAgencyName, setNewAgencyName] = useState('');
+  const [newContactPerson, setNewContactPerson] = useState('');
+  const [newAgentPhone, setNewAgentPhone] = useState('+91 ');
+  const [newAgentEmail, setNewAgentEmail] = useState('');
+  const [newAgentCity, setNewAgentCity] = useState('Port Blair');
+  const [newAgentAddress, setNewAgentAddress] = useState('');
+  const [newAgentGstin, setNewAgentGstin] = useState('');
+  const [newContractType, setNewContractType] = useState<'NET_RATE' | 'COMMISSION'>('NET_RATE');
+  const [newCommissionPct, setNewCommissionPct] = useState(0);
+  const [newCreditLimit, setNewCreditLimit] = useState(150000);
+  const [newCreditDays, setNewCreditDays] = useState(30);
+  const [newAgentNotes, setNewAgentNotes] = useState('');
+  const [newAgentLoading, setNewAgentLoading] = useState(false);
+
+  // Statement of Account (SOA) Modal
+  const [agentLedgerModalOpen, setAgentLedgerModalOpen] = useState(false);
+  const [selectedAgentForLedger, setSelectedAgentForLedger] = useState<any>(null);
+  const [agentLedgerData, setAgentLedgerData] = useState<any>(null);
+  const [agentLedgerLoading, setAgentLedgerLoading] = useState(false);
+
+  // Record Payment / Deposit Modal
+  const [recordPaymentModalOpen, setRecordPaymentModalOpen] = useState(false);
+  const [paymentAgentId, setPaymentAgentId] = useState<number | null>(null);
+  const [paymentAmount, setPaymentAmount] = useState(10000);
+  const [paymentMode, setPaymentMode] = useState('Bank Transfer (NEFT/RTGS)');
+  const [paymentUtr, setPaymentUtr] = useState('');
+  const [paymentNotes, setPaymentNotes] = useState('');
+  const [paymentLoading, setPaymentLoading] = useState(false);
+
+  // Travel Agent Fields for New Booking Modal
+  const [resTravelAgentId, setResTravelAgentId] = useState<string>('');
+  const [resVoucherNumber, setResVoucherNumber] = useState('');
+  const [resBillingType, setResBillingType] = useState<'DIRECT_GUEST' | 'FULL_ADVANCE' | 'PART_ADVANCE' | 'CREDIT_LEDGER_BTC'>('CREDIT_LEDGER_BTC');
+  const [resMealPlan, setResMealPlan] = useState<'EP' | 'CP' | 'MAP' | 'AP'>('EP');
+  const [resAgentAdvancePaid, setResAgentAdvancePaid] = useState(0);
+  const [resAgentRate, setResAgentRate] = useState<number | ''>('');
+  const [resPaymentReferenceUtr, setResPaymentReferenceUtr] = useState('');
+
+  const loadTravelAgents = async () => {
+    setAgentsLoading(true);
+    try {
+      const [agentsData, statsData] = await Promise.all([
+        apiRequest('/api/v1/agents'),
+        apiRequest('/api/v1/agents/summary/stats')
+      ]);
+      setAgentsList(Array.isArray(agentsData) ? agentsData : []);
+      setAgentsStats(statsData || null);
+    } catch (err: any) {
+      console.warn('Failed loading travel agents', err);
+    } finally {
+      setAgentsLoading(false);
+    }
+  };
+
+  const handleCreateAgent = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newAgencyName.trim() || !newAgentPhone.trim()) {
+      alert('Please enter Agency Name and Phone Number');
+      return;
+    }
+    setNewAgentLoading(true);
+    try {
+      await apiRequest('/api/v1/agents', {
+        method: 'POST',
+        body: JSON.stringify({
+          agency_name: newAgencyName.trim(),
+          contact_person: newContactPerson.trim() || undefined,
+          phone: newAgentPhone.trim(),
+          email: newAgentEmail.trim() || undefined,
+          city: newAgentCity.trim() || 'Port Blair',
+          address: newAgentAddress.trim() || undefined,
+          gstin: newAgentGstin.trim() || undefined,
+          contract_type: newContractType,
+          commission_pct: Number(newCommissionPct || 0),
+          credit_limit: Number(newCreditLimit || 100000),
+          credit_days: Number(newCreditDays || 30),
+          notes: newAgentNotes.trim() || undefined
+        })
+      });
+      alert(`✅ Travel Agency "${newAgencyName}" registered successfully!`);
+      setNewAgentModalOpen(false);
+      setNewAgencyName('');
+      setNewContactPerson('');
+      setNewAgentPhone('+91 ');
+      setNewAgentEmail('');
+      setNewAgentNotes('');
+      loadTravelAgents();
+    } catch (err: any) {
+      alert(`Registration Failed: ${err.message}`);
+    } finally {
+      setNewAgentLoading(false);
+    }
+  };
+
+  const openAgentLedgerModal = async (agent: any) => {
+    setSelectedAgentForLedger(agent);
+    setAgentLedgerModalOpen(true);
+    setAgentLedgerLoading(true);
+    try {
+      const data = await apiRequest(`/api/v1/agents/${agent.id}/ledger`);
+      setAgentLedgerData(data);
+    } catch (err: any) {
+      alert(`Failed to load ledger: ${err.message}`);
+    } finally {
+      setAgentLedgerLoading(false);
+    }
+  };
+
+  const handleRecordAgentPayment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!paymentAgentId || paymentAmount <= 0) {
+      alert('Please specify a valid payment amount');
+      return;
+    }
+    setPaymentLoading(true);
+    try {
+      const res = await apiRequest(`/api/v1/agents/${paymentAgentId}/payments`, {
+        method: 'POST',
+        body: JSON.stringify({
+          agent_id: paymentAgentId,
+          amount: Number(paymentAmount),
+          payment_mode: paymentMode,
+          reference_utr: paymentUtr.trim() || undefined,
+          notes: paymentNotes.trim() || undefined
+        })
+      });
+      alert(`✅ ${res.message || 'Payment recorded successfully!'}`);
+      setRecordPaymentModalOpen(false);
+      setPaymentAmount(0);
+      setPaymentUtr('');
+      setPaymentNotes('');
+      loadTravelAgents();
+      if (agentLedgerModalOpen && selectedAgentForLedger?.id === paymentAgentId) {
+        openAgentLedgerModal(selectedAgentForLedger);
+      }
+    } catch (err: any) {
+      alert(`Payment recording failed: ${err.message}`);
+    } finally {
+      setPaymentLoading(false);
+    }
+  };
 
   const handleCreateReservation = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -474,6 +634,13 @@ export default function ReceptionPMSPage() {
         const startDate = new Date(resCheckInDate);
         const endDate = new Date(resCheckOutDate);
         const computedNights = Math.max(1, Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 3600 * 24)));
+
+        const isAgent = resChannel === 'Travel Agent';
+        const agentId = isAgent && resTravelAgentId ? Number(resTravelAgentId) : undefined;
+        const vchNum = isAgent ? resVoucherNumber.trim() : undefined;
+        const billType = isAgent ? resBillingType : 'DIRECT_GUEST';
+        const plan = isAgent ? resMealPlan : 'EP';
+        const advanceAmt = isAgent && billType !== 'CREDIT_LEDGER_BTC' ? Number(resAgentAdvancePaid || resAdvancePayment || 0) : Number(resAdvancePayment || 0);
 
         await apiRequest('/api/v1/reception/check-in', {
           method: 'POST',
@@ -491,13 +658,27 @@ export default function ReceptionPMSPage() {
             city_state_origin: resCityStateOrigin || undefined,
             purpose_of_visit: resPurposeOfVisit,
             gstin: resGstin || undefined,
-            advance_payment: Number(resAdvancePayment || 0),
+            advance_payment: advanceAmt,
             advance_mode: resAdvanceMode,
-            channel: resChannel
+            channel: resChannel,
+            travel_agent_id: agentId,
+            voucher_number: vchNum,
+            billing_type: billType,
+            meal_plan: plan,
+            agent_advance_paid: advanceAmt,
+            agent_rate: isAgent && resAgentRate ? Number(resAgentRate) : undefined,
+            payment_reference_utr: resPaymentReferenceUtr.trim() || undefined
           })
         });
-        alert(`⚡ Instant Walk-In Check-In Successful! Guest ${resGuestName} checked into Suite ${resRoomNumber}. Advance Paid: ₹${Number(resAdvancePayment || 0).toLocaleString('en-IN')} (${resAdvanceMode}).`);
+        alert(`⚡ Instant Walk-In Check-In Successful! Guest ${resGuestName} checked into Suite ${resRoomNumber}.${isAgent ? ` [Voucher: ${vchNum || 'N/A'}, Plan: ${plan}]` : ''} Advance Paid: ₹${advanceAmt.toLocaleString('en-IN')}.`);
       } else {
+        const isAgent = resChannel === 'Travel Agent';
+        const agentId = isAgent && resTravelAgentId ? Number(resTravelAgentId) : undefined;
+        const vchNum = isAgent ? resVoucherNumber.trim() : undefined;
+        const billType = isAgent ? resBillingType : 'DIRECT_GUEST';
+        const plan = isAgent ? resMealPlan : 'EP';
+        const advanceAmt = isAgent && billType !== 'CREDIT_LEDGER_BTC' ? Number(resAgentAdvancePaid || resAdvancePayment || 0) : Number(resAdvancePayment || 0);
+
         await apiRequest('/api/v1/reception/reservations', {
           method: 'POST',
           body: JSON.stringify({
@@ -510,11 +691,18 @@ export default function ReceptionPMSPage() {
             room_rate: resRate,
             channel: resChannel,
             vip_status: resVip,
-            advance_payment: Number(resAdvancePayment || 0),
-            advance_mode: resAdvanceMode
+            advance_payment: advanceAmt,
+            advance_mode: resAdvanceMode,
+            travel_agent_id: agentId,
+            voucher_number: vchNum,
+            billing_type: billType,
+            meal_plan: plan,
+            agent_advance_paid: advanceAmt,
+            agent_rate: isAgent && resAgentRate ? Number(resAgentRate) : undefined,
+            payment_reference_utr: resPaymentReferenceUtr.trim() || undefined
           })
         });
-        alert(`Advance Reservation created successfully for ${resGuestName}! Advance Paid: ₹${Number(resAdvancePayment || 0).toLocaleString('en-IN')} (${resAdvanceMode}).`);
+        alert(`Advance Reservation created successfully for ${resGuestName}!${isAgent ? ` [Agent Voucher: ${vchNum || 'N/A'}, Plan: ${plan}, Terms: ${billType}]` : ''} Advance Paid: ₹${advanceAmt.toLocaleString('en-IN')}.`);
       }
       setReservationModalOpen(false);
       setResGuestName('');
@@ -792,6 +980,7 @@ export default function ReceptionPMSPage() {
       setActiveStays((prev: ActiveStay[]) => isDeepEqual(prev, combinedStays) ? prev : combinedStays);
       setWhatsappLogs((prev: WhatsAppLog[]) => isDeepEqual(prev, logsData) ? prev : logsData);
       await fetchDailyBookings();
+      loadTravelAgents();
     } catch (err: any) {
       setError(err.message || 'Failed to load Front Desk PMS data');
     } finally {
@@ -804,6 +993,8 @@ export default function ReceptionPMSPage() {
   useEffect(() => {
     if (activeTab === 'daily') {
       fetchDailyBookings();
+    } else if (activeTab === 'agents') {
+      loadTravelAgents();
     }
   }, [calendarStartDate, calendarEndDate, calendarSearch, activeTab]);
 
@@ -1410,6 +1601,17 @@ export default function ReceptionPMSPage() {
               <span>📞</span>
               <span className="hidden sm:inline">{incomingCall && incomingCallVisible ? `Room ${incomingCall.from_room} Calling!` : 'Intercom Console'}</span>
             </button>
+            <a
+              href="/hotel_os_operating_manual.html"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-3 py-1.5 bg-neutral-850 hover:bg-neutral-800 text-neutral-200 border border-neutral-700 hover:border-amber-500/50 font-extrabold text-[11px] rounded-xl transition flex items-center gap-1.5 shadow whitespace-nowrap shrink-0"
+              title="Open Hotel OS Operations & SOP Manual (Print / PDF)"
+            >
+              <span>📖</span>
+              <span className="hidden sm:inline">Operating Manual</span>
+            </a>
+
             <button
               onClick={loadPMSData}
               className="p-1.5 bg-neutral-850 hover:bg-neutral-800 rounded-xl border border-neutral-700 text-neutral-300 transition shrink-0"
@@ -1463,6 +1665,13 @@ export default function ReceptionPMSPage() {
               className={`px-3 py-1.5 rounded-xl text-[11px] font-extrabold whitespace-nowrap transition flex items-center gap-1.5 ${activeTab === 'stays' ? 'bg-amber-500 text-neutral-950 shadow-sm font-black' : 'text-neutral-400 hover:text-white'}`}
             >
               Active Stays ({activeStays.length})
+            </button>
+            <button
+              onClick={() => setActiveTab('agents')}
+              className={`px-3 py-1.5 rounded-xl text-[11px] font-extrabold whitespace-nowrap transition flex items-center gap-1.5 ${activeTab === 'agents' ? 'bg-amber-500 text-neutral-950 shadow-sm font-black' : 'text-neutral-400 hover:text-white'}`}
+            >
+              <Briefcase className="h-3.5 w-3.5 text-amber-400" />
+              Travel Agents ({agentsList.length})
             </button>
             <button
               onClick={() => setActiveTab('whatsapp')}
@@ -2297,6 +2506,286 @@ export default function ReceptionPMSPage() {
             </div>
           )}
 
+          {/* 5. TRAVEL AGENTS & B2B CREDIT LEDGER CONSOLE */}
+          {activeTab === 'agents' && (
+            <div className="space-y-5 animate-in fade-in">
+              {/* Agent Management Action & Filter Bar */}
+              <div className="flex flex-wrap justify-between items-center gap-3 bg-neutral-900 border border-neutral-800 p-3.5 rounded-2xl shadow-sm">
+                <div className="flex items-center gap-3 flex-1 min-w-[280px]">
+                  <div className="relative flex-1 max-w-md">
+                    <Search className="h-3.5 w-3.5 text-neutral-500 absolute left-3 top-2.5" />
+                    <input
+                      type="text"
+                      value={agentSearch}
+                      onChange={(e) => setAgentSearch(e.target.value)}
+                      placeholder="Search by Agency Name, Contact Person, Phone or City..."
+                      className="w-full bg-neutral-950 text-xs rounded-xl border border-neutral-800 pl-8 pr-3 py-2 text-neutral-200 placeholder-neutral-500 focus:outline-none focus:border-amber-500 font-medium"
+                    />
+                  </div>
+                  <span className="text-xs text-neutral-400 font-bold hidden sm:inline">
+                    Showing <strong className="text-amber-400">{agentsList.filter(a => !agentSearch || a.agency_name.toLowerCase().includes(agentSearch.toLowerCase()) || (a.contact_person && a.contact_person.toLowerCase().includes(agentSearch.toLowerCase())) || a.phone.includes(agentSearch) || (a.city && a.city.toLowerCase().includes(agentSearch.toLowerCase()))).length}</strong> agencies
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-2 flex-wrap shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPaymentAgentId(agentsList.length > 0 ? agentsList[0].id : null);
+                      setRecordPaymentModalOpen(true);
+                    }}
+                    className="px-3.5 py-2 bg-emerald-950/80 hover:bg-emerald-900 border border-emerald-700/80 text-emerald-300 font-extrabold text-xs rounded-xl transition flex items-center gap-1.5 shadow"
+                  >
+                    <CreditCard className="h-3.5 w-3.5 text-emerald-400" />
+                    <span>Record Payment</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setNewAgentModalOpen(true)}
+                    className="px-3.5 py-2 bg-amber-500 hover:bg-amber-400 text-neutral-950 font-black text-xs rounded-xl transition flex items-center gap-1.5 shadow"
+                  >
+                    <PlusCircle className="h-3.5 w-3.5" />
+                    <span>Register Travel Agency</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={loadTravelAgents}
+                    disabled={agentsLoading}
+                    className="p-2 bg-neutral-950 hover:bg-neutral-800 border border-neutral-800 rounded-xl text-neutral-400 hover:text-white transition"
+                    title="Refresh Agent Directory & Ledger"
+                  >
+                    <RefreshCw className={`h-3.5 w-3.5 ${agentsLoading ? 'animate-spin' : ''}`} />
+                  </button>
+                </div>
+              </div>
+
+              {/* 4 KPI Summary Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+                <div className="bg-neutral-900 border border-neutral-800 p-4 rounded-2xl flex flex-col justify-between shadow-sm">
+                  <div className="flex justify-between items-start">
+                    <span className="text-[10px] uppercase font-extrabold text-neutral-400 tracking-wider">Active Travel Agencies</span>
+                    <span className="p-1.5 bg-blue-500/10 text-blue-400 rounded-lg">
+                      <Users className="h-4 w-4" />
+                    </span>
+                  </div>
+                  <div className="mt-2">
+                    <div className="text-2xl font-black text-white">{agentsStats?.total_agents ?? agentsList.length}</div>
+                    <div className="text-[10px] text-neutral-400 mt-0.5">DMCs & Tour Operators in Andaman</div>
+                  </div>
+                </div>
+
+                <div className="bg-neutral-900 border border-amber-500/30 p-4 rounded-2xl flex flex-col justify-between shadow-sm">
+                  <div className="flex justify-between items-start">
+                    <span className="text-[10px] uppercase font-extrabold text-amber-400 tracking-wider">Total B2B Outstanding Due</span>
+                    <span className="p-1.5 bg-amber-500/10 text-amber-400 rounded-lg">
+                      <TrendingUp className="h-4 w-4" />
+                    </span>
+                  </div>
+                  <div className="mt-2">
+                    <div className="text-2xl font-black text-amber-400">
+                      ₹{Number(agentsStats?.total_outstanding_balance ?? agentsList.reduce((acc, a) => acc + (a.current_balance || 0), 0)).toLocaleString('en-IN')}
+                    </div>
+                    <div className="text-[10px] text-amber-400/80 mt-0.5 font-bold">Unsettled Ledger Debits (BTC)</div>
+                  </div>
+                </div>
+
+                <div className="bg-neutral-900 border border-neutral-800 p-4 rounded-2xl flex flex-col justify-between shadow-sm">
+                  <div className="flex justify-between items-start">
+                    <span className="text-[10px] uppercase font-extrabold text-neutral-400 tracking-wider">B2B Credit Pool Extended</span>
+                    <span className="p-1.5 bg-purple-500/10 text-purple-400 rounded-lg">
+                      <CreditCard className="h-4 w-4" />
+                    </span>
+                  </div>
+                  <div className="mt-2">
+                    <div className="text-2xl font-black text-white">
+                      ₹{Number(agentsStats?.total_credit_limit ?? agentsList.reduce((acc, a) => acc + (a.credit_limit || 0), 0)).toLocaleString('en-IN')}
+                    </div>
+                    <div className="text-[10px] text-neutral-400 mt-0.5">Approved 15 to 30-Day Credit Line</div>
+                  </div>
+                </div>
+
+                <div className="bg-neutral-900 border border-neutral-800 p-4 rounded-2xl flex flex-col justify-between shadow-sm">
+                  <div className="flex justify-between items-start">
+                    <span className="text-[10px] uppercase font-extrabold text-emerald-400 tracking-wider">Total Collections YTD</span>
+                    <span className="p-1.5 bg-emerald-500/10 text-emerald-400 rounded-lg">
+                      <CheckCircle2 className="h-4 w-4" />
+                    </span>
+                  </div>
+                  <div className="mt-2">
+                    <div className="text-2xl font-black text-emerald-400">
+                      ₹{Number(agentsStats?.total_payments_collected ?? 0).toLocaleString('en-IN')}
+                    </div>
+                    <div className="text-[10px] text-neutral-400 mt-0.5">NEFT / Bank Transfer Settlements</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Agent Directory & Ledger Status Table */}
+              <div className="bg-neutral-900 border border-neutral-800 rounded-3xl overflow-hidden shadow-lg">
+                <div className="p-4 border-b border-neutral-800 flex justify-between items-center bg-neutral-900/80">
+                  <div className="flex items-center gap-2">
+                    <Briefcase className="h-4 w-4 text-amber-400" />
+                    <h3 className="text-sm font-extrabold text-neutral-100">B2B Travel Agent Directory & Credit Balances</h3>
+                  </div>
+                  <span className="text-[10px] font-extrabold px-2.5 py-1 bg-neutral-950 border border-neutral-800 text-neutral-300 rounded-xl">
+                    Net Wholesale Rates & 30-Day Billing
+                  </span>
+                </div>
+
+                {agentsLoading && agentsList.length === 0 ? (
+                  <div className="p-12 text-center text-neutral-500 text-xs space-y-2">
+                    <RefreshCw className="h-6 w-6 animate-spin mx-auto text-amber-500" />
+                    <p>Loading Travel Agent Ledgers & Profiles...</p>
+                  </div>
+                ) : agentsList.length === 0 ? (
+                  <div className="p-12 text-center space-y-3">
+                    <Briefcase className="h-8 w-8 text-neutral-600 mx-auto" />
+                    <p className="text-neutral-400 text-sm font-bold">No travel agencies registered yet</p>
+                    <button
+                      type="button"
+                      onClick={() => setNewAgentModalOpen(true)}
+                      className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-neutral-950 font-black text-xs rounded-xl transition inline-flex items-center gap-1.5"
+                    >
+                      <PlusCircle className="h-4 w-4" />
+                      Register First Agency
+                    </button>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse text-xs">
+                      <thead>
+                        <tr className="border-b border-neutral-800 bg-neutral-950/60 text-neutral-400 text-[10px] uppercase tracking-wider font-extrabold">
+                          <th className="p-3.5">Agency Profile</th>
+                          <th className="p-3.5">Contact Details</th>
+                          <th className="p-3.5">Contract & Terms</th>
+                          <th className="p-3.5 text-right">Credit Limit</th>
+                          <th className="p-3.5 text-right">Outstanding Due</th>
+                          <th className="p-3.5 min-w-[140px]">Credit Utilization</th>
+                          <th className="p-3.5 text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-neutral-800/60 font-medium">
+                        {agentsList
+                          .filter(a => {
+                            if (!agentSearch) return true;
+                            const q = agentSearch.toLowerCase();
+                            return (
+                              a.agency_name.toLowerCase().includes(q) ||
+                              (a.contact_person && a.contact_person.toLowerCase().includes(q)) ||
+                              a.phone.includes(q) ||
+                              (a.city && a.city.toLowerCase().includes(q))
+                            );
+                          })
+                          .map((agent) => {
+                            const creditLimit = agent.credit_limit || 100000;
+                            const balance = agent.current_balance || 0;
+                            const utilPct = Math.min(100, Math.max(0, Math.round((balance / creditLimit) * 100)));
+                            const available = Math.max(0, creditLimit - balance);
+
+                            return (
+                              <tr key={agent.id} className="hover:bg-neutral-800/40 transition">
+                                <td className="p-3.5">
+                                  <div className="font-extrabold text-white text-xs flex items-center gap-1.5">
+                                    <span>{agent.agency_name}</span>
+                                    {agent.gstin && (
+                                      <span className="text-[9px] font-mono font-bold px-1.5 py-0.2 bg-neutral-950 text-neutral-400 border border-neutral-800 rounded">
+                                        GST
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="text-[10px] text-neutral-400 mt-0.5">
+                                    {agent.city || 'Port Blair'} · ID: #{agent.id}
+                                  </div>
+                                </td>
+
+                                <td className="p-3.5">
+                                  <div className="text-neutral-200 font-bold text-xs">{agent.contact_person || 'Agency Desk'}</div>
+                                  <div className="text-[11px] text-neutral-400 font-mono mt-0.5">{agent.phone}</div>
+                                  {agent.email && <div className="text-[10px] text-neutral-500 truncate max-w-[150px]">{agent.email}</div>}
+                                </td>
+
+                                <td className="p-3.5">
+                                  <span className={`inline-block px-2 py-0.5 rounded-full text-[9px] font-black uppercase border ${
+                                    agent.contract_type === 'COMMISSION'
+                                      ? 'bg-purple-950/80 text-purple-300 border-purple-700/60'
+                                      : 'bg-blue-950/80 text-blue-300 border-blue-700/60'
+                                  }`}>
+                                    {agent.contract_type === 'COMMISSION' ? `${agent.commission_pct}% Comm` : 'Wholesale Net'}
+                                  </span>
+                                  <div className="text-[10px] text-neutral-400 font-bold mt-1">
+                                    {agent.credit_days || 30} Days Net Credit
+                                  </div>
+                                </td>
+
+                                <td className="p-3.5 text-right font-mono font-bold text-neutral-300">
+                                  ₹{creditLimit.toLocaleString('en-IN')}
+                                </td>
+
+                                <td className="p-3.5 text-right">
+                                  <div className={`font-mono font-black text-sm ${balance > 0 ? 'text-amber-400' : 'text-emerald-400'}`}>
+                                    ₹{balance.toLocaleString('en-IN')}
+                                  </div>
+                                  <div className="text-[9px] text-neutral-500 font-mono">
+                                    Avail: ₹{available.toLocaleString('en-IN')}
+                                  </div>
+                                </td>
+
+                                <td className="p-3.5">
+                                  <div className="flex items-center justify-between text-[10px] mb-1 font-bold">
+                                    <span className="text-neutral-400 font-mono">{utilPct}%</span>
+                                    <span className={utilPct > 85 ? 'text-red-400' : utilPct > 50 ? 'text-amber-400' : 'text-emerald-400'}>
+                                      {utilPct > 85 ? 'Limit Warning' : utilPct > 0 ? 'Active' : 'Clear'}
+                                    </span>
+                                  </div>
+                                  <div className="w-full bg-neutral-950 rounded-full h-1.5 overflow-hidden border border-neutral-800">
+                                    <div
+                                      className={`h-full rounded-full transition-all duration-500 ${
+                                        utilPct > 85 ? 'bg-red-500' : utilPct > 50 ? 'bg-amber-500' : 'bg-emerald-500'
+                                      }`}
+                                      style={{ width: `${utilPct}%` }}
+                                    ></div>
+                                  </div>
+                                </td>
+
+                                <td className="p-3.5 text-right whitespace-nowrap">
+                                  <div className="flex items-center justify-end gap-1.5">
+                                    <button
+                                      type="button"
+                                      onClick={() => openAgentLedgerModal(agent)}
+                                      className="px-2.5 py-1.5 bg-neutral-800 hover:bg-neutral-750 text-neutral-200 border border-neutral-700 font-bold text-[11px] rounded-xl transition flex items-center gap-1 shadow-sm"
+                                      title="View Statement of Account & Transaction Ledger"
+                                    >
+                                      <FileText className="h-3 w-3 text-amber-400" />
+                                      <span>Statement</span>
+                                    </button>
+
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setPaymentAgentId(agent.id);
+                                        setRecordPaymentModalOpen(true);
+                                      }}
+                                      className="px-2.5 py-1.5 bg-emerald-950 hover:bg-emerald-900 text-emerald-300 border border-emerald-700/80 font-bold text-[11px] rounded-xl transition flex items-center gap-1 shadow-sm"
+                                      title="Record Bank Deposit / Settlement"
+                                    >
+                                      <CreditCard className="h-3 w-3 text-emerald-400" />
+                                      <span>Pay</span>
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
         </main>
       </div>
 
@@ -3074,6 +3563,7 @@ export default function ReceptionPMSPage() {
                     <option value="Direct Walk-In">Direct Walk-In</option>
                     <option value="Front Desk Phone">Front Desk Phone</option>
                     <option value="Direct Website">Direct Website</option>
+                    <option value="Travel Agent">✈️ Travel Agent / Tour Operator DMC</option>
                     <option value="Agoda">Agoda</option>
                     <option value="Booking.com">Booking.com</option>
                     <option value="MakeMyTrip">MakeMyTrip</option>
@@ -3081,6 +3571,124 @@ export default function ReceptionPMSPage() {
                   </select>
                 </div>
               </div>
+
+              {/* Travel Agent / DMC Booking Details Panel */}
+              {resChannel === 'Travel Agent' && (
+                <div className="bg-neutral-950 p-4 rounded-2xl border border-amber-500/40 space-y-3">
+                  <div className="flex items-center justify-between pb-2 border-b border-neutral-800">
+                    <div className="flex items-center gap-2">
+                      <span className="h-6 w-6 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center text-xs font-bold">
+                        ✈️
+                      </span>
+                      <div>
+                        <span className="text-xs font-extrabold text-amber-300 block">Travel Agent / DMC Tour Operator</span>
+                        <span className="text-[10px] text-neutral-400">B2B Wholesale contract, voucher guarantee & ledger billing</span>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-extrabold px-2 py-0.5 bg-amber-950 text-amber-400 border border-amber-700/60 rounded-full">
+                      B2B Partner
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1">
+                        Select Travel Agency *
+                      </label>
+                      <select
+                        required={resChannel === 'Travel Agent'}
+                        value={resTravelAgentId}
+                        onChange={(e) => setResTravelAgentId(e.target.value)}
+                        className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-amber-400 font-extrabold focus:outline-none focus:border-amber-500"
+                      >
+                        <option value="">-- Choose Partner Agency --</option>
+                        {agentsList.map(a => (
+                          <option key={a.id} value={a.id}>
+                            {a.agency_name} ({a.city || 'Port Blair'} - Balance: ₹{Number(a.current_balance || 0).toLocaleString('en-IN')})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1">
+                        Agency Voucher Number *
+                      </label>
+                      <input
+                        type="text"
+                        required={resChannel === 'Travel Agent'}
+                        value={resVoucherNumber}
+                        onChange={(e) => setResVoucherNumber(e.target.value)}
+                        placeholder="e.g. AID-2026-9812"
+                        className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white uppercase font-mono font-bold focus:outline-none focus:border-amber-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1">
+                        Meal Plan Package
+                      </label>
+                      <select
+                        value={resMealPlan}
+                        onChange={(e) => setResMealPlan(e.target.value as any)}
+                        className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white font-bold focus:outline-none focus:border-amber-500"
+                      >
+                        <option value="EP">EP (European Plan - Room Only)</option>
+                        <option value="CP">CP (Continental Plan - Room + Breakfast)</option>
+                        <option value="MAP">MAP (Modified American - Breakfast + Dinner)</option>
+                        <option value="AP">AP (American Plan - All 3 Meals Included)</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1">
+                        B2B Billing Settlement
+                      </label>
+                      <select
+                        value={resBillingType}
+                        onChange={(e) => setResBillingType(e.target.value as any)}
+                        className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-amber-400 font-extrabold focus:outline-none focus:border-amber-500"
+                      >
+                        <option value="CREDIT_LEDGER_BTC">Bill to Company (BTC Ledger / 30-Day Credit)</option>
+                        <option value="FULL_ADVANCE">Full Advance Pre-Paid (UTR / Direct Deposit)</option>
+                        <option value="PART_ADVANCE">Partial Advance (Token Pre-paid, Rest at Desk)</option>
+                        <option value="DIRECT_GUEST">Direct Guest Settlement at Desk</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1">
+                        Agent Advance Paid (₹)
+                      </label>
+                      <input
+                        type="number"
+                        min={0}
+                        value={resAgentAdvancePaid}
+                        onChange={(e) => setResAgentAdvancePaid(Number(e.target.value))}
+                        placeholder="0"
+                        className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-green-400 font-mono font-bold focus:outline-none focus:border-amber-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1">
+                        Bank UTR / NEFT Reference
+                      </label>
+                      <input
+                        type="text"
+                        value={resPaymentReferenceUtr}
+                        onChange={(e) => setResPaymentReferenceUtr(e.target.value)}
+                        placeholder="e.g. UTR-AXIS-992147"
+                        className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-amber-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Advance Cash / Digital Payment & Financial Settlement */}
               <div className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 space-y-3">
@@ -3707,6 +4315,507 @@ export default function ReceptionPMSPage() {
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* ── TRAVEL AGENT MODAL 1: REGISTER NEW AGENCY ── */}
+      {newAgentModalOpen && (
+        <div className="fixed inset-0 bg-neutral-950/85 backdrop-blur-md z-50 overflow-y-auto p-3 sm:p-6 flex justify-center items-start animate-in fade-in">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 sm:p-6 max-w-lg w-full shadow-2xl space-y-4 my-4 sm:my-8 relative shrink-0">
+            <div className="flex justify-between items-center border-b border-neutral-800 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="h-8 w-8 bg-amber-500 text-neutral-950 rounded-xl flex items-center justify-center font-bold text-sm">
+                  ✈️
+                </div>
+                <div>
+                  <h3 className="text-sm font-extrabold text-white">Register New Travel Agency / Tour Operator</h3>
+                  <p className="text-[10px] text-neutral-400">Establish B2B Wholesale Contract & Credit Line</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setNewAgentModalOpen(false)}
+                className="h-7 w-7 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 rounded-full flex items-center justify-center text-xs font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateAgent} className="space-y-3.5 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="sm:col-span-2">
+                  <label className="block text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1">Agency Name *</label>
+                  <input
+                    type="text"
+                    required
+                    value={newAgencyName}
+                    onChange={(e) => setNewAgencyName(e.target.value)}
+                    placeholder="e.g. Andaman Island Tour DMC"
+                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500 font-medium"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1">Contact Person</label>
+                  <input
+                    type="text"
+                    value={newContactPerson}
+                    onChange={(e) => setNewContactPerson(e.target.value)}
+                    placeholder="e.g. Rajesh Sharma"
+                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1">Phone Number *</label>
+                  <input
+                    type="text"
+                    required
+                    value={newAgentPhone}
+                    onChange={(e) => setNewAgentPhone(e.target.value)}
+                    placeholder="+91 98311 22334"
+                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500 font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1">Email Address</label>
+                  <input
+                    type="email"
+                    value={newAgentEmail}
+                    onChange={(e) => setNewAgentEmail(e.target.value)}
+                    placeholder="ops@agency.com"
+                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1">City / Region</label>
+                  <input
+                    type="text"
+                    value={newAgentCity}
+                    onChange={(e) => setNewAgentCity(e.target.value)}
+                    placeholder="Port Blair / Havelock"
+                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1">GSTIN Number</label>
+                  <input
+                    type="text"
+                    value={newAgentGstin}
+                    onChange={(e) => setNewAgentGstin(e.target.value.toUpperCase())}
+                    placeholder="35AAAAA0000A1Z5"
+                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white font-mono uppercase focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1">Contract Type</label>
+                  <select
+                    value={newContractType}
+                    onChange={(e) => setNewContractType(e.target.value as any)}
+                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white font-bold focus:outline-none focus:border-amber-500"
+                  >
+                    <option value="NET_RATE">Wholesale Net Rate (Fixed B2B Tariff)</option>
+                    <option value="COMMISSION">Commission Percentage (% of Rack Rate)</option>
+                  </select>
+                </div>
+
+                {newContractType === 'COMMISSION' && (
+                  <div>
+                    <label className="block text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1">Commission %</label>
+                    <input
+                      type="number"
+                      min={0}
+                      max={50}
+                      value={newCommissionPct}
+                      onChange={(e) => setNewCommissionPct(Number(e.target.value))}
+                      placeholder="15"
+                      className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-amber-400 font-bold focus:outline-none focus:border-amber-500"
+                    />
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1">Authorized Credit Limit (₹)</label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={newCreditLimit}
+                    onChange={(e) => setNewCreditLimit(Number(e.target.value))}
+                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-amber-400 font-extrabold focus:outline-none focus:border-amber-500 font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1">Credit Settlement Days</label>
+                  <select
+                    value={newCreditDays}
+                    onChange={(e) => setNewCreditDays(Number(e.target.value))}
+                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white font-bold focus:outline-none focus:border-amber-500"
+                  >
+                    <option value={7}>7 Days Net</option>
+                    <option value={15}>15 Days Net</option>
+                    <option value={30}>30 Days Net (Standard Monthly)</option>
+                    <option value={45}>45 Days Net</option>
+                    <option value={60}>60 Days Net</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1">Office / Billing Address</label>
+                <input
+                  type="text"
+                  value={newAgentAddress}
+                  onChange={(e) => setNewAgentAddress(e.target.value)}
+                  placeholder="e.g. MG Road, Junglighat, Port Blair"
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1">Commercial Notes & Terms</label>
+                <textarea
+                  rows={2}
+                  value={newAgentNotes}
+                  onChange={(e) => setNewAgentNotes(e.target.value)}
+                  placeholder="e.g. Special high-season allocation: 5 rooms guaranteed"
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500"
+                />
+              </div>
+
+              <div className="pt-2 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setNewAgentModalOpen(false)}
+                  className="flex-1 py-2.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 font-bold rounded-xl transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={newAgentLoading}
+                  className="flex-1 py-2.5 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-neutral-950 font-black rounded-xl shadow transition flex items-center justify-center gap-1.5"
+                >
+                  {newAgentLoading ? (
+                    <RefreshCw className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <span>Register Agency Partner</span>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── TRAVEL AGENT MODAL 2: STATEMENT OF ACCOUNT (SOA) LEDGER ── */}
+      {agentLedgerModalOpen && (
+        <div className="fixed inset-0 bg-neutral-950/85 backdrop-blur-md z-50 overflow-y-auto p-3 sm:p-6 flex justify-center items-start animate-in fade-in">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 sm:p-6 max-w-4xl w-full shadow-2xl space-y-4 my-4 sm:my-8 relative shrink-0">
+            {/* Modal Header */}
+            <div className="flex justify-between items-center border-b border-neutral-800 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="h-9 w-9 bg-amber-500 text-neutral-950 rounded-xl flex items-center justify-center font-bold text-sm">
+                  📋
+                </div>
+                <div>
+                  <h3 className="text-sm font-extrabold text-white flex items-center gap-2">
+                    <span>Statement of Account (SOA)</span>
+                    <span className="text-amber-400 font-bold font-mono">[{selectedAgentForLedger?.agency_name}]</span>
+                  </h3>
+                  <p className="text-[10px] text-neutral-400">
+                    Contact: {selectedAgentForLedger?.contact_person || 'N/A'} ({selectedAgentForLedger?.phone}) · {selectedAgentForLedger?.city || 'Port Blair'}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className="px-3 py-1.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 border border-neutral-700 rounded-xl font-bold text-xs flex items-center gap-1 transition"
+                  title="Print Official Statement of Account"
+                >
+                  <Printer className="h-3.5 w-3.5" />
+                  <span>Print SOA</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAgentLedgerModalOpen(false)}
+                  className="h-8 w-8 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 rounded-full flex items-center justify-center text-xs font-bold"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+
+            {agentLedgerLoading && (
+              <div className="py-12 text-center space-y-2">
+                <RefreshCw className="h-6 w-6 animate-spin text-amber-500 mx-auto" />
+                <p className="text-xs text-neutral-400">Loading B2B Statement & Ledger Entries...</p>
+              </div>
+            )}
+
+            {!agentLedgerLoading && agentLedgerData && (
+              <div className="space-y-4 text-xs">
+                {/* 4 Summary Cards */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <div className="p-3 bg-neutral-950 border border-neutral-800 rounded-2xl">
+                    <span className="text-[10px] font-extrabold uppercase text-neutral-500 block">Credit Limit</span>
+                    <span className="text-lg font-black text-white font-mono">
+                      ₹{Number(agentLedgerData.agent?.credit_limit || 0).toLocaleString('en-IN')}
+                    </span>
+                    <div className="text-[9px] text-neutral-400 mt-0.5">{agentLedgerData.agent?.credit_days || 30} Days Net</div>
+                  </div>
+
+                  <div className="p-3 bg-neutral-950 border border-amber-500/30 rounded-2xl">
+                    <span className="text-[10px] font-extrabold uppercase text-amber-400 block">Current Outstanding</span>
+                    <span className="text-lg font-black text-amber-400 font-mono">
+                      ₹{Number(agentLedgerData.agent?.current_balance || 0).toLocaleString('en-IN')}
+                    </span>
+                    <div className="text-[9px] text-amber-400/80 mt-0.5 font-bold">Unsettled Balance Due</div>
+                  </div>
+
+                  <div className="p-3 bg-neutral-950 border border-neutral-800 rounded-2xl">
+                    <span className="text-[10px] font-extrabold uppercase text-emerald-400 block">Available Credit</span>
+                    <span className="text-lg font-black text-emerald-400 font-mono">
+                      ₹{Math.max(0, (agentLedgerData.agent?.credit_limit || 0) - (agentLedgerData.agent?.current_balance || 0)).toLocaleString('en-IN')}
+                    </span>
+                    <div className="text-[9px] text-neutral-400 mt-0.5">Remaining Line</div>
+                  </div>
+
+                  <div className="p-3 bg-neutral-950 border border-neutral-800 rounded-2xl">
+                    <span className="text-[10px] font-extrabold uppercase text-neutral-500 block">Transactions</span>
+                    <span className="text-lg font-black text-white font-mono">
+                      {agentLedgerData.transactions?.length || 0} Entries
+                    </span>
+                    <div className="text-[9px] text-neutral-400 mt-0.5">Debits & Credits Logged</div>
+                  </div>
+                </div>
+
+                {/* Ledger Transactions Table */}
+                <div className="border border-neutral-800 rounded-2xl overflow-hidden bg-neutral-950">
+                  <div className="p-3 bg-neutral-900 border-b border-neutral-800 flex justify-between items-center">
+                    <span className="font-extrabold text-neutral-200 text-xs">
+                      Ledger Transaction History (Double-Entry Debit / Credit)
+                    </span>
+                    <span className="text-[10px] font-mono text-neutral-400">
+                      Agency ID #{agentLedgerData.agent?.id}
+                    </span>
+                  </div>
+
+                  <div className="overflow-x-auto max-h-72">
+                    <table className="w-full text-left text-xs border-collapse">
+                      <thead className="bg-neutral-950 text-neutral-400 uppercase text-[10px] tracking-wider border-b border-neutral-800 sticky top-0">
+                        <tr>
+                          <th className="p-3">Date</th>
+                          <th className="p-3">Type</th>
+                          <th className="p-3">Particulars / Reference</th>
+                          <th className="p-3 text-right">Debit (+)</th>
+                          <th className="p-3 text-right">Credit (-)</th>
+                          <th className="p-3 text-right">Balance Due</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-neutral-850 font-medium">
+                        {(agentLedgerData.transactions || []).length === 0 ? (
+                          <tr>
+                            <td colSpan={6} className="p-6 text-center text-neutral-500">
+                              No ledger entries recorded yet. Bookings and NEFT payments will appear here.
+                            </td>
+                          </tr>
+                        ) : (
+                          agentLedgerData.transactions.map((tx: any) => (
+                            <tr key={tx.id} className="hover:bg-neutral-900/50 transition">
+                              <td className="p-3 font-mono text-[11px] text-neutral-400 whitespace-nowrap">
+                                {tx.created_at ? new Date(tx.created_at).toLocaleDateString('en-IN') : 'N/A'}
+                              </td>
+                              <td className="p-3 whitespace-nowrap">
+                                <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full border ${
+                                  tx.transaction_type === 'PAYMENT_CREDIT'
+                                    ? 'bg-emerald-950 text-emerald-300 border-emerald-700/60'
+                                    : tx.transaction_type === 'BOOKING_CHARGE'
+                                    ? 'bg-amber-950 text-amber-300 border-amber-700/60'
+                                    : 'bg-blue-950 text-blue-300 border-blue-700/60'
+                                }`}>
+                                  {tx.transaction_type.replace('_', ' ')}
+                                </span>
+                              </td>
+                              <td className="p-3 text-neutral-200">
+                                <div>{tx.description}</div>
+                                {tx.reference_number && (
+                                  <div className="text-[10px] font-mono text-neutral-400">Ref: {tx.reference_number}</div>
+                                )}
+                              </td>
+                              <td className="p-3 text-right font-mono font-bold text-amber-400 whitespace-nowrap">
+                                {tx.debit_amount > 0 ? `₹${Number(tx.debit_amount).toLocaleString('en-IN')}` : '-'}
+                              </td>
+                              <td className="p-3 text-right font-mono font-bold text-emerald-400 whitespace-nowrap">
+                                {tx.credit_amount > 0 ? `₹${Number(tx.credit_amount).toLocaleString('en-IN')}` : '-'}
+                              </td>
+                              <td className="p-3 text-right font-mono font-black text-white whitespace-nowrap">
+                                ₹{Number(tx.balance_after).toLocaleString('en-IN')}
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Footer Modal Actions */}
+                <div className="flex justify-between items-center pt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPaymentAgentId(agentLedgerData.agent?.id);
+                      setRecordPaymentModalOpen(true);
+                    }}
+                    className="px-4 py-2 bg-emerald-950 hover:bg-emerald-900 border border-emerald-700 text-emerald-300 font-extrabold rounded-xl transition flex items-center gap-1.5 shadow"
+                  >
+                    <CreditCard className="h-4 w-4 text-emerald-400" />
+                    <span>Record NEFT / Bank Settlement for this Agency</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setAgentLedgerModalOpen(false)}
+                    className="px-4 py-2 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 font-bold rounded-xl transition"
+                  >
+                    Close Statement
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── TRAVEL AGENT MODAL 3: RECORD PAYMENT / DEPOSIT ── */}
+      {recordPaymentModalOpen && (
+        <div className="fixed inset-0 bg-neutral-950/85 backdrop-blur-md z-50 overflow-y-auto p-3 sm:p-6 flex justify-center items-start animate-in fade-in">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 sm:p-6 max-w-md w-full shadow-2xl space-y-4 my-4 sm:my-8 relative shrink-0">
+            <div className="flex justify-between items-center border-b border-neutral-800 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="h-8 w-8 bg-emerald-500 text-neutral-950 rounded-xl flex items-center justify-center font-bold text-sm">
+                  💳
+                </div>
+                <div>
+                  <h3 className="text-sm font-extrabold text-white">Record Travel Agent Payment</h3>
+                  <p className="text-[10px] text-neutral-400">Credit Ledger Settlement / Advance Deposit</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setRecordPaymentModalOpen(false)}
+                className="h-7 w-7 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 rounded-full flex items-center justify-center text-xs font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleRecordAgentPayment} className="space-y-3.5 text-xs">
+              <div>
+                <label className="block text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1">
+                  Select Travel Agency *
+                </label>
+                <select
+                  required
+                  value={paymentAgentId || ''}
+                  onChange={(e) => setPaymentAgentId(Number(e.target.value))}
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-amber-400 font-extrabold focus:outline-none focus:border-amber-500"
+                >
+                  <option value="">-- Choose Agency --</option>
+                  {agentsList.map(a => (
+                    <option key={a.id} value={a.id}>
+                      {a.agency_name} (Due: ₹{Number(a.current_balance || 0).toLocaleString('en-IN')})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1">
+                  Settlement Amount (₹) *
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  required
+                  value={paymentAmount}
+                  onChange={(e) => setPaymentAmount(Number(e.target.value))}
+                  placeholder="e.g. 50000"
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-sm text-green-400 font-mono font-black focus:outline-none focus:border-amber-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1">
+                  Payment Mode *
+                </label>
+                <select
+                  value={paymentMode}
+                  onChange={(e) => setPaymentMode(e.target.value)}
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white font-bold focus:outline-none focus:border-amber-500"
+                >
+                  <option value="Bank Transfer (NEFT/RTGS)">🏦 Direct Bank Transfer (NEFT / RTGS)</option>
+                  <option value="UPI / QR Digital">📱 UPI / QR Digital (PhonePe / GPay)</option>
+                  <option value="Cheque Deposit">📝 Cheque Clearing</option>
+                  <option value="Cash at Front Desk">💵 Cash at Front Desk</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1">
+                  Bank Reference / UTR Number
+                </label>
+                <input
+                  type="text"
+                  value={paymentUtr}
+                  onChange={(e) => setPaymentUtr(e.target.value)}
+                  placeholder="e.g. UTR-AXIS-20261002-99881"
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-amber-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1">
+                  Settlement Notes / Remarks
+                </label>
+                <textarea
+                  rows={2}
+                  value={paymentNotes}
+                  onChange={(e) => setPaymentNotes(e.target.value)}
+                  placeholder="e.g. Cleared invoices for September 2026 bookings"
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500"
+                />
+              </div>
+
+              <div className="pt-2 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setRecordPaymentModalOpen(false)}
+                  className="flex-1 py-2.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 font-bold rounded-xl transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={paymentLoading || !paymentAgentId || paymentAmount <= 0}
+                  className="flex-1 py-2.5 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-neutral-950 font-black rounded-xl shadow transition flex items-center justify-center gap-1.5"
+                >
+                  {paymentLoading ? (
+                    <RefreshCw className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <span>Record & Credit Ledger</span>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

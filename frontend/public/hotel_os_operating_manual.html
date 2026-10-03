@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI-HOS Enterprise Suite — Hotel Operations & SOP Manual</title>
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <style>
+    @media print {
+      body {
+        background-color: #ffffff !important;
+        color: #111827 !important;
+        font-size: 11pt !important;
+      }
+      .no-print {
+        display: none !important;
+      }
+      .page-break {
+        page-break-before: always !important;
+        break-before: page !important;
+      }
+      .avoid-break {
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+      }
+      a {
+        text-decoration: none !important;
+        color: inherit !important;
+      }
+      .print-border {
+        border-color: #e5e7eb !important;
+      }
+      .print-shadow-none {
+        box-shadow: none !important;
+      }
+      @page {
+        size: A4;
+        margin: 14mm 12mm 14mm 12mm;
+      }
+    }
+    html {
+      scroll-behavior: smooth;
+    }
+  </style>
+</head>
+<body class="bg-neutral-950 text-neutral-100 font-sans antialiased min-h-screen selection:bg-amber-500 selection:text-neutral-950">
+
+  <!-- TOP STICKY APP BAR (BROWSER VIEW) -->
+  <header class="sticky top-0 z-50 bg-neutral-900/90 backdrop-blur-md border-b border-neutral-800 px-4 sm:px-8 py-3 flex justify-between items-center no-print">
+    <div class="flex items-center gap-3">
+      <div class="h-9 w-9 rounded-xl bg-amber-500 text-neutral-950 flex items-center justify-center font-black text-lg shadow-lg">
+        🏨
+      </div>
+      <div>
+        <h1 class="text-sm font-black tracking-tight text-white flex items-center gap-2">
+          AI-HOS Enterprise Operating System
+          <span class="text-[10px] uppercase font-extrabold px-2 py-0.5 bg-amber-950/80 text-amber-400 border border-amber-800/80 rounded-full">v3.2 Official SOP</span>
+        </h1>
+        <p class="text-[11px] text-neutral-400">Hotel Standard Operating Procedure & Full System Manual</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-2.5">
+      <a href="#toc" class="px-3 py-1.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 text-xs font-bold rounded-xl transition border border-neutral-700">
+        📑 Table of Contents
+      </a>
+      <button onclick="window.print()" class="px-4 py-1.5 bg-amber-500 hover:bg-amber-400 text-neutral-950 text-xs font-black rounded-xl shadow-lg transition flex items-center gap-1.5">
+        <span>🖨️</span>
+        <span>Save as PDF / Print</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- MAIN DOCUMENT CONTAINER -->
+  <main class="max-w-5xl mx-auto px-4 sm:px-8 py-8 sm:py-12 space-y-12">
+
+    <!-- COVER SECTION -->
+    <section class="border border-neutral-800 rounded-3xl p-8 sm:p-12 bg-gradient-to-b from-neutral-900 to-neutral-950 relative overflow-hidden shadow-2xl avoid-break">
+      <div class="absolute -right-12 -top-12 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl pointer-events-none"></div>
+      <div class="space-y-4 max-w-3xl">
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="px-3 py-1 rounded-full text-xs font-extrabold bg-amber-500 text-neutral-950 uppercase tracking-widest">
+            OPERATIONAL STANDARD MANUAL
+          </span>
+          <span class="px-3 py-1 rounded-full text-xs font-bold bg-neutral-800 text-neutral-300 border border-neutral-700">
+            For General Managers, Front Office, KDS & Accounts
+          </span>
+        </div>
+        <h1 class="text-3xl sm:text-5xl font-black text-white tracking-tight leading-tight">
+          How AI-HOS Powers Modern Hotel Operations
+        </h1>
+        <p class="text-sm sm:text-base text-neutral-400 leading-relaxed font-normal">
+          A definitive handbook detailing automated guest check-in, real-time Stayview matrix, 2-way OTA channel synchronization, contactless QR dining, B2B Travel Agent credit ledgers, and autonomous AI guest messaging for high-occupancy hotels.
+        </p>
+
+        <div class="pt-4 grid grid-cols-2 sm:grid-cols-4 gap-3 border-t border-neutral-800/80 text-xs">
+          <div class="p-3 bg-neutral-950/60 rounded-xl border border-neutral-850">
+            <span class="text-neutral-500 uppercase text-[10px] font-extrabold block">Property Type</span>
+            <span class="text-neutral-200 font-bold">Hotels, Resorts & Chains</span>
+          </div>
+          <div class="p-3 bg-neutral-950/60 rounded-xl border border-neutral-850">
+            <span class="text-neutral-500 uppercase text-[10px] font-extrabold block">Compliance Slab</span>
+            <span class="text-amber-400 font-bold">GSTIN 12% / 18% Compliant</span>
+          </div>
+          <div class="p-3 bg-neutral-950/60 rounded-xl border border-neutral-850">
+            <span class="text-neutral-500 uppercase text-[10px] font-extrabold block">Channel Engine</span>
+            <span class="text-neutral-200 font-bold">2-Way Live OTA Pool</span>
+          </div>
+          <div class="p-3 bg-neutral-950/60 rounded-xl border border-neutral-850">
+            <span class="text-neutral-500 uppercase text-[10px] font-extrabold block">Edition</span>
+            <span class="text-emerald-400 font-bold">2026 Enterprise Release</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TABLE OF CONTENTS (INTERACTIVE) -->
+    <section id="toc" class="border border-neutral-800 bg-neutral-900/60 rounded-3xl p-6 sm:p-8 space-y-4 shadow-xl avoid-break">
+      <div class="flex items-center gap-2 pb-2 border-b border-neutral-800">
+        <span class="text-amber-400 text-lg">📑</span>
+        <h2 class="text-base sm:text-lg font-black uppercase tracking-wider text-white">Table of Contents</h2>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+        <a href="#sec-1" class="p-3 rounded-xl bg-neutral-950 hover:bg-neutral-850 border border-neutral-800/80 transition flex items-center justify-between group">
+          <span class="font-bold text-neutral-300 group-hover:text-amber-400">1. Executive Overview & System Architecture</span>
+          <span class="text-neutral-500 font-mono text-[10px]">§ 01</span>
+        </a>
+        <a href="#sec-2" class="p-3 rounded-xl bg-neutral-950 hover:bg-neutral-850 border border-neutral-800/80 transition flex items-center justify-between group">
+          <span class="font-bold text-neutral-300 group-hover:text-amber-400">2. Front Desk & Stayview Matrix Engine</span>
+          <span class="text-neutral-500 font-mono text-[10px]">§ 02</span>
+        </a>
+        <a href="#sec-3" class="p-3 rounded-xl bg-neutral-950 hover:bg-neutral-850 border border-neutral-800/80 transition flex items-center justify-between group">
+          <span class="font-bold text-neutral-300 group-hover:text-amber-400">3. 1-Click Check-In, Check-Out & GST Billing</span>
+          <span class="text-neutral-500 font-mono text-[10px]">§ 03</span>
+        </a>
+        <a href="#sec-4" class="p-3 rounded-xl bg-neutral-950 hover:bg-neutral-850 border border-neutral-800/80 transition flex items-center justify-between group">
+          <span class="font-bold text-neutral-300 group-hover:text-amber-400">4. 2-Way Channel Manager & OTA Distribution</span>
+          <span class="text-neutral-500 font-mono text-[10px]">§ 04</span>
+        </a>
+        <a href="#sec-5" class="p-3 rounded-xl bg-neutral-950 hover:bg-neutral-850 border border-neutral-800/80 transition flex items-center justify-between group">
+          <span class="font-bold text-neutral-300 group-hover:text-amber-400">5. Bedside QR Dining, KDS & Runner Delivery</span>
+          <span class="text-neutral-500 font-mono text-[10px]">§ 05</span>
+        </a>
+        <a href="#sec-6" class="p-3 rounded-xl bg-neutral-950 hover:bg-neutral-850 border border-neutral-800/80 transition flex items-center justify-between group">
+          <span class="font-bold text-neutral-300 group-hover:text-amber-400">6. Travel Agent Master & B2B Credit Ledger</span>
+          <span class="text-neutral-500 font-mono text-[10px]">§ 06</span>
+        </a>
+        <a href="#sec-7" class="p-3 rounded-xl bg-neutral-950 hover:bg-neutral-850 border border-neutral-800/80 transition flex items-center justify-between group">
+          <span class="font-bold text-neutral-300 group-hover:text-amber-400">7. Autonomous AI Concierge & WhatsApp Guest Engagement</span>
+          <span class="text-neutral-500 font-mono text-[10px]">§ 07</span>
+        </a>
+        <a href="#sec-8" class="p-3 rounded-xl bg-neutral-950 hover:bg-neutral-850 border border-neutral-800/80 transition flex items-center justify-between group">
+          <span class="font-bold text-neutral-300 group-hover:text-amber-400">8. Night Audit, DSR & Financial Reporting</span>
+          <span class="text-neutral-500 font-mono text-[10px]">§ 08</span>
+        </a>
+        <a href="#sec-9" class="p-3 rounded-xl bg-neutral-950 hover:bg-neutral-850 border border-neutral-800/80 transition flex items-center justify-between group">
+          <span class="font-bold text-neutral-300 group-hover:text-amber-400">9. Standard Operating Procedures (SOP) Shift Checklists</span>
+          <span class="text-neutral-500 font-mono text-[10px]">§ 09</span>
+        </a>
+        <a href="#sec-10" class="p-3 rounded-xl bg-neutral-950 hover:bg-neutral-850 border border-neutral-800/80 transition flex items-center justify-between group">
+          <span class="font-bold text-neutral-300 group-hover:text-amber-400">10. Emergency, Intercom & Incident Protocols</span>
+          <span class="text-neutral-500 font-mono text-[10px]">§ 10</span>
+        </a>
+      </div>
+    </section>
+
+    <!-- SECTION 1 -->
+    <section id="sec-1" class="space-y-4 page-break">
+      <div class="flex items-center gap-2">
+        <span class="px-2.5 py-0.5 rounded-md bg-amber-500 text-neutral-950 text-xs font-black">01</span>
+        <h2 class="text-xl sm:text-2xl font-black text-white">Executive Overview & System Architecture</h2>
+      </div>
+      <p class="text-sm text-neutral-300 leading-relaxed">
+        The <strong>AI-HOS Enterprise Suite</strong> is an integrated cloud property management operating system engineered specifically to resolve the major pain points of modern hoteliers: fragmented software silos, manual double-entry, double-bookings, delayed dining orders, and untracked travel agent credit.
+      </p>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+        <div class="p-4 bg-neutral-900 border border-neutral-800 rounded-2xl space-y-2">
+          <span class="text-amber-400 text-xl block">⚡</span>
+          <h3 class="text-sm font-black text-white">Single Source of Truth</h3>
+          <p class="text-xs text-neutral-400">Direct bookings, walk-ins, phone reservations, and OTA bookings (MakeMyTrip, Booking.com, Agoda) write to a single synchronized inventory engine.</p>
+        </div>
+        <div class="p-4 bg-neutral-900 border border-neutral-800 rounded-2xl space-y-2">
+          <span class="text-emerald-400 text-xl block">🤖</span>
+          <h3 class="text-sm font-black text-white">Autonomous AI Guest Agent</h3>
+          <p class="text-xs text-neutral-400">Answers guest queries on WhatsApp 24/7, sends pre-arrival digital keycards, auto-dispatches housekeeping tickets, and boosts Google reviews.</p>
+        </div>
+        <div class="p-4 bg-neutral-900 border border-neutral-800 rounded-2xl space-y-2">
+          <span class="text-blue-400 text-xl block">💳</span>
+          <h3 class="text-sm font-black text-white">Consolidated B2B Ledger</h3>
+          <p class="text-xs text-neutral-400">Manages tour operator credit limits, voucher bookings, advance deposits, and 15/30-day Statements of Account (SOA) without spreadsheet errors.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 2 -->
+    <section id="sec-2" class="space-y-4 avoid-break">
+      <div class="flex items-center gap-2">
+        <span class="px-2.5 py-0.5 rounded-md bg-amber-500 text-neutral-950 text-xs font-black">02</span>
+        <h2 class="text-xl sm:text-2xl font-black text-white">Front Desk & Stayview Matrix Engine</h2>
+      </div>
+      <p class="text-sm text-neutral-300 leading-relaxed">
+        The front office operates from two synchronized master views: the <strong>Live 50-Room Grid</strong> (floor-by-floor visual room matrix) and the <strong>Advance 360° Stayview Matrix</strong> (interactive multi-week timeline).
+      </p>
+
+      <div class="bg-neutral-900 border border-neutral-800 rounded-2xl p-5 space-y-3">
+        <h3 class="text-xs font-black uppercase tracking-wider text-amber-400">Room Status Indicators & Color Coding</h3>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs">
+          <div class="p-2.5 bg-neutral-950 rounded-xl border border-neutral-800 flex items-center gap-2">
+            <span class="h-3 w-3 rounded-full bg-emerald-500 shrink-0"></span>
+            <div>
+              <strong class="text-white block">Vacant & Clean</strong>
+              <span class="text-[10px] text-neutral-400">Ready for instant check-in</span>
+            </div>
+          </div>
+          <div class="p-2.5 bg-neutral-950 rounded-xl border border-neutral-800 flex items-center gap-2">
+            <span class="h-3 w-3 rounded-full bg-red-500 shrink-0"></span>
+            <div>
+              <strong class="text-white block">Occupied</strong>
+              <span class="text-[10px] text-neutral-400">Resident guest in-house</span>
+            </div>
+          </div>
+          <div class="p-2.5 bg-neutral-950 rounded-xl border border-neutral-800 flex items-center gap-2">
+            <span class="h-3 w-3 rounded-full bg-amber-500 shrink-0"></span>
+            <div>
+              <strong class="text-white block">Turnover (Dirty)</strong>
+              <span class="text-[10px] text-neutral-400">Awaiting housekeeping</span>
+            </div>
+          </div>
+          <div class="p-2.5 bg-neutral-950 rounded-xl border border-neutral-800 flex items-center gap-2">
+            <span class="h-3 w-3 rounded-full bg-purple-500 shrink-0"></span>
+            <div>
+              <strong class="text-white block">Reserved (Arrival)</strong>
+              <span class="text-[10px] text-neutral-400">Due to arrive today</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 3 -->
+    <section id="sec-3" class="space-y-4 page-break">
+      <div class="flex items-center gap-2">
+        <span class="px-2.5 py-0.5 rounded-md bg-amber-500 text-neutral-950 text-xs font-black">03</span>
+        <h2 class="text-xl sm:text-2xl font-black text-white">1-Click Check-In, Check-Out & GST Billing</h2>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <!-- Check In Procedure -->
+        <div class="p-5 bg-neutral-900 border border-neutral-800 rounded-2xl space-y-3">
+          <h3 class="text-sm font-black text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+            <span>⚡</span> Express 1-Click Check-In SOP
+          </h3>
+          <ol class="list-decimal list-inside space-y-2 text-xs text-neutral-300 leading-normal">
+            <li>Open <strong>Stayview</strong> or <strong>Today's Arrivals</strong> tab.</li>
+            <li>Locate guest booking and click <strong>⚡ 1-Click Convert to Check-In</strong>.</li>
+            <li>Verify guest photo ID (Aadhaar, Passport) and nationality for C-Form compliance.</li>
+            <li>Record Advance Payment if collected (Cash, Card, UPI QR, or Bank Transfer).</li>
+            <li>Click <strong>Confirm Check-In</strong>: Room automatically turns <span class="text-red-400 font-bold">Occupied</span>, resident profile links, and digital keycard SMS/WhatsApp is sent to the guest.</li>
+          </ol>
+        </div>
+
+        <!-- Check Out Procedure -->
+        <div class="p-5 bg-neutral-900 border border-neutral-800 rounded-2xl space-y-3">
+          <h3 class="text-sm font-black text-green-400 uppercase tracking-wider flex items-center gap-1.5">
+            <span>💳</span> Check-Out & GST Settlement SOP
+          </h3>
+          <ol class="list-decimal list-inside space-y-2 text-xs text-neutral-300 leading-normal">
+            <li>Click <strong>Check-Out</strong> on the resident's suite card or Stayview row.</li>
+            <li>The system compiles the <strong>Consolidated Guest Bill</strong>:
+              <ul class="list-disc list-inside pl-4 text-neutral-400 text-[11px] pt-1">
+                <li>Room Accommodation charges (Nights × Rate)</li>
+                <li>In-Room Dining KOT charges from Kitchen POS</li>
+                <li>12% GST breakdown (6% CGST + 6% SGST)</li>
+                <li>Deduction of previously recorded advance deposits</li>
+              </ul>
+            </li>
+            <li>Collect remaining balance via Cash / Card Swipe / UPI QR.</li>
+            <li>Click <strong>Settle Bill & Check Out</strong>: System prints official GST Tax Invoice, marks room <span class="text-amber-400 font-bold">Turnover (Dirty)</span>, and moves record to Past Guest Stay History.</li>
+          </ol>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 4 -->
+    <section id="sec-4" class="space-y-4 avoid-break">
+      <div class="flex items-center gap-2">
+        <span class="px-2.5 py-0.5 rounded-md bg-amber-500 text-neutral-950 text-xs font-black">04</span>
+        <h2 class="text-xl sm:text-2xl font-black text-white">2-Way Channel Manager & OTA Distribution</h2>
+      </div>
+      <p class="text-sm text-neutral-300 leading-relaxed">
+        The built-in channel manager connects your inventory directly to major OTAs: <strong>Booking.com, MakeMyTrip, Agoda, and Expedia</strong> through a <strong>Pooled Single-Inventory</strong> model.
+      </p>
+
+      <div class="border border-neutral-800 rounded-2xl overflow-hidden bg-neutral-900 text-xs">
+        <table class="w-full text-left">
+          <thead class="bg-neutral-950 text-neutral-400 uppercase text-[10px] tracking-wider border-b border-neutral-800">
+            <tr>
+              <th class="p-3">Channel Event</th>
+              <th class="p-3">Automated System Action</th>
+              <th class="p-3 text-right">Execution Speed</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-neutral-800 text-neutral-300">
+            <tr>
+              <td class="p-3 font-bold text-white">Direct Desk Walk-In Check-In</td>
+              <td class="p-3">Pushes inventory decrease (-1) to all connected OTAs immediately</td>
+              <td class="p-3 text-right font-mono text-emerald-400">&lt; 3 seconds</td>
+            </tr>
+            <tr>
+              <td class="p-3 font-bold text-white">MakeMyTrip Booking Created</td>
+              <td class="p-3">Ingested via webhook, creates reservation on Stayview, blocks suite, holds dates</td>
+              <td class="p-3 text-right font-mono text-emerald-400">Instant</td>
+            </tr>
+            <tr>
+              <td class="p-3 font-bold text-white">Peak Season Rate Adjustment</td>
+              <td class="p-3">Manager updates rate plan; new prices sync across Booking.com and Agoda</td>
+              <td class="p-3 text-right font-mono text-emerald-400">Automated</td>
+            </tr>
+            <tr>
+              <td class="p-3 font-bold text-white">Stop-Sell / Blackout Date Trigger</td>
+              <td class="p-3">Hotel closes dates for private banquet; all external booking engines lock</td>
+              <td class="p-3 text-right font-mono text-emerald-400">Instant</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- SECTION 5 -->
+    <section id="sec-5" class="space-y-4 page-break">
+      <div class="flex items-center gap-2">
+        <span class="px-2.5 py-0.5 rounded-md bg-amber-500 text-neutral-950 text-xs font-black">05</span>
+        <h2 class="text-xl sm:text-2xl font-black text-white">Bedside QR Dining, Kitchen KDS & Runner Delivery</h2>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+        <div class="p-4 bg-neutral-900 border border-neutral-800 rounded-2xl space-y-2">
+          <span class="text-xl">📱</span>
+          <h3 class="text-sm font-black text-amber-400">1. Guest Scans Acrylic Standee</h3>
+          <p class="text-neutral-400 leading-relaxed">
+            Each suite features a unique Bedside QR Standee. The resident scans it with their phone camera to view the live digital kitchen menu with photos, spice ratings, and preparation times. No mobile app download required.
+          </p>
+        </div>
+        <div class="p-4 bg-neutral-900 border border-neutral-800 rounded-2xl space-y-2">
+          <span class="text-xl">👨‍🍳</span>
+          <h3 class="text-sm font-black text-amber-400">2. Kitchen Display System (KDS)</h3>
+          <p class="text-neutral-400 leading-relaxed">
+            Orders ring directly inside the kitchen on the touch-enabled KDS screen with audio chime alerts. The Chef updates statuses: <em>Pending &rarr; Preparing &rarr; Ready for Pickup</em>. Charges auto-post to the room bill.
+          </p>
+        </div>
+        <div class="p-4 bg-neutral-900 border border-neutral-800 rounded-2xl space-y-2">
+          <span class="text-xl">🛵</span>
+          <h3 class="text-sm font-black text-amber-400">3. Room Runner Dispatch</h3>
+          <p class="text-neutral-400 leading-relaxed">
+            Service staff (Runners) view ready trays on their mobile handhelds. When picked up, they mark <em>Out for Delivery</em>, serve the suite, and click <em>Delivered</em>. The guest receives a WhatsApp confirmation.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 6 -->
+    <section id="sec-6" class="space-y-4 avoid-break">
+      <div class="flex items-center gap-2">
+        <span class="px-2.5 py-0.5 rounded-md bg-amber-500 text-neutral-950 text-xs font-black">06</span>
+        <h2 class="text-xl sm:text-2xl font-black text-white">Travel Agent Master & B2B Credit Ledger</h2>
+      </div>
+      <p class="text-sm text-neutral-300 leading-relaxed">
+        Essential for tourism markets (such as Andaman DMCs & tour operators). Travel agents operate on special voucher rates and scheduled credit settlements rather than retail walk-in prices.
+      </p>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+        <div class="p-4 bg-neutral-900 border border-neutral-800 rounded-2xl space-y-1.5">
+          <span class="px-2 py-0.5 bg-emerald-950 text-emerald-400 font-extrabold rounded-md text-[10px] inline-block">Model A</span>
+          <h4 class="font-extrabold text-white text-sm">100% Full Advance Pre-Paid</h4>
+          <p class="text-neutral-400 text-[11px]">Agency transfers total room rent via NEFT/UPI prior to arrival. Front desk enters Bank UTR. Room rent folio shows ₹0 balance; guest only pays for personal extras.</p>
+        </div>
+        <div class="p-4 bg-neutral-900 border border-neutral-800 rounded-2xl space-y-1.5">
+          <span class="px-2 py-0.5 bg-amber-950 text-amber-400 font-extrabold rounded-md text-[10px] inline-block">Model B</span>
+          <h4 class="font-extrabold text-white text-sm">Part Advance + Desk Balance</h4>
+          <p class="text-neutral-400 text-[11px]">Agency deposits 30%–50% advance token. The remaining balance is collected directly from the guest or agency at front-desk check-in.</p>
+        </div>
+        <div class="p-4 bg-neutral-900 border border-neutral-800 rounded-2xl space-y-1.5">
+          <span class="px-2 py-0.5 bg-blue-950 text-blue-400 font-extrabold rounded-md text-[10px] inline-block">Model C</span>
+          <h4 class="font-extrabold text-white text-sm">Bill-to-Company (Credit Ledger)</h4>
+          <p class="text-neutral-400 text-[11px]">Contracted agencies receive an authorized Credit Limit (e.g. ₹2,50,000) and 15/30-day payment cycle. Stays auto-debit the agent's ledger for periodic bulk settlement.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 7 -->
+    <section id="sec-7" class="space-y-4 page-break">
+      <div class="flex items-center gap-2">
+        <span class="px-2.5 py-0.5 rounded-md bg-amber-500 text-neutral-950 text-xs font-black">07</span>
+        <h2 class="text-xl sm:text-2xl font-black text-white">Autonomous AI Concierge & WhatsApp Guest Engagement</h2>
+      </div>
+
+      <div class="p-5 bg-neutral-900 border border-neutral-800 rounded-2xl space-y-4">
+        <div class="flex items-center gap-2">
+          <span class="h-8 w-8 rounded-xl bg-green-500/20 text-green-400 flex items-center justify-center font-bold">💬</span>
+          <div>
+            <h3 class="text-sm font-black text-white">Zero-Staff WhatsApp Front Office Assistant</h3>
+            <p class="text-xs text-neutral-400">Incoming guest WhatsApp messages are analyzed by the AI Concierge with natural language reasoning.</p>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+          <div class="p-3 bg-neutral-950 rounded-xl border border-neutral-800 space-y-1">
+            <strong class="text-amber-400 block font-bold">1. FAQ & Island Information</strong>
+            <p class="text-neutral-400">Auto-answers questions regarding high-speed Wi-Fi passwords, breakfast timings (07:30 to 10:30 AM), ferry schedules, and airport cab transfers.</p>
+          </div>
+          <div class="p-3 bg-neutral-950 rounded-xl border border-neutral-800 space-y-1">
+            <strong class="text-amber-400 block font-bold">2. Auto-Dispatches Housekeeping Tickets</strong>
+            <p class="text-neutral-400">If a guest texts <em>"Please send fresh towels to Suite 204"</em>, the AI identifies the resident, creates a Housekeeping Ticket, and notifies the floor staff.</p>
+          </div>
+          <div class="p-3 bg-neutral-950 rounded-xl border border-neutral-800 space-y-1">
+            <strong class="text-amber-400 block font-bold">3. Pre-Arrival Digital Keycard</strong>
+            <p class="text-neutral-400">Sends instant welcome message on booking confirmation with GPS navigation directions and pre-check-in digital registration link.</p>
+          </div>
+          <div class="p-3 bg-neutral-950 rounded-xl border border-neutral-800 space-y-1">
+            <strong class="text-amber-400 block font-bold">4. Post-Checkout Review Booster</strong>
+            <p class="text-neutral-400">Sends thank you message 2 hours post-checkout with 1-tap direct redirection to Google Maps reviews for 5-star rating growth.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 8 -->
+    <section id="sec-8" class="space-y-4 avoid-break">
+      <div class="flex items-center gap-2">
+        <span class="px-2.5 py-0.5 rounded-md bg-amber-500 text-neutral-950 text-xs font-black">08</span>
+        <h2 class="text-xl sm:text-2xl font-black text-white">Night Audit, DSR & Financial Reporting</h2>
+      </div>
+
+      <div class="p-5 bg-neutral-900 border border-neutral-800 rounded-2xl space-y-3 text-xs text-neutral-300">
+        <p>
+          At the end of every operating day (typically 23:30 hrs), the General Manager or Night Auditor opens the <strong>Daily Sales Report (DSR)</strong> modal. The system automatically reconciles:
+        </p>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 font-mono">
+          <div class="p-3 bg-neutral-950 rounded-xl border border-neutral-800 text-center">
+            <span class="text-[10px] text-neutral-500 uppercase block">Occupancy Rate</span>
+            <span class="text-amber-400 font-extrabold text-sm">87.5%</span>
+          </div>
+          <div class="p-3 bg-neutral-950 rounded-xl border border-neutral-800 text-center">
+            <span class="text-[10px] text-neutral-500 uppercase block">ADR (Avg Daily Rate)</span>
+            <span class="text-white font-extrabold text-sm">₹4,850</span>
+          </div>
+          <div class="p-3 bg-neutral-950 rounded-xl border border-neutral-800 text-center">
+            <span class="text-[10px] text-neutral-500 uppercase block">RevPAR</span>
+            <span class="text-emerald-400 font-extrabold text-sm">₹4,243</span>
+          </div>
+          <div class="p-3 bg-neutral-950 rounded-xl border border-neutral-800 text-center">
+            <span class="text-[10px] text-neutral-500 uppercase block">Cash in Drawer</span>
+            <span class="text-blue-400 font-extrabold text-sm">₹38,200</span>
+          </div>
+        </div>
+        <p class="text-neutral-400 text-[11px] pt-1">
+          The DSR report compiles Room Revenue, Food & Beverage revenue, GST collection, and Cashier Settlement breakdown (Cash vs POS Card Swipe vs UPI QR vs Bank Transfer) and can be printed in 1 click for hotel ownership.
+        </p>
+      </div>
+    </section>
+
+    <!-- SECTION 9 -->
+    <section id="sec-9" class="space-y-4 page-break">
+      <div class="flex items-center gap-2">
+        <span class="px-2.5 py-0.5 rounded-md bg-amber-500 text-neutral-950 text-xs font-black">09</span>
+        <h2 class="text-xl sm:text-2xl font-black text-white">Standard Operating Procedures (SOP) Shift Checklists</h2>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+        <!-- Morning Shift -->
+        <div class="p-4 bg-neutral-900 border border-neutral-800 rounded-2xl space-y-3">
+          <div class="flex items-center justify-between border-b border-neutral-800 pb-2">
+            <h3 class="font-extrabold text-amber-400 text-sm">🌅 Morning Shift (07:00 - 15:30)</h3>
+          </div>
+          <ul class="space-y-2 text-neutral-300">
+            <li class="flex items-start gap-2">
+              <input type="checkbox" class="mt-0.5 rounded bg-neutral-800 border-neutral-700">
+              <span>Review <strong>Today's Expected Departures</strong> in Stayview.</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <input type="checkbox" class="mt-0.5 rounded bg-neutral-800 border-neutral-700">
+              <span>Notify Kitchen of breakfast buffet guest counts by meal plan (CP, MAP).</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <input type="checkbox" class="mt-0.5 rounded bg-neutral-800 border-neutral-700">
+              <span>Process guest checkouts & print final GST tax invoices.</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <input type="checkbox" class="mt-0.5 rounded bg-neutral-800 border-neutral-700">
+              <span>Assign checked-out rooms to Housekeeping for turnover cleaning.</span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- Afternoon Shift -->
+        <div class="p-4 bg-neutral-900 border border-neutral-800 rounded-2xl space-y-3">
+          <div class="flex items-center justify-between border-b border-neutral-800 pb-2">
+            <h3 class="font-extrabold text-amber-400 text-sm">☀️ Afternoon Shift (14:00 - 22:30)</h3>
+          </div>
+          <ul class="space-y-2 text-neutral-300">
+            <li class="flex items-start gap-2">
+              <input type="checkbox" class="mt-0.5 rounded bg-neutral-800 border-neutral-700">
+              <span>Inspect cleaned suites and mark status <strong>Clean</strong> on Room Grid.</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <input type="checkbox" class="mt-0.5 rounded bg-neutral-800 border-neutral-700">
+              <span>Execute 1-Click Check-In for arriving flights and ferry groups.</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <input type="checkbox" class="mt-0.5 rounded bg-neutral-800 border-neutral-700">
+              <span>Validate Tour Operator vouchers and meal plans (MAP dinner covers).</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <input type="checkbox" class="mt-0.5 rounded bg-neutral-800 border-neutral-700">
+              <span>Monitor live Intercom and WhatsApp feed for room service requests.</span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- Night Audit Shift -->
+        <div class="p-4 bg-neutral-900 border border-neutral-800 rounded-2xl space-y-3">
+          <div class="flex items-center justify-between border-b border-neutral-800 pb-2">
+            <h3 class="font-extrabold text-amber-400 text-sm">🌙 Night Audit (22:00 - 07:30)</h3>
+          </div>
+          <ul class="space-y-2 text-neutral-300">
+            <li class="flex items-start gap-2">
+              <input type="checkbox" class="mt-0.5 rounded bg-neutral-800 border-neutral-700">
+              <span>Audit in-house active stays against physical key slots.</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <input type="checkbox" class="mt-0.5 rounded bg-neutral-800 border-neutral-700">
+              <span>Reconcile cashier drawer cash against card swipe & UPI settlement slips.</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <input type="checkbox" class="mt-0.5 rounded bg-neutral-800 border-neutral-700">
+              <span>Generate and print <strong>Daily DSR Report</strong>.</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <input type="checkbox" class="mt-0.5 rounded bg-neutral-800 border-neutral-700">
+              <span>Pre-assign clean suites for tomorrow's early morning check-ins.</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 10 -->
+    <section id="sec-10" class="space-y-4 avoid-break">
+      <div class="flex items-center gap-2">
+        <span class="px-2.5 py-0.5 rounded-md bg-amber-500 text-neutral-950 text-xs font-black">10</span>
+        <h2 class="text-xl sm:text-2xl font-black text-white">Emergency, Intercom & Incident Protocols</h2>
+      </div>
+
+      <div class="p-5 bg-neutral-900 border border-neutral-800 rounded-2xl space-y-3 text-xs text-neutral-300">
+        <div class="flex items-center gap-2">
+          <span class="text-red-400 text-lg">🚨</span>
+          <strong class="text-white text-sm">Front Desk Two-Way Intercom Console</strong>
+        </div>
+        <p class="leading-relaxed">
+          The system includes a browser-based, hardware-free <strong>WebRTC Audio Intercom</strong> connecting the front desk directly to guest smartphones and in-room digital tablets.
+        </p>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+          <div class="p-3 bg-neutral-950 rounded-xl border border-neutral-800">
+            <strong class="text-amber-400 block font-bold">Inbound Emergency Call</strong>
+            <p class="text-neutral-400 text-[11px] mt-0.5">
+              When a guest presses "Front Desk Call" on their room QR, the header flashes green with audio chime. Click <em>Answer Call</em> to speak with the resident immediately.
+            </p>
+          </div>
+          <div class="p-3 bg-neutral-950 rounded-xl border border-neutral-800">
+            <strong class="text-amber-400 block font-bold">Outbound Wakeup & Courtesy Call</strong>
+            <p class="text-neutral-400 text-[11px] mt-0.5">
+              To contact any occupied suite for wake-up calls or cab arrival, select the room from the Intercom modal and click <em>Dial Suite</em>.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- FOOTER SIGN-OFF -->
+    <footer class="pt-8 border-t border-neutral-800 flex flex-col sm:flex-row justify-between items-center gap-4 text-xs text-neutral-500">
+      <div class="flex items-center gap-2">
+        <span class="font-bold text-neutral-400">AI-HOS Enterprise Suite</span>
+        <span>·</span>
+        <span>Proprietary Hotel Operating System</span>
+      </div>
+      <div>
+        <span>Approved for Hotel Blue Bird Inn & Enterprise Properties · 2026 Edition</span>
+      </div>
+    </footer>
+
+  </main>
+
+</body>
+</html>
