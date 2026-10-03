@@ -59,13 +59,17 @@
         <p class="text-[11px] text-neutral-400">Hotel Standard Operating Procedure & Full System Manual</p>
       </div>
     </div>
-    <div class="flex items-center gap-2.5">
+    <div class="flex items-center gap-2">
+      <a href="/product_presentation.html" class="px-3 py-1.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 text-xs font-bold rounded-xl transition border border-neutral-700 flex items-center gap-1.5">
+        <span>📽️</span>
+        <span class="hidden sm:inline">Product Presentation</span>
+      </a>
       <a href="#toc" class="px-3 py-1.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 text-xs font-bold rounded-xl transition border border-neutral-700">
         📑 Table of Contents
       </a>
-      <button onclick="window.print()" class="px-4 py-1.5 bg-amber-500 hover:bg-amber-400 text-neutral-950 text-xs font-black rounded-xl shadow-lg transition flex items-center gap-1.5">
+      <button onclick="window.print()" class="px-3.5 py-1.5 bg-amber-500 hover:bg-amber-400 text-neutral-950 text-xs font-black rounded-xl shadow-lg transition flex items-center gap-1.5">
         <span>🖨️</span>
-        <span>Save as PDF / Print</span>
+        <span class="hidden sm:inline">Save as PDF / Print</span>
       </button>
     </div>
   </header>
@@ -115,50 +119,91 @@
 
     <!-- TABLE OF CONTENTS (INTERACTIVE) -->
     <section id="toc" class="border border-neutral-800 bg-neutral-900/60 rounded-3xl p-6 sm:p-8 space-y-4 shadow-xl avoid-break">
-      <div class="flex items-center gap-2 pb-2 border-b border-neutral-800">
-        <span class="text-amber-400 text-lg">📑</span>
-        <h2 class="text-base sm:text-lg font-black uppercase tracking-wider text-white">Table of Contents</h2>
+      <div class="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-neutral-800">
+        <div class="flex items-center gap-2">
+          <span class="text-amber-400 text-lg">📑</span>
+          <h2 class="text-base sm:text-lg font-black uppercase tracking-wider text-white">Table of Contents</h2>
+        </div>
+        <div class="relative w-full sm:w-72">
+          <input
+            type="text"
+            id="manualSearch"
+            oninput="filterManualTOC()"
+            placeholder="🔍 Search chapters & topics..."
+            class="w-full bg-neutral-950 text-xs rounded-xl border border-neutral-800 px-3 py-1.5 text-neutral-200 placeholder-neutral-500 focus:outline-none focus:border-amber-500 font-medium"
+          />
+        </div>
       </div>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-        <a href="#sec-1" class="p-3 rounded-xl bg-neutral-950 hover:bg-neutral-850 border border-neutral-800/80 transition flex items-center justify-between group">
-          <span class="font-bold text-neutral-300 group-hover:text-amber-400">1. Executive Overview & System Architecture</span>
-          <span class="text-neutral-500 font-mono text-[10px]">§ 01</span>
+      <div id="tocList" class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+        <a href="#sec-1" class="toc-item p-3 rounded-xl bg-neutral-950 hover:bg-neutral-850 border border-neutral-800/80 transition flex items-center justify-between group">
+          <div class="flex items-center gap-2">
+            <span class="h-2 w-2 rounded-full bg-emerald-400"></span>
+            <span class="font-bold text-neutral-300 group-hover:text-amber-400">1. Executive Overview & System Architecture</span>
+          </div>
+          <span class="text-emerald-400 font-mono text-[10px] font-bold">§ 01</span>
         </a>
-        <a href="#sec-2" class="p-3 rounded-xl bg-neutral-950 hover:bg-neutral-850 border border-neutral-800/80 transition flex items-center justify-between group">
-          <span class="font-bold text-neutral-300 group-hover:text-amber-400">2. Front Desk & Stayview Matrix Engine</span>
-          <span class="text-neutral-500 font-mono text-[10px]">§ 02</span>
+        <a href="#sec-2" class="toc-item p-3 rounded-xl bg-neutral-950 hover:bg-neutral-850 border border-neutral-800/80 transition flex items-center justify-between group">
+          <div class="flex items-center gap-2">
+            <span class="h-2 w-2 rounded-full bg-emerald-400"></span>
+            <span class="font-bold text-neutral-300 group-hover:text-amber-400">2. Front Desk & Stayview Matrix Engine</span>
+          </div>
+          <span class="text-emerald-400 font-mono text-[10px] font-bold">§ 02</span>
         </a>
-        <a href="#sec-3" class="p-3 rounded-xl bg-neutral-950 hover:bg-neutral-850 border border-neutral-800/80 transition flex items-center justify-between group">
-          <span class="font-bold text-neutral-300 group-hover:text-amber-400">3. 1-Click Check-In, Check-Out & GST Billing</span>
-          <span class="text-neutral-500 font-mono text-[10px]">§ 03</span>
+        <a href="#sec-3" class="toc-item p-3 rounded-xl bg-neutral-950 hover:bg-neutral-850 border border-neutral-800/80 transition flex items-center justify-between group">
+          <div class="flex items-center gap-2">
+            <span class="h-2 w-2 rounded-full bg-emerald-400"></span>
+            <span class="font-bold text-neutral-300 group-hover:text-amber-400">3. 1-Click Check-In, Check-Out & GST Billing</span>
+          </div>
+          <span class="text-emerald-400 font-mono text-[10px] font-bold">§ 03</span>
         </a>
-        <a href="#sec-4" class="p-3 rounded-xl bg-neutral-950 hover:bg-neutral-850 border border-neutral-800/80 transition flex items-center justify-between group">
-          <span class="font-bold text-neutral-300 group-hover:text-amber-400">4. 2-Way Channel Manager & OTA Distribution</span>
-          <span class="text-neutral-500 font-mono text-[10px]">§ 04</span>
+        <a href="#sec-4" class="toc-item p-3 rounded-xl bg-neutral-950 hover:bg-neutral-850 border border-neutral-800/80 transition flex items-center justify-between group">
+          <div class="flex items-center gap-2">
+            <span class="h-2 w-2 rounded-full bg-blue-400"></span>
+            <span class="font-bold text-neutral-300 group-hover:text-amber-400">4. 2-Way Channel Manager & OTA Distribution</span>
+          </div>
+          <span class="text-blue-400 font-mono text-[10px] font-bold">§ 04</span>
         </a>
-        <a href="#sec-5" class="p-3 rounded-xl bg-neutral-950 hover:bg-neutral-850 border border-neutral-800/80 transition flex items-center justify-between group">
-          <span class="font-bold text-neutral-300 group-hover:text-amber-400">5. Bedside QR Dining, KDS & Runner Delivery</span>
-          <span class="text-neutral-500 font-mono text-[10px]">§ 05</span>
+        <a href="#sec-5" class="toc-item p-3 rounded-xl bg-neutral-950 hover:bg-neutral-850 border border-neutral-800/80 transition flex items-center justify-between group">
+          <div class="flex items-center gap-2">
+            <span class="h-2 w-2 rounded-full bg-rose-400"></span>
+            <span class="font-bold text-neutral-300 group-hover:text-amber-400">5. Bedside QR Dining, KDS & Runner Delivery</span>
+          </div>
+          <span class="text-rose-400 font-mono text-[10px] font-bold">§ 05</span>
         </a>
-        <a href="#sec-6" class="p-3 rounded-xl bg-neutral-950 hover:bg-neutral-850 border border-neutral-800/80 transition flex items-center justify-between group">
-          <span class="font-bold text-neutral-300 group-hover:text-amber-400">6. Travel Agent Master & B2B Credit Ledger</span>
-          <span class="text-neutral-500 font-mono text-[10px]">§ 06</span>
+        <a href="#sec-6" class="toc-item p-3 rounded-xl bg-neutral-950 hover:bg-neutral-850 border border-neutral-800/80 transition flex items-center justify-between group">
+          <div class="flex items-center gap-2">
+            <span class="h-2 w-2 rounded-full bg-amber-400"></span>
+            <span class="font-bold text-neutral-300 group-hover:text-amber-400">6. Travel Agent Master & B2B Credit Ledger</span>
+          </div>
+          <span class="text-amber-400 font-mono text-[10px] font-bold">§ 06</span>
         </a>
-        <a href="#sec-7" class="p-3 rounded-xl bg-neutral-950 hover:bg-neutral-850 border border-neutral-800/80 transition flex items-center justify-between group">
-          <span class="font-bold text-neutral-300 group-hover:text-amber-400">7. Autonomous AI Concierge & WhatsApp Guest Engagement</span>
-          <span class="text-neutral-500 font-mono text-[10px]">§ 07</span>
+        <a href="#sec-7" class="toc-item p-3 rounded-xl bg-neutral-950 hover:bg-neutral-850 border border-neutral-800/80 transition flex items-center justify-between group">
+          <div class="flex items-center gap-2">
+            <span class="h-2 w-2 rounded-full bg-purple-400"></span>
+            <span class="font-bold text-neutral-300 group-hover:text-amber-400">7. Autonomous AI Concierge & WhatsApp Guest Engagement</span>
+          </div>
+          <span class="text-purple-400 font-mono text-[10px] font-bold">§ 07</span>
         </a>
-        <a href="#sec-8" class="p-3 rounded-xl bg-neutral-950 hover:bg-neutral-850 border border-neutral-800/80 transition flex items-center justify-between group">
-          <span class="font-bold text-neutral-300 group-hover:text-amber-400">8. Night Audit, DSR & Financial Reporting</span>
-          <span class="text-neutral-500 font-mono text-[10px]">§ 08</span>
+        <a href="#sec-8" class="toc-item p-3 rounded-xl bg-neutral-950 hover:bg-neutral-850 border border-neutral-800/80 transition flex items-center justify-between group">
+          <div class="flex items-center gap-2">
+            <span class="h-2 w-2 rounded-full bg-orange-400"></span>
+            <span class="font-bold text-neutral-300 group-hover:text-amber-400">8. Night Audit, DSR & Financial Reporting</span>
+          </div>
+          <span class="text-orange-400 font-mono text-[10px] font-bold">§ 08</span>
         </a>
-        <a href="#sec-9" class="p-3 rounded-xl bg-neutral-950 hover:bg-neutral-850 border border-neutral-800/80 transition flex items-center justify-between group">
-          <span class="font-bold text-neutral-300 group-hover:text-amber-400">9. Standard Operating Procedures (SOP) Shift Checklists</span>
-          <span class="text-neutral-500 font-mono text-[10px]">§ 09</span>
+        <a href="#sec-9" class="toc-item p-3 rounded-xl bg-neutral-950 hover:bg-neutral-850 border border-neutral-800/80 transition flex items-center justify-between group">
+          <div class="flex items-center gap-2">
+            <span class="h-2 w-2 rounded-full bg-yellow-400"></span>
+            <span class="font-bold text-neutral-300 group-hover:text-amber-400">9. Standard Operating Procedures (SOP) Shift Checklists</span>
+          </div>
+          <span class="text-yellow-400 font-mono text-[10px] font-bold">§ 09</span>
         </a>
-        <a href="#sec-10" class="p-3 rounded-xl bg-neutral-950 hover:bg-neutral-850 border border-neutral-800/80 transition flex items-center justify-between group">
-          <span class="font-bold text-neutral-300 group-hover:text-amber-400">10. Emergency, Intercom & Incident Protocols</span>
-          <span class="text-neutral-500 font-mono text-[10px]">§ 10</span>
+        <a href="#sec-10" class="toc-item p-3 rounded-xl bg-neutral-950 hover:bg-neutral-850 border border-neutral-800/80 transition flex items-center justify-between group">
+          <div class="flex items-center gap-2">
+            <span class="h-2 w-2 rounded-full bg-cyan-400"></span>
+            <span class="font-bold text-neutral-300 group-hover:text-amber-400">10. Emergency, Intercom & Incident Protocols</span>
+          </div>
+          <span class="text-cyan-400 font-mono text-[10px] font-bold">§ 10</span>
         </a>
       </div>
     </section>
@@ -590,5 +635,31 @@
 
   </main>
 
+  <script>
+    function filterManualTOC() {
+      const input = document.getElementById('manualSearch');
+      const filter = (input ? input.value : '').toLowerCase().trim();
+      const items = document.querySelectorAll('.toc-item');
+      
+      items.forEach(item => {
+        const text = item.textContent.toLowerCase();
+        if (!filter || text.includes(filter)) {
+          item.style.display = 'flex';
+        } else {
+          item.style.display = 'none';
+        }
+      });
+
+      // Also highlight sections on page
+      document.querySelectorAll('main > section[id^="sec-"]').forEach(section => {
+        const sectionText = section.textContent.toLowerCase();
+        if (!filter || sectionText.includes(filter)) {
+          section.style.opacity = '1';
+        } else {
+          section.style.opacity = '0.35';
+        }
+      });
+    }
+  </script>
 </body>
 </html>

@@ -1602,6 +1602,17 @@ export default function ReceptionPMSPage() {
               <span className="hidden sm:inline">{incomingCall && incomingCallVisible ? `Room ${incomingCall.from_room} Calling!` : 'Intercom Console'}</span>
             </button>
             <a
+              href="/product_presentation.html"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-3 py-1.5 bg-neutral-850 hover:bg-neutral-800 text-neutral-200 border border-neutral-700 hover:border-cyan-500/50 font-extrabold text-[11px] rounded-xl transition flex items-center gap-1.5 shadow whitespace-nowrap shrink-0"
+              title="Open Executive Product Presentation Deck (Slides / PDF)"
+            >
+              <span>📽️</span>
+              <span className="hidden sm:inline">Presentation</span>
+            </a>
+
+            <a
               href="/hotel_os_operating_manual.html"
               target="_blank"
               rel="noopener noreferrer"

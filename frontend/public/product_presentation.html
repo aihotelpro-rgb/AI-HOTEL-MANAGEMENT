@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Hotel OS — Executive Product Presentation & Feature Showcase</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          },
+          colors: {
+            brand: {
+              gold: '#f59e0b',
+              emerald: '#10b981',
+              cyan: '#06b6d4',
+              rose: '#f43f5e',
+              purple: '#8b5cf6',
+              dark: '#0a0d14',
+              card: '#121722',
+              border: '#1f2738'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      background-color: #080b11;
+      color: #e2e8f0;
+      overflow-x: hidden;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+    .slide {
+      display: none;
+      min-height: calc(100vh - 80px);
+      animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .slide.active {
+      display: flex;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px) scale(0.995); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    .glass-card {
+      background: rgba(18, 23, 34, 0.75);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .glow-gold {
+      box-shadow: 0 0 35px -5px rgba(245, 158, 11, 0.25);
+    }
+    .glow-emerald {
+      box-shadow: 0 0 35px -5px rgba(16, 185, 129, 0.25);
+    }
+    .glow-cyan {
+      box-shadow: 0 0 35px -5px rgba(6, 182, 212, 0.25);
+    }
+    .gradient-text-gold {
+      background: linear-gradient(135deg, #fbbf24 0%, #d97706 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .gradient-text-emerald {
+      background: linear-gradient(135deg, #34d399 0%, #059669 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .gradient-text-cyan {
+      background: linear-gradient(135deg, #38bdf8 0%, #0284c7 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    /* PDF Print Stylesheet */
+    @media print {
+      body {
+        background: #ffffff !important;
+        color: #0f172a !important;
+      }
+      .no-print {
+        display: none !important;
+      }
+      .slide {
+        display: block !important;
+        min-height: auto !important;
+        page-break-after: always !important;
+        padding: 24px 16px !important;
+      }
+      .glass-card {
+        background: #f8fafc !important;
+        border: 1px solid #cbd5e1 !important;
+        box-shadow: none !important;
+        color: #0f172a !important;
+      }
+      .text-white, .text-neutral-100, .text-neutral-200 {
+        color: #0f172a !important;
+      }
+      .text-neutral-400, .text-neutral-500 {
+        color: #475569 !important;
+      }
+      .gradient-text-gold, .gradient-text-emerald, .gradient-text-cyan {
+        -webkit-text-fill-color: #0f172a !important;
+        color: #0f172a !important;
+      }
+    }
+  </style>
+</head>
+<body class="flex flex-col min-h-screen select-none">
+
+  <!-- Top Navigation & Control Bar -->
+  <header class="no-print sticky top-0 z-50 bg-[#0b0f19]/90 backdrop-blur-md border-b border-brand-border px-4 py-3">
+    <div class="max-w-7xl mx-auto flex items-center justify-between gap-4">
+      
+      <!-- Brand & Title -->
+      <div class="flex items-center gap-3">
+        <div class="h-9 w-9 rounded-xl bg-gradient-to-tr from-amber-500 to-amber-300 text-neutral-950 flex items-center justify-center font-black text-lg shadow-lg shadow-amber-500/20">
+          🏨
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="font-extrabold text-sm text-white tracking-wide">AI Hotel OS</span>
+            <span class="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30">Executive Deck</span>
+          </div>
+          <p class="text-[11px] text-neutral-400">Hotel Blue Bird Inn · Flagship Technology Suite</p>
+        </div>
+      </div>
+
+      <!-- Slide Indicator & Jump Dots -->
+      <div class="hidden md:flex items-center gap-1.5 bg-neutral-950/80 p-1.5 rounded-2xl border border-neutral-800">
+        <span class="text-[11px] font-mono font-bold text-neutral-400 px-2">
+          Slide <strong id="currentSlideNum" class="text-amber-400">1</strong> of <span id="totalSlidesNum">10</span>
+        </span>
+        <div id="slideDots" class="flex items-center gap-1 px-1"></div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="flex items-center gap-2">
+        <a href="/hotel_os_operating_manual.html" class="px-3 py-1.5 bg-neutral-900 hover:bg-neutral-800 text-neutral-300 hover:text-white border border-neutral-700 rounded-xl text-xs font-bold transition flex items-center gap-1.5">
+          <span>📖</span>
+          <span class="hidden sm:inline">Operating Manual</span>
+        </a>
+        <button onclick="window.print()" class="px-3 py-1.5 bg-neutral-900 hover:bg-neutral-800 text-neutral-300 hover:text-white border border-neutral-700 rounded-xl text-xs font-bold transition flex items-center gap-1.5" title="Export Presentation to PDF">
+          <span>🖨️</span>
+          <span class="hidden sm:inline">Export PDF</span>
+        </button>
+        <button onclick="toggleFullScreen()" class="p-1.5 bg-neutral-900 hover:bg-neutral-800 text-neutral-300 hover:text-white border border-neutral-700 rounded-xl text-xs font-bold transition" title="Toggle Fullscreen (F)">
+          ⛶
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Presentation Main Viewport -->
+  <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 flex flex-col justify-center">
+
+    <!-- ══════════════════════════════════════════════════════════ -->
+    <!-- SLIDE 1: HERO & VISION -->
+    <!-- ══════════════════════════════════════════════════════════ -->
+    <section class="slide active flex-col justify-center items-center text-center py-8" data-slide="1">
+      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-bold mb-6">
+        <span>✨ The Next-Generation Unified Hospitality Operating System</span>
+      </div>
+
+      <h1 class="text-4xl sm:text-6xl lg:text-7xl font-black text-white tracking-tight leading-[1.1] max-w-4xl">
+        Run Your Hotel with <br>
+        <span class="gradient-text-gold">Zero Friction, Zero Waste,</span><br>
+        and Complete Intelligence.
+      </h1>
+
+      <p class="text-base sm:text-xl text-neutral-400 max-w-2xl mt-6 leading-relaxed">
+        Say goodbye to 5 disconnected subscriptions and messy paper chits. AI Hotel OS unifies PMS, WebRTC Intercom, Bedside QR Dining, and B2B Travel Agent Ledgers on a single offline-resilient platform.
+      </p>
+
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 max-w-3xl w-full mt-10">
+        <div class="glass-card p-4 rounded-2xl border border-neutral-800/80">
+          <div class="text-2xl sm:text-3xl font-black text-amber-400 font-mono">45s</div>
+          <div class="text-[11px] text-neutral-400 font-bold mt-1 uppercase tracking-wider">1-Click Check-In</div>
+        </div>
+        <div class="glass-card p-4 rounded-2xl border border-neutral-800/80">
+          <div class="text-2xl sm:text-3xl font-black text-emerald-400 font-mono">₹3.2L</div>
+          <div class="text-[11px] text-neutral-400 font-bold mt-1 uppercase tracking-wider">PBX Cabling Saved</div>
+        </div>
+        <div class="glass-card p-4 rounded-2xl border border-neutral-800/80">
+          <div class="text-2xl sm:text-3xl font-black text-cyan-400 font-mono">100%</div>
+          <div class="text-[11px] text-neutral-400 font-bold mt-1 uppercase tracking-wider">Island Offline Ready</div>
+        </div>
+        <div class="glass-card p-4 rounded-2xl border border-neutral-800/80">
+          <div class="text-2xl sm:text-3xl font-black text-rose-400 font-mono">0 ₹</div>
+          <div class="text-[11px] text-neutral-400 font-bold mt-1 uppercase tracking-wider">Cloud License Fees</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══════════════════════════════════════════════════════════ -->
+    <!-- SLIDE 2: THE INDUSTRY PROBLEM -->
+    <!-- ══════════════════════════════════════════════════════════ -->
+    <section class="slide flex-col justify-center py-6" data-slide="2">
+      <div class="mb-6">
+        <span class="text-xs font-black uppercase text-rose-400 tracking-wider">The Problem</span>
+        <h2 class="text-3xl sm:text-5xl font-black text-white mt-1">Why Traditional Hotel Software Fails</h2>
+        <p class="text-sm sm:text-base text-neutral-400 mt-2">Hotel owners in tourist hubs like Port Blair are forced into costly, fragile, and disconnected legacy technology.</p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-5 mt-4">
+        <div class="glass-card p-6 rounded-3xl border border-red-500/20 bg-gradient-to-b from-red-950/20 to-transparent space-y-3">
+          <div class="h-10 w-10 rounded-2xl bg-red-500/20 text-red-400 flex items-center justify-center text-xl font-bold">
+            💸
+          </div>
+          <h3 class="text-lg font-extrabold text-white">SaaS Fee Spiral</h3>
+          <p class="text-xs text-neutral-300 leading-relaxed">
+            PMS vendor charging ₹8,000/mo, Channel Manager taking ₹6,000/mo, Restaurant POS costing ₹4,500/mo, plus WhatsApp bot fees. Over <strong>₹2.5 Lakhs every year</strong> in pure recurring subscription leakage.
+          </p>
+        </div>
+
+        <div class="glass-card p-6 rounded-3xl border border-amber-500/20 bg-gradient-to-b from-amber-950/20 to-transparent space-y-3">
+          <div class="h-10 w-10 rounded-2xl bg-amber-500/20 text-amber-400 flex items-center justify-center text-xl font-bold">
+            🔌
+          </div>
+          <h3 class="text-lg font-extrabold text-white">Telephone Wiring Nightmares</h3>
+          <p class="text-xs text-neutral-300 leading-relaxed">
+            Old-fashioned copper EPABX intercom boxes cost ₹2,00,000+ to cable across multiple floors. When tropical humidity corrodes copper lines, guests cannot call the front desk for room service.
+          </p>
+        </div>
+
+        <div class="glass-card p-6 rounded-3xl border border-purple-500/20 bg-gradient-to-b from-purple-950/20 to-transparent space-y-3">
+          <div class="h-10 w-10 rounded-2xl bg-purple-500/20 text-purple-400 flex items-center justify-center text-xl font-bold">
+            📉
+          </div>
+          <h3 class="text-lg font-extrabold text-white">B2B Agent Debt Disasters</h3>
+          <p class="text-xs text-neutral-300 leading-relaxed">
+            Over 50% of island bookings come via Tour Operators and DMCs. Tracking vouchers, net rates, and 30-day credit in Excel spreadsheets leads to forgotten balances and uncollected bad debts.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══════════════════════════════════════════════════════════ -->
+    <!-- SLIDE 3: 10 UNIFIED MODULES -->
+    <!-- ══════════════════════════════════════════════════════════ -->
+    <section class="slide flex-col justify-center py-6" data-slide="3">
+      <div class="mb-4">
+        <span class="text-xs font-black uppercase text-amber-400 tracking-wider">The Solution</span>
+        <h2 class="text-3xl sm:text-5xl font-black text-white mt-1">10 Integrated Pillars on One Platform</h2>
+        <p class="text-sm sm:text-base text-neutral-400 mt-1">Every department communicates through a shared real-time database and zero-latency WebSocket bus.</p>
+      </div>
+
+      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mt-4">
+        <div class="glass-card p-4 rounded-2xl border-l-4 border-l-emerald-500 space-y-1">
+          <span class="text-xl">🛏️</span>
+          <h4 class="font-extrabold text-white text-xs">50-Room PMS Grid</h4>
+          <p class="text-[10px] text-neutral-400">Live occupancy, floor filter, instant check-in & C-Forms.</p>
+        </div>
+        <div class="glass-card p-4 rounded-2xl border-l-4 border-l-amber-500 space-y-1">
+          <span class="text-xl">✈️</span>
+          <h4 class="font-extrabold text-white text-xs">B2B Travel Agents</h4>
+          <p class="text-[10px] text-neutral-400">DMC contracts, voucher billing & 30-day credit ledgers.</p>
+        </div>
+        <div class="glass-card p-4 rounded-2xl border-l-4 border-l-rose-500 space-y-1">
+          <span class="text-xl">🍽️</span>
+          <h4 class="font-extrabold text-white text-xs">QR Bedside Dining</h4>
+          <p class="text-[10px] text-neutral-400">Contactless smartphone ordering straight to Kitchen KOT.</p>
+        </div>
+        <div class="glass-card p-4 rounded-2xl border-l-4 border-l-cyan-500 space-y-1">
+          <span class="text-xl">📞</span>
+          <h4 class="font-extrabold text-white text-xs">WebRTC Intercom</h4>
+          <p class="text-[10px] text-neutral-400">Browser voice calls to suites with zero physical cables.</p>
+        </div>
+        <div class="glass-card p-4 rounded-2xl border-l-4 border-l-purple-500 space-y-1">
+          <span class="text-xl">🧹</span>
+          <h4 class="font-extrabold text-white text-xs">Housekeeping Flow</h4>
+          <p class="text-[10px] text-neutral-400">Rapid turnover queue from Checkout to Clean inspection.</p>
+        </div>
+        <div class="glass-card p-4 rounded-2xl border-l-4 border-l-green-500 space-y-1">
+          <span class="text-xl">💬</span>
+          <h4 class="font-extrabold text-white text-xs">AI WhatsApp Bot</h4>
+          <p class="text-[10px] text-neutral-400">Automated welcome greetings, ferry schedules & FAQ concierge.</p>
+        </div>
+        <div class="glass-card p-4 rounded-2xl border-l-4 border-l-blue-500 space-y-1">
+          <span class="text-xl">📦</span>
+          <h4 class="font-extrabold text-white text-xs">Store & MMS Inventory</h4>
+          <p class="text-[10px] text-neutral-400">Recipe batch costing, stock depletion & low-stock alerts.</p>
+        </div>
+        <div class="glass-card p-4 rounded-2xl border-l-4 border-l-orange-500 space-y-1">
+          <span class="text-xl">🎪</span>
+          <h4 class="font-extrabold text-white text-xs">Banquet & Events</h4>
+          <p class="text-[10px] text-neutral-400">Conferences, wedding halls & multi-session banquet bookings.</p>
+        </div>
+        <div class="glass-card p-4 rounded-2xl border-l-4 border-l-yellow-500 space-y-1">
+          <span class="text-xl">📊</span>
+          <h4 class="font-extrabold text-white text-xs">Tally Bridge</h4>
+          <p class="text-[10px] text-neutral-400">1-click XML export for Indian GST and Chartered Accountants.</p>
+        </div>
+        <div class="glass-card p-4 rounded-2xl border-l-4 border-l-indigo-500 space-y-1">
+          <span class="text-xl">📑</span>
+          <h4 class="font-extrabold text-white text-xs">Night Audit DSR</h4>
+          <p class="text-[10px] text-neutral-400">Official Daily Sales Report & 4-way cashier reconciliation.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══════════════════════════════════════════════════════════ -->
+    <!-- SLIDE 4: COMPETITIVE COMPARISON MATRIX -->
+    <!-- ══════════════════════════════════════════════════════════ -->
+    <section class="slide flex-col justify-center py-6" data-slide="4">
+      <div class="mb-4">
+        <span class="text-xs font-black uppercase text-cyan-400 tracking-wider">Benchmark</span>
+        <h2 class="text-3xl sm:text-5xl font-black text-white mt-1">AI Hotel OS vs. Tosskey & Legacy PMS</h2>
+      </div>
+
+      <div class="glass-card rounded-3xl overflow-hidden border border-neutral-800 mt-2">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead>
+              <tr class="bg-neutral-950/80 border-b border-neutral-800 text-neutral-400 text-[10px] uppercase font-black">
+                <th class="p-3.5">Capability / Domain</th>
+                <th class="p-3.5 text-rose-400">Tosskey Suite</th>
+                <th class="p-3.5 text-neutral-400">IDS Next / Opera</th>
+                <th class="p-3.5 text-amber-400 font-bold bg-amber-500/10">AI Hotel OS</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-neutral-800/60 font-medium">
+              <tr>
+                <td class="p-3.5 font-bold text-white">Travel Agent & B2B Ledger</td>
+                <td class="p-3.5 text-neutral-400">Basic Rate Code Only</td>
+                <td class="p-3.5 text-neutral-400">Requires Heavy AR Module</td>
+                <td class="p-3.5 text-emerald-400 font-bold bg-amber-500/5">✓ Built-in Net Rates, Vouchers & SOA</td>
+              </tr>
+              <tr>
+                <td class="p-3.5 font-bold text-white">Room Intercom System</td>
+                <td class="p-3.5 text-red-400">✕ None (Needs EPABX)</td>
+                <td class="p-3.5 text-red-400">✕ None (Needs Hardware)</td>
+                <td class="p-3.5 text-emerald-400 font-bold bg-amber-500/5">✓ WebRTC Browser Audio (0 Cables)</td>
+              </tr>
+              <tr>
+                <td class="p-3.5 font-bold text-white">Bedside QR Digital Dining</td>
+                <td class="p-3.5 text-neutral-400">Separate Touch POS App</td>
+                <td class="p-3.5 text-red-400">✕ Costly 3rd Party Add-on</td>
+                <td class="p-3.5 text-emerald-400 font-bold bg-amber-500/5">✓ Real-time Room QR & Auto-Folio</td>
+              </tr>
+              <tr>
+                <td class="p-3.5 font-bold text-white">Island Offline Resilience</td>
+                <td class="p-3.5 text-red-400">✕ Fails when cloud drops</td>
+                <td class="p-3.5 text-neutral-400">Local Server (Complex)</td>
+                <td class="p-3.5 text-emerald-400 font-bold bg-amber-500/5">✓ Full Offline Engine with Auto-Sync</td>
+              </tr>
+              <tr>
+                <td class="p-3.5 font-bold text-white">WhatsApp AI Concierge</td>
+                <td class="p-3.5 text-neutral-400">Third-party SMS/WA API</td>
+                <td class="p-3.5 text-red-400">✕ Complex Custom Integration</td>
+                <td class="p-3.5 text-emerald-400 font-bold bg-amber-500/5">✓ Native Intent AI & Ferry Schedules</td>
+              </tr>
+              <tr>
+                <td class="p-3.5 font-bold text-white">Monthly Subscription Cost</td>
+                <td class="p-3.5 text-red-400">₹15,000 – ₹25,000 / month</td>
+                <td class="p-3.5 text-red-400">₹30,000+ / month</td>
+                <td class="p-3.5 text-emerald-400 font-bold bg-amber-500/5">₹0 Monthly (Self-Hosted Model)</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══════════════════════════════════════════════════════════ -->
+    <!-- SLIDE 5: TRAVEL AGENT & B2B CREDIT LEDGER -->
+    <!-- ══════════════════════════════════════════════════════════ -->
+    <section class="slide flex-col justify-center py-6" data-slide="5">
+      <div class="mb-4">
+        <span class="text-xs font-black uppercase text-amber-400 tracking-wider">B2B Financial Engine</span>
+        <h2 class="text-3xl sm:text-5xl font-black text-white mt-1">Travel Agent & Tour Operator Management</h2>
+        <p class="text-sm sm:text-base text-neutral-400 mt-1">Designed specifically for island tourism where 50% of revenue flows through DMCs.</p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-5 mt-4">
+        <div class="glass-card p-5 rounded-3xl border border-amber-500/30 space-y-3">
+          <span class="text-2xl">📑</span>
+          <h3 class="text-base font-extrabold text-white">Voucher Guarantee & Net Rates</h3>
+          <p class="text-xs text-neutral-300 leading-relaxed">
+            Record Tour Operator Voucher Number (e.g. <code>AID-2026-9812</code>) and meal plan package (EP, CP, MAP, AP). Contract options support Wholesale Net Rate tariffs or negotiated Commission %.
+          </p>
+        </div>
+
+        <div class="glass-card p-5 rounded-3xl border border-amber-500/30 space-y-3">
+          <span class="text-2xl">💳</span>
+          <h3 class="text-base font-extrabold text-white">3-Way B2B Billing Settlement</h3>
+          <p class="text-xs text-neutral-300 leading-relaxed">
+            Choose between <strong>Full Advance</strong> (100% pre-paid via NEFT), <strong>Partial Token Advance</strong> (token paid, balance at desk), or <strong>Bill-to-Company (BTC)</strong> charged to the agency's credit ledger.
+          </p>
+        </div>
+
+        <div class="glass-card p-5 rounded-3xl border border-amber-500/30 space-y-3">
+          <span class="text-2xl">⚖️</span>
+          <h3 class="text-base font-extrabold text-white">Statement of Account (SOA) & Bank UTR</h3>
+          <p class="text-xs text-neutral-300 leading-relaxed">
+            Automatic double-entry debits upon booking and credit upon payment. Generate 1-click printable Statements of Account and reconcile bulk payments with Bank UTR reference codes.
+          </p>
+        </div>
+      </div>
+
+      <div class="mt-6 glass-card p-4 rounded-2xl flex flex-wrap justify-between items-center gap-3 border border-amber-500/20 bg-amber-500/5">
+        <div class="flex items-center gap-3">
+          <span class="text-2xl">🛡️</span>
+          <div>
+            <h4 class="text-xs font-bold text-white">Automated Credit Limit Enforcement</h4>
+            <p class="text-[11px] text-neutral-400">Front desk gets instant visual warnings when an agency exceeds their ₹1,50,000 credit limit or 30-day payment term.</p>
+          </div>
+        </div>
+        <span class="px-3 py-1 bg-amber-500 text-neutral-950 font-black text-xs rounded-xl">0% Bad Debts</span>
+      </div>
+    </section>
+
+    <!-- ══════════════════════════════════════════════════════════ -->
+    <!-- SLIDE 6: WEBRTC ZERO-CABLE INTERCOM -->
+    <!-- ══════════════════════════════════════════════════════════ -->
+    <section class="slide flex-col justify-center py-6" data-slide="6">
+      <div class="mb-4">
+        <span class="text-xs font-black uppercase text-cyan-400 tracking-wider">Hardware Innovation</span>
+        <h2 class="text-3xl sm:text-5xl font-black text-white mt-1">Live WebRTC Room Voice Intercom</h2>
+        <p class="text-sm sm:text-base text-neutral-400 mt-1">Replace fragile, expensive copper cabling with pure browser-based high-definition audio.</p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+        <div class="glass-card p-6 rounded-3xl border border-cyan-500/30 space-y-4">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-extrabold uppercase text-cyan-400">Front Desk Console</span>
+            <span class="h-2 w-2 rounded-full bg-cyan-400 animate-ping"></span>
+          </div>
+          <h3 class="text-xl font-black text-white">1-Click Calling to Any Suite</h3>
+          <p class="text-xs text-neutral-300 leading-relaxed">
+            Front desk receptionists can call any room (e.g. Suite 101, 204) directly from the PMS dashboard with a single tap. Audio uses browser WebSockets and WebRTC audio streams without external telephone landlines.
+          </p>
+          <div class="p-3 bg-neutral-950 rounded-2xl border border-neutral-800 flex items-center justify-between text-xs font-mono">
+            <span>Audio Latency: <strong class="text-emerald-400">&lt; 40ms</strong></span>
+            <span>Codec: <strong class="text-cyan-400">Opus Fullband</strong></span>
+          </div>
+        </div>
+
+        <div class="glass-card p-6 rounded-3xl border border-cyan-500/30 space-y-4">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-extrabold uppercase text-cyan-400">Guest Experience</span>
+            <span class="text-xs font-mono text-neutral-400">Bedside Tablet / Phone</span>
+          </div>
+          <h3 class="text-xl font-black text-white">Incoming Call Notification & 1-Tap Answer</h3>
+          <p class="text-xs text-neutral-300 leading-relaxed">
+            When a guest places an order or calls for extra towels, the front desk header sounds a pleasant chime and highlights the calling room card. Staff answers instantly with full duplex crystal-clear voice.
+          </p>
+          <div class="p-3 bg-neutral-950 rounded-2xl border border-neutral-800 flex items-center justify-between text-xs font-mono">
+            <span>Hardware Cost: <strong class="text-emerald-400">₹0</strong></span>
+            <span>Cabling Required: <strong class="text-emerald-400">0 Meters</strong></span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══════════════════════════════════════════════════════════ -->
+    <!-- SLIDE 7: BEDSIDE QR DIGITAL DINING -->
+    <!-- ══════════════════════════════════════════════════════════ -->
+    <section class="slide flex-col justify-center py-6" data-slide="7">
+      <div class="mb-4">
+        <span class="text-xs font-black uppercase text-rose-400 tracking-wider">F&B Automation</span>
+        <h2 class="text-3xl sm:text-5xl font-black text-white mt-1">Bedside QR Dining & Kitchen Display (KOT)</h2>
+        <p class="text-sm sm:text-base text-neutral-400 mt-1">Contactless ordering from smartphone cameras straight to kitchen tickets and guest bills.</p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-5 mt-4">
+        <div class="glass-card p-5 rounded-3xl border border-rose-500/30 space-y-3">
+          <div class="h-10 w-10 rounded-2xl bg-rose-500/20 text-rose-400 flex items-center justify-center text-xl font-bold">
+            📱
+          </div>
+          <h3 class="text-base font-extrabold text-white">No App Download Needed</h3>
+          <p class="text-xs text-neutral-300 leading-relaxed">
+            Guests scan the suite standee QR code with any iPhone or Android camera. Menu opens instantly with photos, spice ratings, dietary badges, and prices.
+          </p>
+        </div>
+
+        <div class="glass-card p-5 rounded-3xl border border-rose-500/30 space-y-3">
+          <div class="h-10 w-10 rounded-2xl bg-rose-500/20 text-rose-400 flex items-center justify-center text-xl font-bold">
+            👨‍🍳
+          </div>
+          <h3 class="text-base font-extrabold text-white">Live Kitchen KOT Routing</h3>
+          <p class="text-xs text-neutral-300 leading-relaxed">
+            Order rings in the kitchen screen immediately with sound alerts and time counters. No lost paper slips or delayed kitchen preparation.
+          </p>
+        </div>
+
+        <div class="glass-card p-5 rounded-3xl border border-rose-500/30 space-y-3">
+          <div class="h-10 w-10 rounded-2xl bg-rose-500/20 text-rose-400 flex items-center justify-center text-xl font-bold">
+            🧾
+          </div>
+          <h3 class="text-base font-extrabold text-white">Automated Room Bill Posting</h3>
+          <p class="text-xs text-neutral-300 leading-relaxed">
+            Delivered food items are automatically added to the guest's room folio with 12% GST breakdown, eliminating checkout billing disputes.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══════════════════════════════════════════════════════════ -->
+    <!-- SLIDE 8: CLIENT CASE STUDY (HOTEL BLUE BIRD INN) -->
+    <!-- ══════════════════════════════════════════════════════════ -->
+    <section class="slide flex-col justify-center py-6" data-slide="8">
+      <div class="mb-4">
+        <span class="text-xs font-black uppercase text-emerald-400 tracking-wider">Field Proven Results</span>
+        <h2 class="text-3xl sm:text-5xl font-black text-white mt-1">Case Study: Hotel Blue Bird Inn</h2>
+        <p class="text-sm sm:text-base text-neutral-400 mt-1">Garacharma, Sri Vijayapuram, Port Blair, Andaman & Nicobar Islands (24 Rooms, 2 Floors).</p>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
+        <div class="glass-card p-5 rounded-3xl border border-emerald-500/30 bg-gradient-to-b from-emerald-950/20 to-transparent">
+          <span class="text-xs uppercase font-extrabold text-neutral-400">Front Desk Check-In</span>
+          <div class="text-3xl sm:text-4xl font-black text-emerald-400 mt-2 font-mono">8m ➔ 45s</div>
+          <p class="text-[11px] text-neutral-300 mt-2">1-Click registration with automated Police C-Form data capture.</p>
+        </div>
+
+        <div class="glass-card p-5 rounded-3xl border border-amber-500/30 bg-gradient-to-b from-amber-950/20 to-transparent">
+          <span class="text-xs uppercase font-extrabold text-neutral-400">In-Room Dining Revenue</span>
+          <div class="text-3xl sm:text-4xl font-black text-amber-400 mt-2 font-mono">+34.8%</div>
+          <p class="text-[11px] text-neutral-300 mt-2">Visual bedside QR menus increased late-night room orders significantly.</p>
+        </div>
+
+        <div class="glass-card p-5 rounded-3xl border border-cyan-500/30 bg-gradient-to-b from-cyan-950/20 to-transparent">
+          <span class="text-xs uppercase font-extrabold text-neutral-400">Telecom & Cabling Capex</span>
+          <div class="text-3xl sm:text-4xl font-black text-cyan-400 mt-2 font-mono">₹3.2 Lakhs</div>
+          <p class="text-[11px] text-neutral-300 mt-2">Completely bypassed physical PBX installation and maintenance.</p>
+        </div>
+
+        <div class="glass-card p-5 rounded-3xl border border-purple-500/30 bg-gradient-to-b from-purple-950/20 to-transparent">
+          <span class="text-xs uppercase font-extrabold text-neutral-400">B2B Agent Debt Recovery</span>
+          <div class="text-3xl sm:text-4xl font-black text-purple-400 mt-2 font-mono">100%</div>
+          <p class="text-[11px] text-neutral-300 mt-2">Zero uncollected receivables across 14 tour operator accounts.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══════════════════════════════════════════════════════════ -->
+    <!-- SLIDE 9: ISLAND OFFLINE RESILIENCE -->
+    <!-- ══════════════════════════════════════════════════════════ -->
+    <section class="slide flex-col justify-center py-6" data-slide="9">
+      <div class="mb-4">
+        <span class="text-xs font-black uppercase text-cyan-400 tracking-wider">Engineering Excellence</span>
+        <h2 class="text-3xl sm:text-5xl font-black text-white mt-1">Subsea Fiber Cut? Zero Problem.</h2>
+        <p class="text-sm sm:text-base text-neutral-400 mt-1">Built specifically for the Andaman & Nicobar environment where internet outages happen regularly.</p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+        <div class="glass-card p-6 rounded-3xl border border-neutral-800 space-y-4">
+          <div class="flex items-center gap-2">
+            <span class="h-8 w-8 rounded-xl bg-red-500/20 text-red-400 flex items-center justify-center font-bold">✕</span>
+            <h3 class="text-lg font-extrabold text-white">Cloud PMS (Tosskey, Hotelogix)</h3>
+          </div>
+          <ul class="space-y-2.5 text-xs text-neutral-300">
+            <li class="flex items-start gap-2">
+              <span class="text-red-400 font-bold">•</span>
+              <span>Screen freezes when the island undersea fiber optic cable cuts.</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="text-red-400 font-bold">•</span>
+              <span>Guests wait at reception for hours because bills cannot be printed.</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="text-red-400 font-bold">•</span>
+              <span>Kitchen tickets cannot print because cloud server is unreachable.</span>
+            </li>
+          </ul>
+        </div>
+
+        <div class="glass-card p-6 rounded-3xl border border-emerald-500/40 bg-emerald-950/10 space-y-4">
+          <div class="flex items-center gap-2">
+            <span class="h-8 w-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold">✓</span>
+            <h3 class="text-lg font-extrabold text-white">AI Hotel OS (Local First Engine)</h3>
+          </div>
+          <ul class="space-y-2.5 text-xs text-neutral-200">
+            <li class="flex items-start gap-2">
+              <span class="text-emerald-400 font-bold">•</span>
+              <span>Runs 100% locally on the hotel's local network over Wi-Fi/LAN.</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="text-emerald-400 font-bold">•</span>
+              <span>Check-in, bills, KOTs, and intercom function with zero internet.</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="text-emerald-400 font-bold">•</span>
+              <span>Silently syncs backup data to cloud repository as soon as internet restores.</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══════════════════════════════════════════════════════════ -->
+    <!-- SLIDE 10: 72-HOUR CUTOVER & ACTION -->
+    <!-- ══════════════════════════════════════════════════════════ -->
+    <section class="slide flex-col justify-center items-center text-center py-8" data-slide="10">
+      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-bold mb-6">
+        <span>🚀 Ready for Seamless Implementation</span>
+      </div>
+
+      <h2 class="text-4xl sm:text-6xl font-black text-white tracking-tight leading-tight max-w-3xl">
+        Deploy in <span class="gradient-text-emerald">72 Hours</span> with Zero Disruption.
+      </h2>
+
+      <p class="text-sm sm:text-base text-neutral-400 max-w-xl mt-4 leading-relaxed">
+        Our plug-and-play migration imports your room catalog, guest history, and travel agent ledger balances in a single afternoon.
+      </p>
+
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-3xl w-full mt-8 text-left">
+        <div class="glass-card p-5 rounded-2xl border border-neutral-800">
+          <div class="text-amber-400 font-black text-lg">Day 1: Setup</div>
+          <p class="text-xs text-neutral-300 mt-1">Local server install, room catalog mapping & Wi-Fi configuration.</p>
+        </div>
+        <div class="glass-card p-5 rounded-2xl border border-neutral-800">
+          <div class="text-cyan-400 font-black text-lg">Day 2: Training</div>
+          <p class="text-xs text-neutral-300 mt-1">Front desk, housekeeping, and kitchen staff hands-on role certification.</p>
+        </div>
+        <div class="glass-card p-5 rounded-2xl border border-neutral-800">
+          <div class="text-emerald-400 font-black text-lg">Day 3: Go-Live</div>
+          <p class="text-xs text-neutral-300 mt-1">Live check-in, bedside QR standees placed & instant night audit.</p>
+        </div>
+      </div>
+
+      <div class="mt-10 flex flex-wrap items-center justify-center gap-4">
+        <a href="/hotel_os_operating_manual.html" class="px-6 py-3 bg-amber-500 hover:bg-amber-400 text-neutral-950 font-black rounded-2xl shadow-xl shadow-amber-500/20 text-sm transition flex items-center gap-2">
+          <span>📖 Open Master Operations Manual</span>
+        </a>
+        <button onclick="goToSlide(1)" class="px-6 py-3 bg-neutral-900 hover:bg-neutral-800 text-neutral-200 border border-neutral-700 font-bold rounded-2xl text-sm transition">
+          ↺ Restart Presentation
+        </button>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Bottom Floating Presentation Controller -->
+  <footer class="no-print sticky bottom-4 z-40 max-w-md mx-auto w-full px-4">
+    <div class="bg-neutral-950/90 backdrop-blur-md border border-neutral-800 p-2 rounded-2xl shadow-2xl flex items-center justify-between gap-3">
+      <button onclick="prevSlide()" class="p-2.5 bg-neutral-900 hover:bg-neutral-800 text-neutral-300 hover:text-white rounded-xl text-xs font-bold transition flex items-center gap-1">
+        <span>◀</span>
+        <span class="hidden sm:inline">Prev</span>
+      </button>
+
+      <div class="flex items-center gap-2 text-xs font-mono font-bold text-neutral-400">
+        <span>Use <strong class="text-amber-400">← →</strong> keys</span>
+      </div>
+
+      <button onclick="nextSlide()" class="p-2.5 bg-amber-500 hover:bg-amber-400 text-neutral-950 rounded-xl text-xs font-black transition flex items-center gap-1 shadow-lg shadow-amber-500/20">
+        <span class="hidden sm:inline">Next</span>
+        <span>▶</span>
+      </button>
+    </div>
+  </footer>
+
+  <script>
+    let currentSlide = 1;
+    const totalSlides = 10;
+
+    function initDots() {
+      const dotsContainer = document.getElementById('slideDots');
+      dotsContainer.innerHTML = '';
+      for (let i = 1; i <= totalSlides; i++) {
+        const dot = document.createElement('button');
+        dot.className = `h-2 w-2 rounded-full transition-all ${i === 1 ? 'bg-amber-400 w-5' : 'bg-neutral-700 hover:bg-neutral-500'}`;
+        dot.title = `Go to slide ${i}`;
+        dot.onclick = () => goToSlide(i);
+        dotsContainer.appendChild(dot);
+      }
+    }
+
+    function updateSlideUI() {
+      document.querySelectorAll('.slide').forEach(s => s.classList.remove('active'));
+      const activeEl = document.querySelector(`.slide[data-slide="${currentSlide}"]`);
+      if (activeEl) activeEl.classList.add('active');
+
+      document.getElementById('currentSlideNum').innerText = currentSlide;
+      
+      const dots = document.querySelectorAll('#slideDots button');
+      dots.forEach((dot, idx) => {
+        if (idx + 1 === currentSlide) {
+          dot.className = 'h-2 rounded-full transition-all bg-amber-400 w-5';
+        } else {
+          dot.className = 'h-2 w-2 rounded-full transition-all bg-neutral-700 hover:bg-neutral-500';
+        }
+      });
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function nextSlide() {
+      if (currentSlide < totalSlides) {
+        currentSlide++;
+        updateSlideUI();
+      }
+    }
+
+    function prevSlide() {
+      if (currentSlide > 1) {
+        currentSlide--;
+        updateSlideUI();
+      }
+    }
+
+    function goToSlide(n) {
+      if (n >= 1 && n <= totalSlides) {
+        currentSlide = n;
+        updateSlideUI();
+      }
+    }
+
+    function toggleFullScreen() {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(() => {});
+      } else {
+        if (document.exitFullscreen) {
+          document.exitFullscreen();
+        }
+      }
+    }
+
+    // Keyboard Navigation
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') {
+        nextSlide();
+      } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+        prevSlide();
+      } else if (e.key === 'Home') {
+        goToSlide(1);
+      } else if (e.key === 'End') {
+        goToSlide(totalSlides);
+      } else if (e.key === 'f' || e.key === 'F') {
+        toggleFullScreen();
+      }
+    });
+
+    // Touch Swipe Navigation for mobile & tablet
+    let touchStartX = 0;
+    let touchEndX = 0;
+    document.addEventListener('touchstart', (e) => {
+      touchStartX = e.changedTouches[0].screenX;
+    }, false);
+    document.addEventListener('touchend', (e) => {
+      touchEndX = e.changedTouches[0].screenX;
+      if (touchEndX < touchStartX - 50) nextSlide();
+      if (touchEndX > touchStartX + 50) prevSlide();
+    }, false);
+
+    initDots();
+  </script>
+</body>
+</html>
